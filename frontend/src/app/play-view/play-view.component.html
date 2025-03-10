@@ -1,0 +1,70 @@
+<div class="play-view-container">
+  <div class="queue-column start-queue">
+    <h2>Start a Queue</h2>
+    <form [formGroup]="queueForm" (ngSubmit)="startQueue()">
+      <div class="form-group">
+        <label for="gameMode">GAME MODE</label>
+        <select id="gameMode" formControlName="gameMode" (change)="onGameModeChange()">
+          <option value="" disabled selected>Select a game mode</option>
+          <option value="Wingman">Wingman</option>
+          <option value="3v3">3v3</option>
+          <option value="5v5">5v5</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="map">MAP</label>
+        <select id="map" formControlName="map" [disabled]="!queueForm.get('gameMode')?.value">
+          <option value="" disabled selected>Select a map</option>
+          <option *ngFor="let map of availableMaps" [value]="map">{{map}}</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="server">SERVER</label>
+        <select id="server" formControlName="server" [disabled]="!queueForm.get('gameMode')?.value">
+          <option value="" disabled selected>Select a server</option>
+          <option *ngFor="let server of availableServers" [value]="server">{{server}}</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="password">PASSWORD (OPTIONAL)</label>
+        <input type="text" id="password" formControlName="password">
+      </div>
+
+      <div class="form-group checkbox">
+        <input type="checkbox" id="ranked" formControlName="ranked">
+        <label for="ranked">Ranked?</label>
+      </div>
+
+      <button type="submit" [disabled]="queueForm.invalid">Start Queue</button>
+    </form>
+  </div>
+
+  <div class="queue-column join-queue">
+    <h2>Join a Queue</h2>
+    <div class="active-queues">
+      <div class="queue-headers">
+        <span>Queue Host</span>
+        <span>Game Mode</span>
+        <span>Players</span>
+        <span>Server</span>
+        <span>Ranked?</span>
+      </div>
+      <div class="queue-list">
+        <div class="queue-item" 
+             *ngFor="let queue of activeQueues" 
+             (click)="selectQueue(queue)"
+             [class.selected]="selectedQueue?.id === queue.id">
+          <span>{{ queue.host }}</span>
+          <span>{{ queue.gameMode }}</span>
+          <span>{{ queue.players }}</span>
+          <span>{{ queue.server }}</span>
+          <span>{{ queue.ranked ? 'Yes' : 'No' }}</span>
+        </div>
+      </div>
+    </div>
+    <button class="join-button" [disabled]="!selectedQueue" (click)="joinQueue()">Join Queue</button>
+  </div>
+</div>

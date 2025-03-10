@@ -1,0 +1,30 @@
+<div style="display: block">
+  <h1 style="width: 100%; text-align: center; font-size: 66px">
+    {{ pageTitle }}
+  </h1>
+  <div style="width: 100%">
+    <div style="display: inline; width: 50%; text-align: center">
+      @for (paragraphText of descriptionParagraphs; track paragraphText) {
+      <p>
+        <b>
+          {{ paragraphText }}
+        </b>
+      </p>
+      }
+      <!--
+      <p>
+        <b>
+          Showcase for projects that have been worked on by 2 or more
+          collaborators of Spooky Manor Software.
+        </b>
+      </p>
+      <p>
+        <b>
+          Projects listed here are not necessarily owned by Spooky Manor
+          Software.
+        </b>
+      </p>
+    --></div>
+  </div>
+  <app-divbar></app-divbar>
+</div>

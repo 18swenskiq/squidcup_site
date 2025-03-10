@@ -1,0 +1,50 @@
+.main-bar {
+  position: fixed;
+  width: 100%;
+  z-index: 1;
+  top: 0;
+  box-sizing: content-box;
+  line-height: 4rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.sub-bar {
+  width: 100%;
+  overflow: hidden;
+  //display: inline-block;
+  width: auto;
+  overflow-x: hidden;
+  overflow-y: hidden;
+  box-sizing: border-box;
+  padding-bottom: 8px;
+  padding-left: 16px;
+  padding-right: 16px;
+  padding-top: 8px;
+}
+
+.right-side {
+  float: right !important;
+}
+
+.left-side-item {
+  padding: 24px;
+  font-size: 32px;
+  float: left;
+  width: auto;
+  border: none;
+  display: block;
+  outline: 0;
+}
+
+.right-side-item {
+  padding: 24px 32px;
+  float: left;
+  width: auto;
+  border: none;
+  display: block;
+  outline: 0;
+}
+
+h3 {
+  align-content: center;
+}
