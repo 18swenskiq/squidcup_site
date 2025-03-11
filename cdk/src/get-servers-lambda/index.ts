@@ -8,4 +8,5 @@ async function getServers(event: any) {
   };
 }
 
-module.exports = {main: getServers};
+// Export as handler instead of main
+exports.handler = getServers;

@@ -8,4 +8,5 @@ async function getMaps(event: any) {
   };
 }
 
-module.exports = {main: getMaps};
+// Export as handler instead of main
+exports.handler = getMaps;
