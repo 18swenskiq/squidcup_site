@@ -1,4 +1,4 @@
-async function getMaps(event: any) {
+async function getServers(event: any) {
   console.log('region 👉', process.env.REGION);
   console.log('availability zones 👉', process.env.AVAILABILITY_ZONES);
 
@@ -8,4 +8,4 @@ async function getMaps(event: any) {
   };
 }
 
-module.exports = {main: getMaps};
+module.exports = {main: getServers};
