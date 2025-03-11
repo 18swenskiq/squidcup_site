@@ -31,6 +31,9 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_KEY }}
           aws-region: 'us-east-2'
 
+      - name: Bootstrap stack
+        run: cdk bootstrap
+
       - name: Synth stack
         run: cdk synth
 
