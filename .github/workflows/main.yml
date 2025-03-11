@@ -2,14 +2,14 @@ on: [push]
 jobs:
   aws_cdk:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./cdk
     steps:
       - name: Check out code
         uses: actions/checkout@v2
         with:
           fetch-depth: 2
-
-      - name: Set CDK Directory
-        run: cd cdk
 
       - name: Setup Node.js environment
         uses: actions/setup-node@v2
