@@ -18,7 +18,7 @@ export class ApiStack extends Construct {
       runtime: this.RUNTIME,
       memorySize: this.MEMORY_SIZE,
       timeout: this.TIMEOUT,
-      handler: 'index.getMaps',
+      handler: 'getMaps',
       code: lambda.Code.fromAsset(path.join(__dirname, '/../src/get-maps-lambda')),
       environment: {
         REGION: this.REGION,
@@ -29,7 +29,7 @@ export class ApiStack extends Construct {
       runtime: this.RUNTIME,
       memorySize: this.MEMORY_SIZE,
       timeout: this.TIMEOUT,
-      handler: 'index.getServers',
+      handler: 'getServers',
       code: lambda.Code.fromAsset(path.join(__dirname, '/../src/get-servers-lambda')),
       environment: {
         REGION: this.REGION,
