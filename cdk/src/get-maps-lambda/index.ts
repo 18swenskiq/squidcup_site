@@ -6,8 +6,19 @@ export async function handler(event: any): Promise<any> {
   console.log('availability zones 👉', process.env.AVAILABILITY_ZONES);
   console.log('event 👉', JSON.stringify(event));
 
+  // Extract query parameters and headers
+  const queryParams = event.queryStringParameters || {};
+  const headers = event.headers || {};
+
+  console.log('query parameters 👉', JSON.stringify(queryParams));
+  console.log('headers 👉', JSON.stringify(headers));
+
   return {
-    body: JSON.stringify({message: 'SUCCESS 🎉'}),
+    body: JSON.stringify({
+      message: 'SUCCESS 🎉',
+      queryParams,
+      headers
+    }),
     statusCode: 200,
   };
 }
