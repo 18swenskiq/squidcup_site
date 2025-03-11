@@ -51,6 +51,7 @@
         <span>Players</span>
         <span>Server</span>
         <span>Ranked?</span>
+        <span>Password?</span>
       </div>
       <div class="queue-list">
         <div class="queue-item" 
@@ -62,6 +63,7 @@
           <span>{{ queue.players }}</span>
           <span>{{ queue.server }}</span>
           <span>{{ queue.ranked ? 'Yes' : 'No' }}</span>
+          <span>{{ queue.hasPassword ? 'Yes' : 'No' }}</span>
         </div>
       </div>
     </div>
