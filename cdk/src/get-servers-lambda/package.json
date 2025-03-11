@@ -4,6 +4,10 @@
   "description": "Lambda function to retrieve servers data",
   "main": "index.js",
   "types": "index.ts",
+  "scripts": {
+    "build": "tsc"
+  },
+  "dependencies": {},
   "engines": {
     "node": ">=18.0.0"
   }

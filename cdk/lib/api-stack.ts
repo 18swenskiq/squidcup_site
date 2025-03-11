@@ -18,7 +18,7 @@ export class ApiStack extends Construct {
       runtime: this.RUNTIME,
       memorySize: this.MEMORY_SIZE,
       timeout: this.TIMEOUT,
-      handler: 'index.handler',
+      handler: 'index.handler',  // The Lambda runtime will look for index.js
       code: lambda.Code.fromAsset(path.join(__dirname, '/../src/get-maps-lambda')),
       environment: {
         REGION: this.REGION,
