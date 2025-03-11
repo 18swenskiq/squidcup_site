@@ -13,4 +13,4 @@ export async function handler(event: any): Promise<any> {
 }
 
 // Also export using CommonJS for maximum compatibility
-module.exports.handler = handler;
+exports.handler = handler;
