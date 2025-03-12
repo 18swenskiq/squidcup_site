@@ -24,6 +24,15 @@ jobs:
       - name: Install AWS CDK
         run: npm i -g aws-cdk
 
+      - name: Build Local Projects
+        run: |
+          for dir in ./src/*/; do
+            if [ -d "$dir" ]; then
+              echo "Building Lambda in $dir"
+              (cd "$dir" && npm build)
+            fi
+          done
+
       - name: Configure aws credentials
         uses: aws-actions/configure-aws-credentials@master
         with:
