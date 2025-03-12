@@ -46,7 +46,7 @@ jobs:
 
       # Synthesize API stack only
       - name: Synthesize API stack
-        run: cdk synth ApiStack
+        run: cdk synth SquidCupSite-ApiStack
 
       # Deploy API stack first
       - name: Deploy API stack
@@ -85,7 +85,7 @@ jobs:
           
       # Synthesize and deploy the frontend stack now that assets are available
       - name: Synthesize Frontend stack
-        run: cdk synth FrontendStack
+        run: cdk synth SquidCupSite-FrontendStack
         
       - name: Deploy Frontend Stack
         run: cdk deploy SquidCupSite-FrontendStack --require-approval never

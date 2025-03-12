@@ -3,6 +3,7 @@ import { Construct } from 'constructs';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as s3deploy from 'aws-cdk-lib/aws-s3-deployment';
 import * as path from 'path';
+import * as fs from 'fs';
 
 export class FrontendStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
@@ -23,7 +24,7 @@ export class FrontendStack extends cdk.Stack {
       websiteErrorDocument: 'index.html',
     });
 
-    // Deploy the frontend assets to the S3 bucket
+    // Deploy the frontend assets to the S3 bucket - this will fail if assets don't exist
     new s3deploy.BucketDeployment(this, 'DeployWebsite', {
       sources: [s3deploy.Source.asset(path.join(__dirname, '../assets/browser'))],
       destinationBucket: websiteBucket,
