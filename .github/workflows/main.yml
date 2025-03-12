@@ -40,15 +40,16 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_KEY }}
           aws-region: 'us-east-2'
 
-      - name: Bootstrap stack
-        run: cdk bootstrap
+      # Bootstrap only the API stack first
+      - name: Bootstrap API stack
+        run: cdk bootstrap --context stackId=ApiStack
 
       # Synthesize API stack only
       - name: Synthesize API stack
         run: cdk synth ApiStack
 
       # Deploy API stack first
-      - name: Deploy API stack first
+      - name: Deploy API stack
         run: cdk deploy SquidCupSite-ApiStack --require-approval never
 
       - name: Extract API Gateway URL
@@ -77,6 +78,10 @@ jobs:
         run: |
           mkdir -p ./assets
           cp -r ../frontend/dist/spkymnr-xyz/browser ./assets/
+          
+      # Bootstrap frontend stack separately after API deployment
+      - name: Bootstrap Frontend stack
+        run: cdk bootstrap --context stackId=FrontendStack
           
       # Synthesize and deploy the frontend stack now that assets are available
       - name: Synthesize Frontend stack
