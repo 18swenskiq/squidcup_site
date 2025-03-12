@@ -3,7 +3,16 @@ import { SSMClient, GetParameterCommand } from "@aws-sdk/client-ssm";
 // Initialize the SSM client
 const ssmClient = new SSMClient({ region: 'us-east-2' });
 
-const steamIds: {"gameMode": "5v5" | "wingman" | "3v3", "id": string}[] = [
+type GameMode = "5v5" | "wingman" | "3v3";
+
+type MapResponseObj = {
+  "name": string,
+  "id": string,
+  "thumbnailUrl": string,
+  "gameModes": GameMode[]
+}
+
+const steamCollectionIds: {"gameMode": GameMode, "id": string}[] = [
   { gameMode: "5v5", id: '2753947063'},
   { gameMode: "wingman", id: '2747675401'},
   { gameMode: "3v3", id: "2752973478"}
@@ -25,10 +34,100 @@ async function getParameterValue(parameterName: string): Promise<string> {
   }
 }
 
+async function getMapsFromSteamAPI(steamApiKey: string, gameModes: GameMode[]): Promise<MapResponseObj[]>
+{
+  let collectionIds = [];
+
+  // If no gamemode is defined, get maps from every collection
+  if (gameModes.length === 0)
+  {
+    collectionIds = steamCollectionIds.map(x => x.id);
+  }
+  else
+  {
+    collectionIds = steamCollectionIds.filter(x => gameModes.includes(x.gameMode)).map(x => x.id);
+  }
+
+  // Create URLSearchParams directly instead of FormData
+  const params = new URLSearchParams();
+  params.append("key", steamApiKey);
+  params.append("collectioncount", `${collectionIds.length}`);
+  collectionIds.forEach((collectionId, index) => {
+    params.append(`publishedfileids[${index}]`, collectionId);
+  });
+
+  const rawCollectionResponse = await fetch(`https://api.steampowered.com/ISteamRemoteStorage/GetCollectionDetails/v1/`, {
+    method: 'POST',
+    body: params,
+    headers: {
+      'Accept': 'application/json',
+      'Content-Type': 'application/x-www-form-urlencoded'
+    },
+  });
+
+  const collectionResponse = await rawCollectionResponse.json();
+
+  let mapIdsWithGamemodes: { "id": string, "gameModes": GameMode[]}[] = []
+
+  collectionResponse.response.collectiondetails.forEach((collection: any) => {
+    // Get the game mode of the child collection
+    const gameMode = steamCollectionIds.find(x => x.id === collection.publishedfileid)?.gameMode;
+
+    if (gameMode)
+    {
+      // Flatten children of collection into mapIdsWithGamemodes
+      const ids = collection.children.flatMap((child: any) => child.publishedfileid);
+      mapIdsWithGamemodes.concat(ids.map((id: string) => { return { "id": id, "gameModes": [gameMode] }}));
+    }
+  });
+
+  // Remove duplicate map entries and collapse gamemodes into a single array
+  mapIdsWithGamemodes = mapIdsWithGamemodes.reduce((acc: { "id": string, "gameModes": GameMode[] }[], current) => {
+    const existing = acc.find(x => x.id === current.id);
+    if (existing)
+    {
+      existing.gameModes.push(...current.gameModes);
+    }
+    else
+    {
+      acc.push(current);
+    }
+    return acc;
+  }, []);
+
+  // Get map details for each map from steam api
+  const mapParams = new URLSearchParams();
+  mapParams.append("key", steamApiKey);
+  mapParams.append("itemcount", `${mapIdsWithGamemodes.length}`);
+  mapIdsWithGamemodes.forEach((mapId, index) => {
+    mapParams.append(`publishedfileids[${index}]`, mapId.id);
+  });
+
+  const rawMapsResponse = await fetch(`https://api.steampowered.com/ISteamRemoteStorage/GetPublishedFileDetails/v1/`, {
+    method: 'POST',
+    body: mapParams,
+    headers: {
+      'Accept': 'application/json',
+      'Content-Type': 'application/x-www-form-urlencoded'
+    },
+  });
+
+  const mapsResponse = await rawMapsResponse.json();
+
+  return mapsResponse.response.publishedfileids.map((map: any) => {
+    return {
+      "name": map.title,
+      "id": map.publishedfileid,
+      "thumbnailUrl": map.preview_url,
+      "gameModes": mapIdsWithGamemodes.find(x => x.id === map.publishedfileid)?.gameModes || []
+    };
+  });
+}
+
 export async function handler(event: any): Promise<any> {
   // Extract query parameters and headers
   const queryParams = event.queryStringParameters || {};
-  const headers = event.headers || {};
+  //const headers = event.headers || {};
 
   //console.log('query parameters 👉', JSON.stringify(queryParams));
   //console.log('headers 👉', JSON.stringify(headers));
@@ -42,32 +141,15 @@ export async function handler(event: any): Promise<any> {
     console.error('Failed to retrieve Steam API key:', error);
   }
 
-  const collectionId = "2747675401";
-
-  // Create URLSearchParams directly instead of FormData
-  const params = new URLSearchParams();
-  params.append("key", steamApiKey);
-  params.append("collectioncount", "1");
-  params.append("publishedfileids[0]", collectionId);
-
-  const response = await fetch(`https://api.steampowered.com/ISteamRemoteStorage/GetCollectionDetails/v1/`, {
-    method: 'POST',
-    body: params,
-    headers: {
-      'Accept': 'application/json',
-      'Content-Type': 'application/x-www-form-urlencoded'
-    },
-  });
-
-  console.log(response);
+  // Ensure queryparams.gameModes is an array of strings and it is passed to getMapsFromSteamAPI properly
+  // If no gameModes are passed, default to ["5v5", "wingman", "3v3"]
+  const selectedGameModes: GameMode[] = queryParams.gameModes ? queryParams.gameModes.split(',') as GameMode[] : ["5v5", "wingman", "3v3"];
 
   try {
-    const jsonData = await response.json();
+    const maps: MapResponseObj[] = await getMapsFromSteamAPI(steamApiKey, selectedGameModes);
     return {
       body: JSON.stringify({
-        message: 'SUCCESS 🎉',
-        steamApiKeyRetrieved: !!steamApiKey,
-        response: jsonData,
+        data: maps,
       }),
       statusCode: 200,
     };
@@ -75,7 +157,6 @@ export async function handler(event: any): Promise<any> {
     return {
       body: JSON.stringify({
         message: 'ERROR parsing response',
-        steamApiKeyRetrieved: !!steamApiKey,
         error: error,
       }),
       statusCode: 500,
