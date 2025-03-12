@@ -126,7 +126,7 @@ async function getMapsFromSteamAPI(steamApiKey: string, gameModes: GameMode[]): 
 
   console.log("maps response", JSON.stringify(mapsResponse, null, 2));
 
-  return mapsResponse.response.publishedfileids.map((map: any) => {
+  return mapsResponse.response.publishedfiledetails.map((map: any) => {
     return {
       "name": map.title,
       "id": map.publishedfileid,
