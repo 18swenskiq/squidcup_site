@@ -4,6 +4,9 @@ import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angula
 import { HttpClient, HttpClientModule } from '@angular/common/http';
 import { interval, Subscription } from 'rxjs';
 import { switchMap } from 'rxjs/operators';
+import { environment } from '../../environments/environment';
+
+type MapsResponse = { "name": string, "id": string, "thumbnailUrl": string, "gameModes": ("wingman" | "3v3" | "5v5")[] };
 
 interface Queue {
   id: string;
@@ -25,11 +28,12 @@ interface Queue {
 })
 export class PlayViewComponent implements OnInit, OnDestroy {
   queueForm!: FormGroup;
-  availableMaps: string[] = [];
+  availableMaps: MapsResponse[] = [];
   availableServers: string[] = [];
   activeQueues: Queue[] = [];
   selectedQueue: Queue | null = null;
   private queueSubscription?: Subscription;
+  private apiBaseUrl: string = environment.apiUrl;
 
   constructor(private fb: FormBuilder, private http: HttpClient) {}
 
@@ -58,13 +62,13 @@ export class PlayViewComponent implements OnInit, OnDestroy {
     const gameMode = this.queueForm.get('gameMode')?.value;
     if (gameMode) {
       // Fetch maps based on selected game mode
-      this.http.get<string[]>(`placeholder.api/maps?gamemode=${gameMode}`).subscribe(maps => {
+      this.http.get<MapsResponse[]>(`${this.apiBaseUrl}/maps?gamemode=${gameMode}`).subscribe(maps => {
         this.availableMaps = maps;
         this.queueForm.get('map')?.enable();
       });
 
       // Fetch servers based on selected game mode
-      this.http.get<string[]>(`placeholder.api/servers?gamemode=${gameMode}`).subscribe(servers => {
+      this.http.get<string[]>(`${this.apiBaseUrl}/servers?gamemode=${gameMode}`).subscribe(servers => {
         this.availableServers = servers;
         this.queueForm.get('server')?.enable();
       });
@@ -73,7 +77,7 @@ export class PlayViewComponent implements OnInit, OnDestroy {
 
   startQueue(): void {
     if (this.queueForm.valid) {
-      this.http.post('placeholder.api/startQueue', this.queueForm.value).subscribe({
+      this.http.post(`${this.apiBaseUrl}/startQueue`, this.queueForm.value).subscribe({
         next: (response) => {
           console.log('Queue started successfully', response);
           // Handle successful queue start
@@ -104,7 +108,7 @@ export class PlayViewComponent implements OnInit, OnDestroy {
       }
       
       // Join the queue with the provided password
-      this.http.post(`placeholder.api/joinQueue/${this.selectedQueue.id}`, { password }).subscribe({
+      this.http.post(`${this.apiBaseUrl}/joinQueue/${this.selectedQueue.id}`, { password }).subscribe({
         next: (response) => {
           console.log('Joined queue successfully', response);
         },
@@ -115,7 +119,7 @@ export class PlayViewComponent implements OnInit, OnDestroy {
       });
     } else {
       // Join the queue without password
-      this.http.post(`placeholder.api/joinQueue/${this.selectedQueue.id}`, {}).subscribe({
+      this.http.post(`${this.apiBaseUrl}/joinQueue/${this.selectedQueue.id}`, {}).subscribe({
         next: (response) => {
           console.log('Joined queue successfully', response);
         },
@@ -129,7 +133,7 @@ export class PlayViewComponent implements OnInit, OnDestroy {
   private startQueuePolling(): void {
     this.queueSubscription = interval(5000) // Poll every 5 seconds
       .pipe(
-        switchMap(() => this.http.get<Queue[]>('placeholder.api/activeQueues'))
+        switchMap(() => this.http.get<Queue[]>(`${this.apiBaseUrl}/activeQueues`))
       )
       .subscribe({
         next: (queues) => {

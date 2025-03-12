@@ -52,6 +52,11 @@ export class ApiStack extends Construct {
       restApiName: 'SquidCupService',
       deployOptions: {
         stageName: 'prod',
+      },
+      // Enable CORS
+      defaultCorsPreflightOptions: {
+        allowOrigins: apigw.Cors.ALL_ORIGINS,
+        allowMethods: apigw.Cors.ALL_METHODS,
       }
     });
     
@@ -62,5 +67,12 @@ export class ApiStack extends Construct {
     // Add a resource for /servers endpoint
     const serversResource = api.root.addResource('servers');
     serversResource.addMethod('GET', new apigw.LambdaIntegration(getServersFunction));
+
+    // Export the API URL as a stack output with a consistent name
+    new cdk.CfnOutput(this.node.scope as cdk.Stack, 'ApiUrl', {
+      value: api.url,
+      description: 'URL of the API Gateway',
+      exportName: 'SquidCupApiUrl'
+    });
   }
 }

@@ -18,24 +18,13 @@ jobs:
           cache: 'npm'
           cache-dependency-path: './cdk/package-lock.json'
 
-      - name: Build Frontend
-        working-directory: ./frontend
-        run: |
-          npm install
-          npm run ng build
-          
-      - name: Copy Frontend Build to CDK Assets
-        run: |
-          mkdir -p ./assets
-          cp -r ../frontend/dist/spkymnr-xyz/browser ./assets/
-
-      - name: Install dependencies
-        run: npm install
-
       - name: Install AWS CDK
         run: npm i -g aws-cdk
 
-      - name: Build Local Projects
+      - name: Install CDK dependencies
+        run: npm install
+
+      - name: Build Local Lambda Projects
         run: |
           for dir in ./src/*/; do
             if [ -d "$dir" ]; then
@@ -44,7 +33,7 @@ jobs:
             fi
           done
 
-      - name: Configure aws credentials
+      - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@master
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -59,3 +48,30 @@ jobs:
 
       - name: Deploy stack
         run: cdk deploy --all --require-approval never
+
+      - name: Extract API Gateway URL
+        id: get_api_url
+        run: |
+          API_URL=$(aws cloudformation describe-stacks --stack-name SquidCupSite-ApiStack --query "Stacks[0].Outputs[?OutputKey=='ApiUrl'].OutputValue" --output text)
+          echo "API_URL=$API_URL" >> $GITHUB_ENV
+          echo "Retrieved API URL: $API_URL"
+
+      - name: Update environment.prod.ts
+        working-directory: ./frontend/src/environments
+        run: |
+          echo "export const environment = {" > environment.prod.ts
+          echo "  production: true," >> environment.prod.ts
+          echo "  apiUrl: '${API_URL}'" >> environment.prod.ts
+          echo "};" >> environment.prod.ts
+          cat environment.prod.ts
+
+      - name: Build Frontend
+        working-directory: ./frontend
+        run: |
+          npm install
+          npm run ng build -- --configuration production
+          
+      - name: Copy Frontend Build to CDK Assets
+        run: |
+          mkdir -p ./assets
+          cp -r ../frontend/dist/spkymnr-xyz/browser ./assets/
