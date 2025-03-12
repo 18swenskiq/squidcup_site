@@ -56,6 +56,8 @@ async function getMapsFromSteamAPI(steamApiKey: string, gameModes: GameMode[]): 
     params.append(`publishedfileids[${index}]`, collectionId);
   });
 
+  console.log("collection request params", params);
+
   const rawCollectionResponse = await fetch(`https://api.steampowered.com/ISteamRemoteStorage/GetCollectionDetails/v1/`, {
     method: 'POST',
     body: params,
@@ -66,6 +68,8 @@ async function getMapsFromSteamAPI(steamApiKey: string, gameModes: GameMode[]): 
   });
 
   const collectionResponse = await rawCollectionResponse.json();
+
+  console.log("collection response", collectionResponse);
 
   let mapIdsWithGamemodes: { "id": string, "gameModes": GameMode[]}[] = []
 
@@ -95,6 +99,8 @@ async function getMapsFromSteamAPI(steamApiKey: string, gameModes: GameMode[]): 
     return acc;
   }, []);
 
+  console.log("map ids with gamemodes", mapIdsWithGamemodes);
+
   // Get map details for each map from steam api
   const mapParams = new URLSearchParams();
   mapParams.append("key", steamApiKey);
@@ -103,6 +109,8 @@ async function getMapsFromSteamAPI(steamApiKey: string, gameModes: GameMode[]): 
     mapParams.append(`publishedfileids[${index}]`, mapId.id);
   });
 
+  console.log("map params", mapParams);
+  
   const rawMapsResponse = await fetch(`https://api.steampowered.com/ISteamRemoteStorage/GetPublishedFileDetails/v1/`, {
     method: 'POST',
     body: mapParams,
@@ -113,6 +121,8 @@ async function getMapsFromSteamAPI(steamApiKey: string, gameModes: GameMode[]): 
   });
 
   const mapsResponse = await rawMapsResponse.json();
+
+  console.log("maps response", mapsResponse);
 
   return mapsResponse.response.publishedfileids.map((map: any) => {
     return {
