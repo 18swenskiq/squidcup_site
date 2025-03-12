@@ -16,7 +16,7 @@
         <label for="map">MAP</label>
         <select id="map" formControlName="map" [disabled]="!queueForm.get('gameMode')?.value">
           <option value="" disabled selected>Select a map</option>
-          <option *ngFor="let map of availableMaps" [value]="map">{{map}}</option>
+          <option *ngFor="let map of availableMaps" [value]="map">{{map.name}}</option>
         </select>
       </div>
 

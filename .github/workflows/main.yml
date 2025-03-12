@@ -46,8 +46,8 @@ jobs:
       - name: Synth stack
         run: cdk synth
 
-      - name: Deploy stack
-        run: cdk deploy --all --require-approval never
+      - name: Deploy API stack first
+        run: cdk deploy SquidCupSite-ApiStack --require-approval never
 
       - name: Extract API Gateway URL
         id: get_api_url
@@ -75,3 +75,6 @@ jobs:
         run: |
           mkdir -p ./assets
           cp -r ../frontend/dist/spkymnr-xyz/browser ./assets/
+          
+      - name: Deploy remaining stacks
+        run: cdk deploy --all --require-approval never --exclusively
