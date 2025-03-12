@@ -7,8 +7,14 @@
   "scripts": {
     "build": "tsc"
   },
-  "dependencies": {},
   "engines": {
     "node": ">=18.0.0"
+  },
+  "devDependencies": {
+    "@aws-sdk/client-ssm": "^3.759.0",
+    "@types/node-fetch": "^2.6.12"
+  },
+  "dependencies": {
+    "node-fetch": "^2.6.7"
   }
 }
