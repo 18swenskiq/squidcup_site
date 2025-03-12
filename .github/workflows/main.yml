@@ -43,9 +43,11 @@ jobs:
       - name: Bootstrap stack
         run: cdk bootstrap
 
-      - name: Synth stack
-        run: cdk synth
+      # Synthesize API stack only
+      - name: Synthesize API stack
+        run: cdk synth ApiStack
 
+      # Deploy API stack first
       - name: Deploy API stack first
         run: cdk deploy SquidCupSite-ApiStack --require-approval never
 
@@ -76,5 +78,9 @@ jobs:
           mkdir -p ./assets
           cp -r ../frontend/dist/spkymnr-xyz/browser ./assets/
           
-      - name: Deploy remaining stacks
-        run: cdk deploy --all --require-approval never --exclusively
+      # Synthesize and deploy the frontend stack now that assets are available
+      - name: Synthesize Frontend stack
+        run: cdk synth FrontendStack
+        
+      - name: Deploy Frontend Stack
+        run: cdk deploy SquidCupSite-FrontendStack --require-approval never

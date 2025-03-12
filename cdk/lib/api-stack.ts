@@ -5,15 +5,15 @@ import * as apigw from "aws-cdk-lib/aws-apigateway";
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as path from 'path';
 
-export class ApiStack extends Construct {
+export class ApiStack extends cdk.Stack {
   // Constants for Lambda configuration
   private readonly RUNTIME = lambda.Runtime.NODEJS_22_X;
   private readonly MEMORY_SIZE = 512;
   private readonly TIMEOUT = cdk.Duration.seconds(5);
   private readonly REGION = 'us-east-2';
 
-  constructor(scope: Construct, id: string) {
-    super(scope, id);
+  constructor(scope: Construct, id: string, props?: cdk.StackProps) {
+    super(scope, id, props);
 
     const getMapsFunction = new lambda.Function(this, "get-maps-function", {
       runtime: this.RUNTIME,
@@ -69,7 +69,7 @@ export class ApiStack extends Construct {
     serversResource.addMethod('GET', new apigw.LambdaIntegration(getServersFunction));
 
     // Export the API URL as a stack output with a consistent name
-    new cdk.CfnOutput(this.node.scope as cdk.Stack, 'ApiUrl', {
+    new cdk.CfnOutput(this, 'ApiUrl', {
       value: api.url,
       description: 'URL of the API Gateway',
       exportName: 'SquidCupApiUrl'
