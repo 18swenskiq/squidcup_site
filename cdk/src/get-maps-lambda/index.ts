@@ -44,35 +44,43 @@ export async function handler(event: any): Promise<any> {
 
   const collectionId = "2747675401";
 
-  const payload = {
-    key: steamApiKey,
-    collectioncount: '1',
-    'publishedfileids[0]': collectionId,
-  };
-  var form = new FormData();
-  form.append("json", JSON.stringify(payload));
+  // Create URLSearchParams directly instead of FormData
+  const params = new URLSearchParams();
+  params.append("key", steamApiKey);
+  params.append("collectioncount", "1");
+  params.append("publishedfileids[0]", collectionId);
 
   const response = await fetch(`https://api.steampowered.com/ISteamRemoteStorage/GetCollectionDetails/v1/`, {
     method: 'POST',
-    body: form,
+    body: params,
     headers: {
       'Accept': 'application/json',
-      'Content-Type': 'application/json'
+      'Content-Type': 'application/x-www-form-urlencoded'
     },
   });
 
   console.log(response);
 
-  return {
-    body: JSON.stringify({
-      message: 'SUCCESS 🎉',
-      //queryParams,
-      //headers,
-      steamApiKeyRetrieved: !!steamApiKey, // Boolean indicating if key was retrieved
-      response: await response.json(),
-    }),
-    statusCode: 200,
-  };
+  try {
+    const jsonData = await response.json();
+    return {
+      body: JSON.stringify({
+        message: 'SUCCESS 🎉',
+        steamApiKeyRetrieved: !!steamApiKey,
+        response: jsonData,
+      }),
+      statusCode: 200,
+    };
+  } catch (error) {
+    return {
+      body: JSON.stringify({
+        message: 'ERROR parsing response',
+        steamApiKeyRetrieved: !!steamApiKey,
+        error: error,
+      }),
+      statusCode: 500,
+    };
+  }
 }
 
 // Also export using CommonJS for maximum compatibility
