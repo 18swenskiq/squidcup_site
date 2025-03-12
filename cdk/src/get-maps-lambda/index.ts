@@ -36,6 +36,8 @@ async function getParameterValue(parameterName: string): Promise<string> {
 
 async function getMapsFromSteamAPI(steamApiKey: string, gameModes: GameMode[]): Promise<MapResponseObj[]>
 {
+  console.log("passed gamemodes", JSON.stringify(gameModes, null, 2));
+
   let collectionIds = [];
 
   // If no gamemode is defined, get maps from every collection
@@ -56,7 +58,7 @@ async function getMapsFromSteamAPI(steamApiKey: string, gameModes: GameMode[]): 
     params.append(`publishedfileids[${index}]`, collectionId);
   });
 
-  console.log("collection request params", params);
+  console.log("collection request params", JSON.stringify(Object.fromEntries(params), null, 2));
 
   const rawCollectionResponse = await fetch(`https://api.steampowered.com/ISteamRemoteStorage/GetCollectionDetails/v1/`, {
     method: 'POST',
@@ -69,7 +71,7 @@ async function getMapsFromSteamAPI(steamApiKey: string, gameModes: GameMode[]): 
 
   const collectionResponse = await rawCollectionResponse.json();
 
-  console.log("collection response", collectionResponse);
+  console.log("collection response", JSON.stringify(collectionResponse, null, 2));
 
   let mapIdsWithGamemodes: { "id": string, "gameModes": GameMode[]}[] = []
 
@@ -81,7 +83,7 @@ async function getMapsFromSteamAPI(steamApiKey: string, gameModes: GameMode[]): 
     {
       // Flatten children of collection into mapIdsWithGamemodes
       const ids = collection.children.flatMap((child: any) => child.publishedfileid);
-      mapIdsWithGamemodes.concat(ids.map((id: string) => { return { "id": id, "gameModes": [gameMode] }}));
+      mapIdsWithGamemodes = mapIdsWithGamemodes.concat(ids.map((id: string) => { return { "id": id, "gameModes": [gameMode] }}));
     }
   });
 
@@ -99,7 +101,7 @@ async function getMapsFromSteamAPI(steamApiKey: string, gameModes: GameMode[]): 
     return acc;
   }, []);
 
-  console.log("map ids with gamemodes", mapIdsWithGamemodes);
+  console.log("map ids with gamemodes", JSON.stringify(mapIdsWithGamemodes, null, 2));
 
   // Get map details for each map from steam api
   const mapParams = new URLSearchParams();
@@ -109,7 +111,7 @@ async function getMapsFromSteamAPI(steamApiKey: string, gameModes: GameMode[]): 
     mapParams.append(`publishedfileids[${index}]`, mapId.id);
   });
 
-  console.log("map params", mapParams);
+  console.log("map params", JSON.stringify(Object.fromEntries(mapParams), null, 2));
   
   const rawMapsResponse = await fetch(`https://api.steampowered.com/ISteamRemoteStorage/GetPublishedFileDetails/v1/`, {
     method: 'POST',
@@ -122,7 +124,7 @@ async function getMapsFromSteamAPI(steamApiKey: string, gameModes: GameMode[]): 
 
   const mapsResponse = await rawMapsResponse.json();
 
-  console.log("maps response", mapsResponse);
+  console.log("maps response", JSON.stringify(mapsResponse, null, 2));
 
   return mapsResponse.response.publishedfileids.map((map: any) => {
     return {
@@ -137,10 +139,10 @@ async function getMapsFromSteamAPI(steamApiKey: string, gameModes: GameMode[]): 
 export async function handler(event: any): Promise<any> {
   // Extract query parameters and headers
   const queryParams = event.queryStringParameters || {};
-  //const headers = event.headers || {};
+  const headers = event.headers || {};
 
-  //console.log('query parameters 👉', JSON.stringify(queryParams));
-  //console.log('headers 👉', JSON.stringify(headers));
+  console.log('query parameters 👉', JSON.stringify(queryParams, null, 2));
+  console.log('headers 👉', JSON.stringify(headers, null, 2));
 
   // Get Steam API key from Parameter Store
   let steamApiKey = '';
@@ -148,7 +150,7 @@ export async function handler(event: any): Promise<any> {
     steamApiKey = await getParameterValue('/unencrypted/SteamApiKey');
     console.log('Successfully retrieved Steam API key');
   } catch (error) {
-    console.error('Failed to retrieve Steam API key:', error);
+    console.error('Failed to retrieve Steam API key:', JSON.stringify(error, null, 2));
   }
 
   // Ensure queryparams.gameModes is an array of strings and it is passed to getMapsFromSteamAPI properly
