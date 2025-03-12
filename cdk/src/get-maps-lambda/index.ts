@@ -44,10 +44,18 @@ export async function handler(event: any): Promise<any> {
 
   const collectionId = "2747675401";
 
-  const response = await fetch(`https://api.steampowered.com/ISteamRemoteStorage/GetCollectionDetails/v1/?key=${steamApiKey}&collectioncount=1&publishedfileids%5B0%4D=${collectionId}`, {
+  const payload = {
+    key: steamApiKey,
+    collectioncount: '1',
+    'publishedfileids[0]': collectionId,
+  };
+
+  const response = await fetch(`https://api.steampowered.com/ISteamRemoteStorage/GetCollectionDetails/v1/`, {
     method: 'POST',
+    body: JSON.stringify(payload),
     headers: {
       Accept: 'application/json',
+      'Content-Type': 'application/x-www-form-urlencoded'
     },
   });
 
