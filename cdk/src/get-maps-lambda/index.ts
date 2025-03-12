@@ -49,15 +49,19 @@ export async function handler(event: any): Promise<any> {
     collectioncount: '1',
     'publishedfileids[0]': collectionId,
   };
+  var form = new FormData();
+  form.append("json", JSON.stringify(payload));
 
   const response = await fetch(`https://api.steampowered.com/ISteamRemoteStorage/GetCollectionDetails/v1/`, {
     method: 'POST',
-    body: JSON.stringify(payload),
+    body: form,
     headers: {
-      Accept: 'application/json',
+      'Accept': 'application/json',
       'Content-Type': 'application/x-www-form-urlencoded'
     },
   });
+
+  console.log(response);
 
   return {
     body: JSON.stringify({
