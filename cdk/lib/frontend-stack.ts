@@ -13,14 +13,19 @@ export class FrontendStack extends Construct {
       encryption: s3.BucketEncryption.S3_MANAGED, 
       removalPolicy: cdk.RemovalPolicy.DESTROY,
       publicReadAccess: true,
-      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ACLS,
+      blockPublicAccess: new s3.BlockPublicAccess({
+        blockPublicAcls: false,
+        blockPublicPolicy: false,
+        ignorePublicAcls: false,
+        restrictPublicBuckets: false
+      }),
       websiteIndexDocument: 'index.html',
       websiteErrorDocument: 'index.html',
     });
 
     // Deploy the frontend assets to the S3 bucket
     new s3deploy.BucketDeployment(this, 'DeployWebsite', {
-      sources: [s3deploy.Source.asset(path.join(__dirname, '../assets'))],
+      sources: [s3deploy.Source.asset(path.join(__dirname, '../assets/browser'))],
       destinationBucket: websiteBucket,
     });
   }
