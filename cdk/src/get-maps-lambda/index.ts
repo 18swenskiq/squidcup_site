@@ -161,7 +161,7 @@ export async function handler(event: any): Promise<any> {
     const maps: MapResponseObj[] = await getMapsFromSteamAPI(steamApiKey, selectedGameModes);
     return {
       body: JSON.stringify({
-        data: maps,
+        data: maps.sort((a, b) => a.name.localeCompare(b.name)),
       }),
       statusCode: 200,
     };
