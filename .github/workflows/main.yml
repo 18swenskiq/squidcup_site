@@ -18,6 +18,17 @@ jobs:
           cache: 'npm'
           cache-dependency-path: './cdk/package-lock.json'
 
+      - name: Build Frontend
+        working-directory: ./frontend
+        run: |
+          npm install
+          npm run ng build
+          
+      - name: Copy Frontend Build to CDK Assets
+        run: |
+          mkdir -p ./assets
+          cp -r ../frontend/dist/spkymnr-xyz/browser ./assets/
+
       - name: Install dependencies
         run: npm install
 
