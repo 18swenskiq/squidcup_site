@@ -57,7 +57,7 @@ export async function handler(event: any): Promise<any> {
     body: form,
     headers: {
       'Accept': 'application/json',
-      'Content-Type': 'application/x-www-form-urlencoded'
+      'Content-Type': 'application/json'
     },
   });
 
