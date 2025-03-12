@@ -20,7 +20,7 @@ export class FrontendStack extends Construct {
 
     // Deploy the frontend assets to the S3 bucket
     new s3deploy.BucketDeployment(this, 'DeployWebsite', {
-      sources: [s3deploy.Source.asset(path.join(__dirname, '../../assets'))],
+      sources: [s3deploy.Source.asset(path.join(__dirname, '../assets'))],
       destinationBucket: websiteBucket,
     });
   }
