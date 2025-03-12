@@ -2,12 +2,13 @@ import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as apigw from "aws-cdk-lib/aws-apigateway";
+import * as iam from 'aws-cdk-lib/aws-iam';
 import * as path from 'path';
 
 export class ApiStack extends Construct {
   // Constants for Lambda configuration
   private readonly RUNTIME = lambda.Runtime.NODEJS_22_X;
-  private readonly MEMORY_SIZE = 1024;
+  private readonly MEMORY_SIZE = 512;
   private readonly TIMEOUT = cdk.Duration.seconds(5);
   private readonly REGION = 'us-east-2';
 
@@ -35,6 +36,16 @@ export class ApiStack extends Construct {
         REGION: this.REGION,
       }
     });
+
+    // Create an SSM parameter access policy
+    const ssmPolicy = new iam.PolicyStatement({
+      actions: ['ssm:GetParameter'],
+      resources: ['*'], // This grants access to all parameters
+    });
+
+    // Add the SSM policy to both Lambda functions
+    getMapsFunction.addToRolePolicy(ssmPolicy);
+    getServersFunction.addToRolePolicy(ssmPolicy);
 
     // Create an API Gateway with specific configuration
     const api = new apigw.RestApi(this, 'SquidCupApi', {
