@@ -24,10 +24,18 @@ export class FrontendStack extends cdk.Stack {
       websiteErrorDocument: 'index.html',
     });
 
-    // Deploy the frontend assets to the S3 bucket - this will fail if assets don't exist
-    new s3deploy.BucketDeployment(this, 'DeployWebsite', {
-      sources: [s3deploy.Source.asset(path.join(__dirname, '../assets/browser'))],
-      destinationBucket: websiteBucket,
-    });
+    // Check if assets directory exists before attempting deployment
+    const assetsPath = path.join(__dirname, '../assets/browser');
+    if (fs.existsSync(assetsPath)) {
+      // Deploy the frontend assets to the S3 bucket only if assets exist
+      new s3deploy.BucketDeployment(this, 'DeployWebsite', {
+        sources: [s3deploy.Source.asset(assetsPath)],
+        destinationBucket: websiteBucket,
+      });
+    } else {
+      // Log that assets don't exist - this won't fail the CDK synthesis
+      console.log('Frontend assets directory not found at:', assetsPath);
+      console.log('Skipping frontend deployment - bucket created without content');
+    }
   }
 }
