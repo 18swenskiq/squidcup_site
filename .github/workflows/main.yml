@@ -60,13 +60,13 @@ jobs:
           echo "Retrieved API URL: $API_URL"
 
       - name: Update environment.prod.ts
-        working-directory: ./frontend/src/environments
         run: |
-          echo "export const environment = {" > environment.prod.ts
-          echo "  production: true," >> environment.prod.ts
-          echo "  apiUrl: '${API_URL}'" >> environment.prod.ts
-          echo "};" >> environment.prod.ts
-          cat environment.prod.ts
+          mkdir -p ../frontend/src/environments
+          echo "export const environment = {" > ../frontend/src/environments/environment.prod.ts
+          echo "  production: true," >> ../frontend/src/environments/environment.prod.ts
+          echo "  apiUrl: '${API_URL}'" >> ../frontend/src/environments/environment.prod.ts
+          echo "};" >> ../frontend/src/environments/environment.prod.ts
+          cat ../frontend/src/environments/environment.prod.ts
 
       - name: Build Frontend
         working-directory: ./frontend
