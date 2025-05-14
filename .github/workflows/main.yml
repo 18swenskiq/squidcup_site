@@ -12,11 +12,11 @@ jobs:
           fetch-depth: 2
 
       - name: Setup Node.js environment
-        uses: actions/setup-node@v2
+        uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: 'npm'
-          cache-dependency-path: 'package-lock.json'
+          cache-dependency-path: './cdk/package-lock.json'
 
       - name: Install AWS CDK
         run: npm i -g aws-cdk
