@@ -16,6 +16,8 @@ export class FrontendStack extends cdk.Stack {
       encryption: s3.BucketEncryption.S3_MANAGED,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
       blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+      websiteIndexDocument: 'index.html',
+      websiteErrorDocument: 'index.html'
     });
 
     // Create CloudFront distribution
@@ -41,7 +43,7 @@ export class FrontendStack extends cdk.Stack {
         sources: [s3deploy.Source.asset(assetsPath)],
         destinationBucket: websiteBucket,
         distribution,
-        distributionPaths: ['/*']
+        distributionPaths: ['/*'],
       });
     } else {
       console.log('Frontend assets directory not found at:', assetsPath);
