@@ -55,8 +55,11 @@ export class ApiStack extends cdk.Stack {
       },
       // Enable CORS
       defaultCorsPreflightOptions: {
-        allowOrigins: apigw.Cors.ALL_ORIGINS,
-        allowMethods: apigw.Cors.ALL_METHODS,
+        allowOrigins: ['*'], // Consider restricting this to specific domains in production
+        allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+        allowHeaders: ['Content-Type', 'Authorization'],
+        allowCredentials: true,
+        maxAge: cdk.Duration.days(1)
       }
     });
     

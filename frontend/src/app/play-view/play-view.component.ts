@@ -62,13 +62,13 @@ export class PlayViewComponent implements OnInit, OnDestroy {
     const gameMode = this.queueForm.get('gameMode')?.value;
     if (gameMode) {
       // Fetch maps based on selected game mode
-      this.http.get<MapsResponse[]>(`${this.apiBaseUrl}/maps?gamemode=${gameMode}`).subscribe(maps => {
+      this.http.get<MapsResponse[]>(`${this.apiBaseUrl}maps?gamemode=${gameMode}`).subscribe(maps => {
         this.availableMaps = maps;
         this.queueForm.get('map')?.enable();
       });
 
       // Fetch servers based on selected game mode
-      this.http.get<string[]>(`${this.apiBaseUrl}/servers?gamemode=${gameMode}`).subscribe(servers => {
+      this.http.get<string[]>(`${this.apiBaseUrl}servers?gamemode=${gameMode}`).subscribe(servers => {
         this.availableServers = servers;
         this.queueForm.get('server')?.enable();
       });

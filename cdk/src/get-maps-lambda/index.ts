@@ -164,6 +164,12 @@ export async function handler(event: any): Promise<any> {
         data: maps.sort((a, b) => a.name.localeCompare(b.name)),
       }),
       statusCode: 200,
+      headers: {
+        'Access-Control-Allow-Origin': '*', // Consider restricting this in production
+        'Access-Control-Allow-Headers': 'Content-Type,Authorization',
+        'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS',
+        'Access-Control-Allow-Credentials': true,
+    },
     };
   } catch (error) {
     return {
