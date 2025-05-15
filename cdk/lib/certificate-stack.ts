@@ -18,6 +18,8 @@ export class CertificateStack extends cdk.Stack {
 
     this.certificateArn = certificate.certificateArn;
 
+    console.log(`Certificate ARN: ${this.certificateArn}`);
+
     new cdk.CfnOutput(this, 'CertificateArn', {
       value: this.certificateArn,
       exportName: 'SquidCupCertificateArn',
