@@ -3,7 +3,7 @@ import { Construct } from 'constructs';
 import * as acm from 'aws-cdk-lib/aws-certificatemanager';
 
 export class CertificateStack extends cdk.Stack {
-  public readonly certificate: acm.ICertificate;
+  public readonly certificateArn: string;
 
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, {
@@ -11,13 +11,15 @@ export class CertificateStack extends cdk.Stack {
       env: { region: 'us-east-1' }, // Force us-east-1 for CloudFront certificate
     });
 
-    this.certificate = new acm.Certificate(this, 'Certificate', {
+    const certificate = new acm.Certificate(this, 'Certificate', {
       domainName: 'squidcup.spkymnr.xyz',
       validation: acm.CertificateValidation.fromDns(),
     });
 
+    this.certificateArn = certificate.certificateArn;
+
     new cdk.CfnOutput(this, 'CertificateArn', {
-      value: this.certificate.certificateArn,
+      value: this.certificateArn,
       exportName: 'SquidCupCertificateArn',
     });
   }

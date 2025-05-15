@@ -35,7 +35,7 @@ if (stackId === 'ApiStack') {
     });
 
     new ApiStack(app, apiStackName, { env: { region: 'us-east-2' } });
-    new FrontendStack(app, frontendStackName, { crossRegionReferences: true, env: { region : 'us-east-2'}}, certStack.certificate.certificateArn);
+    new FrontendStack(app, frontendStackName, { crossRegionReferences: true, env: { region : 'us-east-2'}}, certStack.certificateArn);
   }
 }
 
