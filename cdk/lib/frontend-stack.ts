@@ -7,6 +7,7 @@ import * as origins from 'aws-cdk-lib/aws-cloudfront-origins';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as path from 'path';
 import * as fs from 'fs';
+import * as acm from 'aws-cdk-lib/aws-certificatemanager';
 
 export class FrontendStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
@@ -52,6 +53,12 @@ export class FrontendStack extends cdk.Stack {
       principals: [new iam.ServicePrincipal('logging.s3.amazonaws.com')]
     }));
 
+    // Create ACM Certificate
+    const certificate = new acm.Certificate(this, 'Certificate', {
+      domainName: 'squidcup.spkymnr.xyz',
+      validation: acm.CertificateValidation.fromDns(),
+    });
+
     // Create CloudFront distribution with updated configuration
     const distribution = new cloudfront.Distribution(this, 'SquidcupDistribution', {
       defaultBehavior: {
@@ -64,6 +71,8 @@ export class FrontendStack extends cdk.Stack {
         cachedMethods: cloudfront.CachedMethods.CACHE_GET_HEAD,
         compress: true,
       },
+      domainNames: ['squidcup.spkymnr.xyz'],
+      certificate: certificate,
       defaultRootObject: 'index.html',
       errorResponses: [
         {
