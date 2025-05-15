@@ -17,8 +17,7 @@ export class FrontendStack extends cdk.Stack {
       encryption: s3.BucketEncryption.S3_MANAGED,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
       blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
-      websiteIndexDocument: 'index.html',
-      websiteErrorDocument: 'index.html'
+      objectOwnership: s3.ObjectOwnership.BUCKET_OWNER_PREFERRED,
     });
 
     // Create Origin Access Identity
@@ -26,10 +25,10 @@ export class FrontendStack extends cdk.Stack {
       comment: `OAI for ${id}`
     });
 
-    // Grant read permissions to CloudFront
+    // Grant read permissions to CloudFront with updated policy
     websiteBucket.addToResourcePolicy(new iam.PolicyStatement({
-      actions: ['s3:GetObject'],
-      resources: [websiteBucket.arnForObjects('*')],
+      actions: ['s3:GetObject', 's3:ListBucket'],
+      resources: [websiteBucket.arnForObjects('*'), websiteBucket.bucketArn],
       principals: [new iam.CanonicalUserPrincipal(originAccessIdentity.cloudFrontOriginAccessIdentityS3CanonicalUserId)]
     }));
 
@@ -53,16 +52,25 @@ export class FrontendStack extends cdk.Stack {
       principals: [new iam.ServicePrincipal('logging.s3.amazonaws.com')]
     }));
 
-    // Create CloudFront distribution
+    // Create CloudFront distribution with updated configuration
     const distribution = new cloudfront.Distribution(this, 'SquidcupDistribution', {
       defaultBehavior: {
         origin: new origins.S3Origin(websiteBucket, {
-          originAccessIdentity: originAccessIdentity
+          originAccessIdentity,
+          originPath: ''
         }),
         viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+        allowedMethods: cloudfront.AllowedMethods.ALLOW_GET_HEAD,
+        cachedMethods: cloudfront.CachedMethods.CACHE_GET_HEAD,
+        compress: true,
       },
       defaultRootObject: 'index.html',
       errorResponses: [
+        {
+          httpStatus: 403,
+          responseHttpStatus: 200,
+          responsePagePath: '/index.html'
+        },
         {
           httpStatus: 404,
           responseHttpStatus: 200,
