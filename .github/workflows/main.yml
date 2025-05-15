@@ -78,7 +78,18 @@ jobs:
         run: |
           mkdir -p ./assets
           cp -r ../frontend/dist/spkymnr-xyz/browser ./assets/
-          
+      
+      # Bootstrap certificate stack separately after API deployment
+      - name: Bootstrap Certificate stack
+        run: cdk bootstrap --context stackId=CertificateStack
+
+      - name: Synthesize Certificate stack
+        run: cdk synth SquidCupSite-CertificateStack
+        
+      - name: Deploy Certificate Stack
+        run: cdk deploy SquidCupSite-CertificateStack --require-approval never
+
+
       # Bootstrap frontend stack separately after API deployment
       - name: Bootstrap Frontend stack
         run: cdk bootstrap --context stackId=FrontendStack
