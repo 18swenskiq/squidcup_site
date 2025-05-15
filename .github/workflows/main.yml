@@ -131,6 +131,12 @@ jobs:
       - name: Deploy Frontend Stack
         if: env.CERT_ARN != ''
         run: |
+          # Store certificate ARN in SSM parameter store
+          aws ssm put-parameter \
+            --name "/squidcup/certificate-arn" \
+            --value "$CERT_ARN" \
+            --type String \
+            --overwrite
+            
           cdk deploy SquidCupSite-FrontendStack \
-            --require-approval never \
-            --context certificateArn=$CERT_ARN
+            --require-approval never

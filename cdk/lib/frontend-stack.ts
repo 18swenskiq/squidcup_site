@@ -8,6 +8,7 @@ import * as iam from 'aws-cdk-lib/aws-iam';
 import * as path from 'path';
 import * as fs from 'fs';
 import * as acm from 'aws-cdk-lib/aws-certificatemanager';
+import * as ssm from 'aws-cdk-lib/aws-ssm';
 
 export interface FrontendStackProps extends cdk.StackProps {
   certificateArn: string;
@@ -57,9 +58,15 @@ export class FrontendStack extends cdk.Stack {
       principals: [new iam.ServicePrincipal('logging.s3.amazonaws.com')]
     }));
 
+    // Get certificate ARN from SSM Parameter Store
+    const certificateArn = ssm.StringParameter.valueFromLookup(
+      this,
+      '/squidcup/certificate-arn'
+    );
+
     // Import the certificate from ARN
     const certificate = acm.Certificate.fromCertificateArn(
-      this, 'Certificate', props.certificateArn
+      this, 'Certificate', certificateArn
     );
 
     // Create CloudFront distribution with updated configuration
