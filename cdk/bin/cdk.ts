@@ -18,7 +18,11 @@ const certificateStackName = 'SquidCupSite-CertificateStack';
 if (stackId === 'ApiStack') {
   new ApiStack(app, apiStackName);
 } else if (stackId === 'FrontendStack') {
-  new FrontendStack(app, frontendStackName);
+  const certStack = new CertificateStack(app, certificateStackName, {
+      env: { region: 'us-east-1' },
+      crossRegionReferences: true
+    });
+  new FrontendStack(app, frontendStackName, buildFrontendStackProps(certStack));
 } else {
   // Default behavior - check if specific stacks were requested via command line
   const selectedStacks = process.argv.slice(2).filter(arg => !arg.startsWith('-'));
@@ -26,7 +30,11 @@ if (stackId === 'ApiStack') {
   if (selectedStacks.includes(apiStackName) || selectedStacks.includes('ApiStack')) {
     new ApiStack(app, apiStackName);
   } else if (selectedStacks.includes(frontendStackName) || selectedStacks.includes('FrontendStack')) {
-    new FrontendStack(app, frontendStackName);
+    const certStack = new CertificateStack(app, certificateStackName, {
+      env: { region: 'us-east-1' },
+      crossRegionReferences: true
+    });
+    new FrontendStack(app, frontendStackName, buildFrontendStackProps(certStack));
   } else {
     // No specific selection, instantiate both stacks
     const certStack = new CertificateStack(app, certificateStackName, {
@@ -35,8 +43,20 @@ if (stackId === 'ApiStack') {
     });
 
     new ApiStack(app, apiStackName, { env: { region: 'us-east-2' } });
-    new FrontendStack(app, frontendStackName, { crossRegionReferences: true, env: { region : 'us-east-2'}}, certStack.certificateArn);
+    new FrontendStack(app, frontendStackName, {
+      crossRegionReferences: true, 
+      env: { region: 'us-east-2' },
+      certificate: certStack.certificate
+    });
   }
 }
 
 app.synth();
+
+function buildFrontendStackProps(certStack: CertificateStack) {
+  return {
+      crossRegionReferences: true, 
+      env: { region: 'us-east-2' },
+      certificate: certStack.certificate
+    }
+}
