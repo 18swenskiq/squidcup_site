@@ -1,7 +1,5 @@
 #!/usr/bin/env node
 import * as cdk from 'aws-cdk-lib';
-import * as fs from 'fs';
-import * as path from 'path';
 import { ApiStack } from '../lib/api-stack';
 import { FrontendStack } from '../lib/frontend-stack';
 import { CertificateStack } from '../lib/certificate-stack';
@@ -33,10 +31,11 @@ if (stackId === 'ApiStack') {
     // No specific selection, instantiate both stacks
     const certStack = new CertificateStack(app, certificateStackName, {
       env: { region: 'us-east-1' },
+      crossRegionReferences: true
     });
 
-    new ApiStack(app, apiStackName);
-    new FrontendStack(app, frontendStackName, {}, certStack.certificate.certificateArn);
+    new ApiStack(app, apiStackName, { env: { region: 'us-east-2' } });
+    new FrontendStack(app, frontendStackName, { crossRegionReferences: true, env: { region : 'us-east-2'}}, certStack.certificate.certificateArn);
   }
 }
 
