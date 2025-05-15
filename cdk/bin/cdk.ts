@@ -12,7 +12,7 @@ const stackId = app.node.tryGetContext('stackId');
 // Create the stacks with their full names
 const apiStackName = 'SquidCupSite-ApiStack';
 const frontendStackName = 'SquidCupSite-FrontendStack';
-const certificateStackName = 'SquidCupCertificateStack';
+const certificateStackName = 'SquidCupSite-CertificateStack';
 
 // Create stacks based on context parameter or command line stack selection
 if (stackId === 'ApiStack') {
