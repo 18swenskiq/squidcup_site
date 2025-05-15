@@ -10,7 +10,7 @@ import * as fs from 'fs';
 import * as acm from 'aws-cdk-lib/aws-certificatemanager';
 
 export interface FrontendStackProps extends cdk.StackProps {
-  certificate: acm.ICertificate;
+  certificateArn: string;
 }
 
 export class FrontendStack extends cdk.Stack {
@@ -57,6 +57,11 @@ export class FrontendStack extends cdk.Stack {
       principals: [new iam.ServicePrincipal('logging.s3.amazonaws.com')]
     }));
 
+    // Import the certificate from ARN
+    const certificate = acm.Certificate.fromCertificateArn(
+      this, 'Certificate', props.certificateArn
+    );
+
     // Create CloudFront distribution with updated configuration
     const distribution = new cloudfront.Distribution(this, 'SquidcupDistribution', {
       defaultBehavior: {
@@ -70,7 +75,7 @@ export class FrontendStack extends cdk.Stack {
         compress: true,
       },
       domainNames: ['squidcup.spkymnr.xyz'],
-      certificate: props.certificate,
+      certificate: certificate,
       minimumProtocolVersion: cloudfront.SecurityPolicyProtocol.TLS_V1_2_2021,
       defaultRootObject: 'index.html',
       errorResponses: [
@@ -117,7 +122,7 @@ export class FrontendStack extends cdk.Stack {
 
     // Add certificate ARN output
     new cdk.CfnOutput(this, 'CertificateArn', {
-      value: props.certificate.certificateArn,
+      value: props.certificateArn,
       description: 'Certificate ARN'
     });
   }

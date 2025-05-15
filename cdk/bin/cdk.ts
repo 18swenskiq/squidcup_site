@@ -44,9 +44,9 @@ if (stackId === 'ApiStack') {
 
     new ApiStack(app, apiStackName, { env: { region: 'us-east-2' } });
     new FrontendStack(app, frontendStackName, {
-      crossRegionReferences: true, 
+      crossRegionReferences: true,
       env: { region: 'us-east-2' },
-      certificate: certStack.certificate
+      certificateArn: certStack.certificateArn
     });
   }
 }
@@ -57,6 +57,6 @@ function buildFrontendStackProps(certStack: CertificateStack) {
   return {
       crossRegionReferences: true, 
       env: { region: 'us-east-2' },
-      certificate: certStack.certificate
+      certificateArn: certStack.certificateArn
     }
 }

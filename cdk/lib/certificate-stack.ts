@@ -3,20 +3,22 @@ import { Construct } from 'constructs';
 import * as acm from 'aws-cdk-lib/aws-certificatemanager';
 
 export class CertificateStack extends cdk.Stack {
-  public readonly certificate: acm.ICertificate;
+  public readonly certificateArn: string;
 
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
-    this.certificate = new acm.Certificate(this, 'Certificate', {
+    const certificate = new acm.Certificate(this, 'Certificate', {
       domainName: 'squidcup.spkymnr.xyz',
       validation: acm.CertificateValidation.fromDns(),
     });
 
-    console.log(this.certificate);
+    this.certificateArn = certificate.certificateArn;
+    console.log(this.certificateArn);
 
+    // Export the ARN with a specific name for cross-region reference
     new cdk.CfnOutput(this, 'CertificateArn', {
-      value: this.certificate.certificateArn,
+      value: this.certificateArn,
       exportName: 'SquidCupCertificateArn',
     });
   }
