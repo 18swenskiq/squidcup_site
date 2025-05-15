@@ -23,7 +23,7 @@ export class FrontendStack extends cdk.Stack {
     // Create CloudFront distribution
     const distribution = new cloudfront.Distribution(this, 'SquidcupDistribution', {
       defaultBehavior: {
-        origin: new origins.S3StaticWebsiteOrigin(websiteBucket),
+        origin: new origins.S3Origin(websiteBucket),
         viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
       },
       defaultRootObject: 'index.html',
