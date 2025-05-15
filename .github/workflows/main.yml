@@ -113,19 +113,19 @@ jobs:
           echo "API URL: $API_URL"
 
       # Cancel any in-progress updates and destroy stack
-      - name: Handle Frontend Stack
-        run: |
-          # Try to cancel any in-progress updates
-          aws cloudformation cancel-update-stack --stack-name SquidCupSite-FrontendStack || true
-          
-          # Wait briefly for cancellation
-          sleep 30
-          
-          # Now try to delete the stack
-          aws cloudformation delete-stack --stack-name SquidCupSite-FrontendStack || true
-          
-          # Wait for deletion to complete
-          aws cloudformation wait stack-delete-complete --stack-name SquidCupSite-FrontendStack || true
+      #- name: Handle Frontend Stack
+      #  run: |
+      #    # Try to cancel any in-progress updates
+      #    aws cloudformation cancel-update-stack --stack-name SquidCupSite-FrontendStack || true
+      #    
+      #    # Wait briefly for cancellation
+      #    sleep 30
+      #    
+      #    # Now try to delete the stack
+      #    aws cloudformation delete-stack --stack-name SquidCupSite-FrontendStack || true
+      #    
+      #    # Wait for deletion to complete
+      #    aws cloudformation wait stack-delete-complete --stack-name SquidCupSite-FrontendStack || true
           
       # Deploy fresh frontend stack
       - name: Deploy Frontend Stack
