@@ -9,15 +9,13 @@ import * as path from 'path';
 import * as fs from 'fs';
 import * as acm from 'aws-cdk-lib/aws-certificatemanager';
 
+export interface FrontendStackProps extends cdk.StackProps {
+  certificateArn: string;
+}
+
 export class FrontendStack extends cdk.Stack {
-  constructor(scope: Construct, id: string, props?: cdk.StackProps) {
-    super(scope, id, {
-      ...props,
-      env: {
-        ...props?.env,
-        region: 'us-east-1', // Force us-east-1 for CloudFront certificate
-      },
-    });
+  constructor(scope: Construct, id: string, props?: cdk.StackProps, certificateArn?: string) {
+    super(scope, id, props);
 
     // Create the S3 bucket
     const websiteBucket = new s3.Bucket(this, "squidcup_site_frontend", {
@@ -59,11 +57,10 @@ export class FrontendStack extends cdk.Stack {
       principals: [new iam.ServicePrincipal('logging.s3.amazonaws.com')]
     }));
 
-    // Create ACM Certificate
-    const certificate = new acm.Certificate(this, 'Certificate', {
-      domainName: 'squidcup.spkymnr.xyz',
-      validation: acm.CertificateValidation.fromDns(),
-    });
+    // Import the certificate from us-east-1
+    const certificate = acm.Certificate.fromCertificateArn(
+      this, 'Certificate', certificateArn ?? ''
+    );
 
     // Create CloudFront distribution with updated configuration
     const distribution = new cloudfront.Distribution(this, 'SquidcupDistribution', {

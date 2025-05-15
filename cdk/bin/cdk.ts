@@ -4,6 +4,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { ApiStack } from '../lib/api-stack';
 import { FrontendStack } from '../lib/frontend-stack';
+import { CertificateStack } from '../lib/certificate-stack';
 
 const app = new cdk.App();
 
@@ -13,6 +14,7 @@ const stackId = app.node.tryGetContext('stackId');
 // Create the stacks with their full names
 const apiStackName = 'SquidCupSite-ApiStack';
 const frontendStackName = 'SquidCupSite-FrontendStack';
+const certificateStackName = 'SquidCupCertificateStack';
 
 // Create stacks based on context parameter or command line stack selection
 if (stackId === 'ApiStack') {
@@ -29,8 +31,12 @@ if (stackId === 'ApiStack') {
     new FrontendStack(app, frontendStackName);
   } else {
     // No specific selection, instantiate both stacks
+    const certStack = new CertificateStack(app, certificateStackName, {
+      env: { region: 'us-east-1' },
+    });
+
     new ApiStack(app, apiStackName);
-    new FrontendStack(app, frontendStackName);
+    new FrontendStack(app, frontendStackName, {}, certStack.certificate.certificateArn);
   }
 }
 
