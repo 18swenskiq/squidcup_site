@@ -4,6 +4,7 @@ import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as s3deploy from 'aws-cdk-lib/aws-s3-deployment';
 import * as cloudfront from 'aws-cdk-lib/aws-cloudfront';
 import * as origins from 'aws-cdk-lib/aws-cloudfront-origins';
+import * as iam from 'aws-cdk-lib/aws-iam';
 import * as path from 'path';
 import * as fs from 'fs';
 
@@ -20,10 +21,36 @@ export class FrontendStack extends cdk.Stack {
       websiteErrorDocument: 'index.html'
     });
 
+    // Create Origin Access Identity
+    const originAccessIdentity = new cloudfront.OriginAccessIdentity(this, 'OAI', {
+      comment: `OAI for ${id}`
+    });
+
+    // Grant read permissions to CloudFront
+    websiteBucket.addToResourcePolicy(new iam.PolicyStatement({
+      actions: ['s3:GetObject'],
+      resources: [websiteBucket.arnForObjects('*')],
+      principals: [new iam.CanonicalUserPrincipal(originAccessIdentity.cloudFrontOriginAccessIdentityS3CanonicalUserId)]
+    }));
+
+    // Create logging bucket for CloudFront
+    const logBucket = new s3.Bucket(this, 'CloudFrontLogsBucket', {
+      encryption: s3.BucketEncryption.S3_MANAGED,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+      autoDeleteObjects: true, // Optional: automatically delete logs when stack is destroyed
+      lifecycleRules: [
+        {
+          expiration: cdk.Duration.days(30) // Optional: automatically delete logs after 30 days
+        }
+      ]
+    });
+
     // Create CloudFront distribution
     const distribution = new cloudfront.Distribution(this, 'SquidcupDistribution', {
       defaultBehavior: {
-        origin: new origins.S3Origin(websiteBucket),
+        origin: new origins.S3Origin(websiteBucket, {
+          originAccessIdentity: originAccessIdentity
+        }),
         viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
       },
       defaultRootObject: 'index.html',
@@ -33,7 +60,9 @@ export class FrontendStack extends cdk.Stack {
           responseHttpStatus: 200,
           responsePagePath: '/index.html'
         }
-      ]
+      ],
+      logBucket: logBucket,
+      logFilePrefix: 'cloudfront-logs/' // Optional: organize logs in a prefix
     });
 
     // Check if assets directory exists before attempting deployment
