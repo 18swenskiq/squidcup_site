@@ -16,7 +16,7 @@ const certificateStackName = 'SquidCupSite-CertificateStack';
 
 // Create stacks based on context parameter or command line stack selection
 if (stackId === 'ApiStack') {
-  new ApiStack(app, apiStackName);
+  new ApiStack(app, apiStackName, { env: { region: 'us-east-2' } });
 } else if (stackId === 'FrontendStack') {
   const certStack = new CertificateStack(app, certificateStackName, {
       env: { region: 'us-east-1' },
@@ -28,7 +28,7 @@ if (stackId === 'ApiStack') {
   const selectedStacks = process.argv.slice(2).filter(arg => !arg.startsWith('-'));
   
   if (selectedStacks.includes(apiStackName) || selectedStacks.includes('ApiStack')) {
-    new ApiStack(app, apiStackName);
+    new ApiStack(app, apiStackName, { env: { region: 'us-east-2' } });
   } else if (selectedStacks.includes(frontendStackName) || selectedStacks.includes('FrontendStack')) {
     const certStack = new CertificateStack(app, certificateStackName, {
       env: { region: 'us-east-1' },
