@@ -33,7 +33,7 @@ jobs:
             fi
           done
 
-      - name: Configure AWS credentials
+      - name: Configure AWS credentials for us-east-2
         uses: aws-actions/configure-aws-credentials@master
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -79,19 +79,30 @@ jobs:
           mkdir -p ./assets
           cp -r ../frontend/dist/spkymnr-xyz/browser ./assets/
       
-      # Bootstrap certificate stack separately after API deployment
-      - name: Bootstrap Certificate stack
-        run: cdk bootstrap --context stackId=CertificateStack
+      - name: Configure AWS credentials for us-east-1
+        uses: aws-actions/configure-aws-credentials@master
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_KEY }}
+          aws-region: 'us-east-1'
 
-      - name: Synthesize Certificate stack
-        run: cdk synth SquidCupSite-CertificateStack
-        
-      # Deploy Certificate Stack and capture the ARN
+      # Bootstrap certificate stack in us-east-1
+      - name: Bootstrap Certificate stack
+        run: |
+          cdk bootstrap aws://$(aws sts get-caller-identity --query 'Account' --output text)/us-east-1
+
       - name: Deploy Certificate Stack
         run: |
           cdk deploy SquidCupSite-CertificateStack --require-approval never
           CERT_ARN=$(aws cloudformation describe-stacks --stack-name SquidCupSite-CertificateStack --query "Stacks[0].Outputs[?OutputKey=='CertificateArn'].OutputValue" --output text)
           echo "CERT_ARN=$CERT_ARN" >> $GITHUB_ENV
+
+      - name: Configure AWS credentials back to us-east-2
+        uses: aws-actions/configure-aws-credentials@master
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_KEY }}
+          aws-region: 'us-east-2'
 
       # Bootstrap frontend stack separately after API deployment
       - name: Bootstrap Frontend stack
