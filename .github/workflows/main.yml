@@ -94,8 +94,10 @@ jobs:
       - name: Deploy Certificate Stack
         run: |
           cdk deploy SquidCupSite-CertificateStack --require-approval never
+          # Export the ARN and ensure it's captured
           CERT_ARN=$(aws cloudformation describe-stacks --stack-name SquidCupSite-CertificateStack --query "Stacks[0].Outputs[?OutputKey=='CertificateArn'].OutputValue" --output text)
-          echo "CERT_ARN=$CERT_ARN" >> $GITHUB_ENV
+          echo "Certificate ARN: $CERT_ARN"
+          echo "CERT_ARN=$CERT_ARN" >> "$GITHUB_ENV"
 
       - name: Configure AWS credentials back to us-east-2
         uses: aws-actions/configure-aws-credentials@master
@@ -104,21 +106,22 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_KEY }}
           aws-region: 'us-east-2'
 
+      # Debug step to verify environment variables
+      - name: Debug Environment
+        run: |
+          echo "Certificate ARN: $CERT_ARN"
+          echo "API URL: $API_URL"
+          
       # Bootstrap frontend stack separately after API deployment
       - name: Bootstrap Frontend stack
         run: cdk bootstrap --context stackId=FrontendStack
-          
-      # Wait for any existing frontend stack updates to complete
-      - name: Wait for stack stability
-        run: |
-          aws cloudformation wait stack-update-complete --stack-name SquidCupSite-FrontendStack || true
-          aws cloudformation wait stack-create-complete --stack-name SquidCupSite-FrontendStack || true
           
       # Synthesize and deploy the frontend stack now that assets are available
       - name: Synthesize Frontend stack
         run: cdk synth SquidCupSite-FrontendStack
         
       - name: Deploy Frontend Stack
+        if: env.CERT_ARN != ''
         run: |
           cdk deploy SquidCupSite-FrontendStack \
             --require-approval never \
