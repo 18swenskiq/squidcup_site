@@ -33,17 +33,25 @@ export class FrontendStack extends cdk.Stack {
       principals: [new iam.CanonicalUserPrincipal(originAccessIdentity.cloudFrontOriginAccessIdentityS3CanonicalUserId)]
     }));
 
-    // Create logging bucket for CloudFront
+    // Create logging bucket for CloudFront with ACLs enabled
     const logBucket = new s3.Bucket(this, 'CloudFrontLogsBucket', {
       encryption: s3.BucketEncryption.S3_MANAGED,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
-      autoDeleteObjects: true, // Optional: automatically delete logs when stack is destroyed
+      autoDeleteObjects: true,
+      objectOwnership: s3.ObjectOwnership.OBJECT_WRITER, // Enable ACLs
       lifecycleRules: [
         {
-          expiration: cdk.Duration.days(30) // Optional: automatically delete logs after 30 days
+          expiration: cdk.Duration.days(30)
         }
       ]
     });
+
+    // Grant CloudFront log delivery access to the bucket
+    logBucket.addToResourcePolicy(new iam.PolicyStatement({
+      actions: ['s3:PutObject'],
+      resources: [logBucket.arnForObjects('*')],
+      principals: [new iam.ServicePrincipal('logging.s3.amazonaws.com')]
+    }));
 
     // Create CloudFront distribution
     const distribution = new cloudfront.Distribution(this, 'SquidcupDistribution', {
