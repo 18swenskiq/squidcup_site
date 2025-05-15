@@ -8,6 +8,7 @@ const app = new cdk.App();
 
 // Get the stack ID from context (--context stackId=xyz)
 const stackId = app.node.tryGetContext('stackId');
+console.log(`StackId: ${stackId}`);
 
 // Create the stacks with their full names
 const apiStackName = 'SquidCupSite-ApiStack';
@@ -15,27 +16,36 @@ const frontendStackName = 'SquidCupSite-FrontendStack';
 const certificateStackName = 'SquidCupSite-CertificateStack';
 
 // Create stacks based on context parameter or command line stack selection
-if (stackId === 'ApiStack') {
+if (stackId === 'ApiStack')
+{
   new ApiStack(app, apiStackName, { env: { region: 'us-east-2' } });
-} else if (stackId === 'FrontendStack') {
+}
+else if (stackId === 'FrontendStack') {
   const certStack = new CertificateStack(app, certificateStackName, {
       env: { region: 'us-east-1' },
       crossRegionReferences: true
     });
   new FrontendStack(app, frontendStackName, buildFrontendStackProps(certStack));
-} else {
+}
+else {
   // Default behavior - check if specific stacks were requested via command line
   const selectedStacks = process.argv.slice(2).filter(arg => !arg.startsWith('-'));
   
-  if (selectedStacks.includes(apiStackName) || selectedStacks.includes('ApiStack')) {
+  if (selectedStacks.includes(apiStackName) || selectedStacks.includes('ApiStack'))
+  {
     new ApiStack(app, apiStackName, { env: { region: 'us-east-2' } });
-  } else if (selectedStacks.includes(frontendStackName) || selectedStacks.includes('FrontendStack')) {
+  } 
+  else if (selectedStacks.includes(frontendStackName) || selectedStacks.includes('FrontendStack'))
+  {
     const certStack = new CertificateStack(app, certificateStackName, {
       env: { region: 'us-east-1' },
       crossRegionReferences: true
     });
+
     new FrontendStack(app, frontendStackName, buildFrontendStackProps(certStack));
-  } else {
+  }
+  else
+  {
     // No specific selection, instantiate both stacks
     const certStack = new CertificateStack(app, certificateStackName, {
       env: { region: 'us-east-1' },
@@ -43,6 +53,7 @@ if (stackId === 'ApiStack') {
     });
 
     new ApiStack(app, apiStackName, { env: { region: 'us-east-2' } });
+
     new FrontendStack(app, frontendStackName, {
       crossRegionReferences: true,
       env: { region: 'us-east-2' },
