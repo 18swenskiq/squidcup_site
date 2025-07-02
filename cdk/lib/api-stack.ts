@@ -10,7 +10,7 @@ export class ApiStack extends cdk.Stack {
   private readonly RUNTIME = lambda.Runtime.NODEJS_22_X;
   private readonly MEMORY_SIZE = 512;
   private readonly TIMEOUT = cdk.Duration.seconds(5);
-  private readonly REGION = 'us-east-2';
+  private readonly REGION = 'us-east-1';
 
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);

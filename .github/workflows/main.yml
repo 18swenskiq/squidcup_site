@@ -33,19 +33,19 @@ jobs:
             fi
           done
 
-      - name: Configure AWS credentials for us-east-2
+      - name: Configure AWS credentials for us-east-1
         uses: aws-actions/configure-aws-credentials@master
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_KEY }}
-          aws-region: 'us-east-2'
+          aws-region: 'us-east-1'
 
-      # Bootstrap only the API stack first
-      - name: Bootstrap API stack
-        run: cdk bootstrap --context stackId=ApiStack
+      # Bootstrap all stacks in us-east-1
+      - name: Bootstrap CDK
+        run: cdk bootstrap
 
       # Synthesize API stack only
-      - name: Synthesize API stack
+      - name: Synthesize CDK
         run: cdk synth SquidCupSite-ApiStack
 
       # Deploy API stack first
@@ -78,19 +78,8 @@ jobs:
         run: |
           mkdir -p ./assets
           cp -r ../frontend/dist/spkymnr-xyz/browser ./assets/
-      
-      - name: Configure AWS credentials for us-east-1
-        uses: aws-actions/configure-aws-credentials@master
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_KEY }}
-          aws-region: 'us-east-1'
 
-      # Bootstrap certificate stack in us-east-1
-      - name: Bootstrap Certificate stack
-        run: |
-          cdk bootstrap aws://$(aws sts get-caller-identity --query 'Account' --output text)/us-east-1
-
+      # Deploy Certificate Stack (now in us-east-1 with everything else)
       - name: Deploy Certificate Stack
         run: |
           cdk deploy SquidCupSite-CertificateStack --require-approval never
@@ -98,13 +87,6 @@ jobs:
           CERT_ARN=$(aws cloudformation describe-stacks --stack-name SquidCupSite-CertificateStack --query "Stacks[0].Outputs[?OutputKey=='CertificateArn'].OutputValue" --output text)
           echo "Certificate ARN: $CERT_ARN"
           echo "CERT_ARN=$CERT_ARN" >> "$GITHUB_ENV"
-
-      - name: Configure AWS credentials back to us-east-2
-        uses: aws-actions/configure-aws-credentials@master
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_KEY }}
-          aws-region: 'us-east-2'
 
       # Debug step to verify environment variables
       - name: Debug Environment
@@ -131,12 +113,5 @@ jobs:
       - name: Deploy Frontend Stack
         if: env.CERT_ARN != ''
         run: |
-          # Store certificate ARN in SSM parameter store
-          aws ssm put-parameter \
-            --name "/squidcup/certificate-arn" \
-            --value "$CERT_ARN" \
-            --type String \
-            --overwrite
-            
           cdk deploy SquidCupSite-FrontendStack \
             --require-approval never

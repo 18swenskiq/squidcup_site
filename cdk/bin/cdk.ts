@@ -18,12 +18,11 @@ const certificateStackName = 'SquidCupSite-CertificateStack';
 // Create stacks based on context parameter or command line stack selection
 if (stackId === 'ApiStack')
 {
-  new ApiStack(app, apiStackName, { env: { region: 'us-east-2' } });
+  new ApiStack(app, apiStackName, { env: { region: 'us-east-1' } });
 }
 else if (stackId === 'FrontendStack') {
   const certStack = new CertificateStack(app, certificateStackName, {
-      env: { region: 'us-east-1' },
-      crossRegionReferences: true
+      env: { region: 'us-east-1' }
     });
   new FrontendStack(app, frontendStackName, buildFrontendStackProps(certStack));
 }
@@ -33,13 +32,12 @@ else {
   
   if (selectedStacks.includes(apiStackName) || selectedStacks.includes('ApiStack'))
   {
-    new ApiStack(app, apiStackName, { env: { region: 'us-east-2' } });
+    new ApiStack(app, apiStackName, { env: { region: 'us-east-1' } });
   } 
   else if (selectedStacks.includes(frontendStackName) || selectedStacks.includes('FrontendStack'))
   {
     const certStack = new CertificateStack(app, certificateStackName, {
-      env: { region: 'us-east-1' },
-      crossRegionReferences: true
+      env: { region: 'us-east-1' }
     });
 
     new FrontendStack(app, frontendStackName, buildFrontendStackProps(certStack));
@@ -48,15 +46,13 @@ else {
   {
     // No specific selection, instantiate both stacks
     const certStack = new CertificateStack(app, certificateStackName, {
-      env: { region: 'us-east-1' },
-      crossRegionReferences: true
+      env: { region: 'us-east-1' }
     });
 
-    new ApiStack(app, apiStackName, { env: { region: 'us-east-2' } });
+    new ApiStack(app, apiStackName, { env: { region: 'us-east-1' } });
 
     new FrontendStack(app, frontendStackName, {
-      crossRegionReferences: true,
-      env: { region: 'us-east-2' },
+      env: { region: 'us-east-1' },
       certificateArn: certStack.certificateArn
     });
   }
@@ -66,8 +62,7 @@ app.synth();
 
 function buildFrontendStackProps(certStack: CertificateStack) {
   return {
-      crossRegionReferences: true, 
-      env: { region: 'us-east-2' },
+      env: { region: 'us-east-1' },
       certificateArn: certStack.certificateArn
     }
 }
