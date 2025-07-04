@@ -1,4 +1,3 @@
-import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, PutCommand, GetCommand } from '@aws-sdk/lib-dynamodb';
 import * as crypto from 'crypto';
@@ -8,7 +7,7 @@ const docClient = DynamoDBDocumentClient.from(dynamoClient);
 
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:4200';
 
-export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
+export async function handler(event: any): Promise<any> {
   console.log('Steam login event:', JSON.stringify(event, null, 2));
 
   const path = event.path;
@@ -53,7 +52,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
   }
 };
 
-async function handleSteamLogin(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
+async function handleSteamLogin(event: any): Promise<any> {
   // Generate Steam OpenID URL
   const returnUrl = `${event.headers.origin || FRONTEND_URL}/api/auth/steam/callback`;
   const realm = event.headers.origin || FRONTEND_URL;
@@ -79,7 +78,7 @@ async function handleSteamLogin(event: APIGatewayProxyEvent): Promise<APIGateway
   };
 }
 
-async function handleSteamCallback(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
+async function handleSteamCallback(event: any): Promise<any> {
   const queryParams = event.queryStringParameters || {};
   
   // Verify the Steam OpenID response
@@ -148,7 +147,7 @@ async function handleSteamCallback(event: APIGatewayProxyEvent): Promise<APIGate
   }
 }
 
-async function handleLogout(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
+async function handleLogout(event: any): Promise<any> {
   const body = JSON.parse(event.body || '{}');
   const sessionToken = body.sessionToken;
 
