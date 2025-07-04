@@ -1,4 +1,5 @@
-import { Injectable } from '@angular/core';
+import { Injectable, Inject, PLATFORM_ID } from '@angular/core';
+import { isPlatformBrowser } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { BehaviorSubject, Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
@@ -16,32 +17,42 @@ export class AuthService {
   private currentUserSubject = new BehaviorSubject<User | null>(null);
   public currentUser$ = this.currentUserSubject.asObservable();
 
-  constructor(private http: HttpClient) {
+  constructor(
+    private http: HttpClient,
+    @Inject(PLATFORM_ID) private platformId: Object
+  ) {
     // Check for existing session on service initialization
     this.checkExistingSession();
   }
 
   private checkExistingSession(): void {
-    const sessionToken = localStorage.getItem('sessionToken');
-    const steamId = localStorage.getItem('steamId');
-    
-    if (sessionToken && steamId) {
-      this.currentUserSubject.next({
-        steamId,
-        sessionToken
-      });
+    // Only access localStorage in browser environment
+    if (isPlatformBrowser(this.platformId)) {
+      const sessionToken = localStorage.getItem('sessionToken');
+      const steamId = localStorage.getItem('steamId');
+      
+      if (sessionToken && steamId) {
+        this.currentUserSubject.next({
+          steamId,
+          sessionToken
+        });
+      }
     }
   }
 
   loginWithSteam(): void {
-    // Redirect to the Steam login endpoint
-    window.location.href = `${environment.apiUrl}/auth/steam`;
+    // Only redirect in browser environment
+    if (isPlatformBrowser(this.platformId)) {
+      window.location.href = `${environment.apiUrl}/auth/steam`;
+    }
   }
 
   handleLoginCallback(token: string, steamId: string): void {
-    // Store session information
-    localStorage.setItem('sessionToken', token);
-    localStorage.setItem('steamId', steamId);
+    // Store session information only in browser environment
+    if (isPlatformBrowser(this.platformId)) {
+      localStorage.setItem('sessionToken', token);
+      localStorage.setItem('steamId', steamId);
+    }
     
     this.currentUserSubject.next({
       steamId,
@@ -50,7 +61,12 @@ export class AuthService {
   }
 
   logout(): Observable<any> {
-    const sessionToken = localStorage.getItem('sessionToken');
+    let sessionToken = '';
+    
+    // Get session token only in browser environment
+    if (isPlatformBrowser(this.platformId)) {
+      sessionToken = localStorage.getItem('sessionToken') || '';
+    }
     
     return new Observable(observer => {
       if (sessionToken) {
@@ -76,8 +92,11 @@ export class AuthService {
   }
 
   private clearSession(): void {
-    localStorage.removeItem('sessionToken');
-    localStorage.removeItem('steamId');
+    // Clear localStorage only in browser environment
+    if (isPlatformBrowser(this.platformId)) {
+      localStorage.removeItem('sessionToken');
+      localStorage.removeItem('steamId');
+    }
     this.currentUserSubject.next(null);
   }
 
