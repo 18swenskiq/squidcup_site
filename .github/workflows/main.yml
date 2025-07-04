@@ -85,6 +85,54 @@ jobs:
       - name: Deploy Certificate Stack
         timeout-minutes: 20
         run: |
+          # Check if the certificate stack already exists and is complete
+          STACK_STATUS=$(aws cloudformation describe-stacks --stack-name SquidCupSite-CertificateStack --query "Stacks[0].StackStatus" --output text 2>/dev/null || echo "DOES_NOT_EXIST")
+          
+          echo "Current stack status: $STACK_STATUS"
+          
+          if [ "$STACK_STATUS" = "CREATE_COMPLETE" ] || [ "$STACK_STATUS" = "UPDATE_COMPLETE" ]; then
+            echo "Certificate stack already exists and is complete. Retrieving certificate ARN..."
+            CERT_ARN=$(aws cloudformation describe-stacks --stack-name SquidCupSite-CertificateStack --query "Stacks[0].Outputs[?OutputKey=='CertificateArn'].OutputValue" --output text)
+            echo "Certificate ARN: $CERT_ARN"
+            echo "CERT_ARN=$CERT_ARN" >> "$GITHUB_ENV"
+            exit 0
+          elif [ "$STACK_STATUS" = "CREATE_IN_PROGRESS" ] || [ "$STACK_STATUS" = "UPDATE_IN_PROGRESS" ]; then
+            echo "Certificate stack is currently in progress. Monitoring for completion..."
+            
+            # Monitor the existing stack instead of starting a new deployment
+            WAIT_TIME=0
+            MAX_WAIT=1200  # 20 minutes max for in-progress stack
+            
+            while [ $WAIT_TIME -lt $MAX_WAIT ]; do
+              CURRENT_STATUS=$(aws cloudformation describe-stacks --stack-name SquidCupSite-CertificateStack --query "Stacks[0].StackStatus" --output text 2>/dev/null || echo "UNKNOWN")
+              echo "Stack status: $CURRENT_STATUS (waited ${WAIT_TIME}s)"
+              
+              if [ "$CURRENT_STATUS" = "CREATE_COMPLETE" ] || [ "$CURRENT_STATUS" = "UPDATE_COMPLETE" ]; then
+                echo "Certificate stack completed successfully!"
+                CERT_ARN=$(aws cloudformation describe-stacks --stack-name SquidCupSite-CertificateStack --query "Stacks[0].Outputs[?OutputKey=='CertificateArn'].OutputValue" --output text)
+                echo "Certificate ARN: $CERT_ARN"
+                echo "CERT_ARN=$CERT_ARN" >> "$GITHUB_ENV"
+                exit 0
+              elif [ "$CURRENT_STATUS" = "CREATE_FAILED" ] || [ "$CURRENT_STATUS" = "ROLLBACK_COMPLETE" ] || [ "$CURRENT_STATUS" = "UPDATE_FAILED" ] || [ "$CURRENT_STATUS" = "UPDATE_ROLLBACK_COMPLETE" ]; then
+                echo "Certificate stack deployment failed with status: $CURRENT_STATUS"
+                exit 1
+              fi
+              
+              sleep 30
+              WAIT_TIME=$((WAIT_TIME + 30))
+            done
+            
+            echo "Timeout waiting for in-progress stack to complete"
+            exit 1
+          elif [ "$STACK_STATUS" = "CREATE_FAILED" ] || [ "$STACK_STATUS" = "ROLLBACK_COMPLETE" ]; then
+            echo "Certificate stack is in failed state: $STACK_STATUS. Deleting and recreating..."
+            aws cloudformation delete-stack --stack-name SquidCupSite-CertificateStack
+            aws cloudformation wait stack-delete-complete --stack-name SquidCupSite-CertificateStack
+            echo "Stack deleted. Proceeding with new deployment..."
+          fi
+          
+          echo "Certificate stack needs to be created. Starting deployment..."
+          
           # Start certificate deployment in background and capture output
           cdk deploy SquidCupSite-CertificateStack --require-approval never > cert_deploy.log 2>&1 &
           CDK_PID=$!
@@ -98,6 +146,16 @@ jobs:
           
           while [ $ELAPSED -lt $TIMEOUT ] && [ "$VALIDATION_FOUND" = "false" ]; do
             if [ -f cert_deploy.log ]; then
+              # Check if deployment completed without needing validation (stack already existed)
+              if grep -q "no changes" cert_deploy.log; then
+                echo "Stack deployment completed with no changes"
+                wait $CDK_PID
+                CERT_ARN=$(aws cloudformation describe-stacks --stack-name SquidCupSite-CertificateStack --query "Stacks[0].Outputs[?OutputKey=='CertificateArn'].OutputValue" --output text)
+                echo "Certificate ARN: $CERT_ARN"
+                echo "CERT_ARN=$CERT_ARN" >> "$GITHUB_ENV"
+                exit 0
+              fi
+              
               if grep -q "Content of DNS Record is:" cert_deploy.log; then
                 DNS_RECORD=$(grep "Content of DNS Record is:" cert_deploy.log | tail -1)
                 echo "Found DNS validation record: $DNS_RECORD"
