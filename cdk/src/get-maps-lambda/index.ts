@@ -151,6 +151,37 @@ export async function handler(event: any): Promise<any> {
     console.log('Successfully retrieved Steam API key');
   } catch (error) {
     console.error('Failed to retrieve Steam API key:', JSON.stringify(error, null, 2));
+    return {
+      body: JSON.stringify({
+        message: 'Failed to retrieve Steam API key from Parameter Store',
+        error: error,
+      }),
+      statusCode: 500,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'Content-Type,Authorization',
+        'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS',
+        'Access-Control-Allow-Credentials': true,
+      },
+    };
+  }
+
+  // Validate that we actually got a Steam API key
+  if (!steamApiKey || steamApiKey.trim() === '') {
+    console.error('Steam API key is empty or undefined');
+    return {
+      body: JSON.stringify({
+        message: 'Steam API key is empty or not found',
+        error: 'No valid Steam API key available',
+      }),
+      statusCode: 500,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'Content-Type,Authorization',
+        'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS',
+        'Access-Control-Allow-Credentials': true,
+      },
+    };
   }
 
   // Ensure queryparams.gameModes is an array of strings and it is passed to getMapsFromSteamAPI properly
