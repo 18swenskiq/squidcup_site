@@ -83,31 +83,54 @@ jobs:
 
       # Deploy Certificate Stack (now in us-east-1 with everything else)
       - name: Deploy Certificate Stack
-        timeout-minutes: 15
+        timeout-minutes: 20
         run: |
-          # Start certificate deployment and capture the validation details
-          cdk deploy SquidCupSite-CertificateStack --require-approval never 2>&1 | tee cert_deploy.log || true
+          # Start certificate deployment in background and capture output
+          cdk deploy SquidCupSite-CertificateStack --require-approval never > cert_deploy.log 2>&1 &
+          CDK_PID=$!
           
-          # Extract DNS validation details from the log
-          if grep -q "Content of DNS Record is:" cert_deploy.log; then
-            DNS_RECORD=$(grep "Content of DNS Record is:" cert_deploy.log | tail -1)
-            echo "Found DNS validation record: $DNS_RECORD"
+          echo "Certificate deployment started with PID: $CDK_PID"
+          
+          # Monitor the log file for DNS validation details
+          VALIDATION_FOUND=false
+          TIMEOUT=600 # 10 minutes timeout for finding validation record
+          ELAPSED=0
+          
+          while [ $ELAPSED -lt $TIMEOUT ] && [ "$VALIDATION_FOUND" = "false" ]; do
+            if [ -f cert_deploy.log ]; then
+              if grep -q "Content of DNS Record is:" cert_deploy.log; then
+                DNS_RECORD=$(grep "Content of DNS Record is:" cert_deploy.log | tail -1)
+                echo "Found DNS validation record: $DNS_RECORD"
+                
+                # Extract the validation record name and value
+                VALIDATION_NAME=$(echo "$DNS_RECORD" | sed -n 's/.*Name: \([^,]*\),.*/\1/p')
+                VALIDATION_VALUE=$(echo "$DNS_RECORD" | sed -n 's/.*Value: \([^}]*\)}.*/\1/p')
+                
+                echo "Validation Name: $VALIDATION_NAME"
+                echo "Validation Value: $VALIDATION_VALUE"
+                
+                if [ -n "$VALIDATION_NAME" ] && [ -n "$VALIDATION_VALUE" ]; then
+                  echo "VALIDATION_NAME=$VALIDATION_NAME" >> "$GITHUB_ENV"
+                  echo "VALIDATION_VALUE=$VALIDATION_VALUE" >> "$GITHUB_ENV"
+                  VALIDATION_FOUND=true
+                  break
+                fi
+              fi
+            fi
             
-            # Extract the validation record name and value using more robust parsing
-            VALIDATION_NAME=$(echo "$DNS_RECORD" | sed -n 's/.*Name: \([^,]*\),.*/\1/p')
-            VALIDATION_VALUE=$(echo "$DNS_RECORD" | sed -n 's/.*Value: \([^}]*\)}.*/\1/p')
-            
-            echo "Validation Name: $VALIDATION_NAME"
-            echo "Validation Value: $VALIDATION_VALUE"
-            
-            # Store these for the next step
-            echo "VALIDATION_NAME=$VALIDATION_NAME" >> "$GITHUB_ENV"
-            echo "VALIDATION_VALUE=$VALIDATION_VALUE" >> "$GITHUB_ENV"
-          else
-            echo "No DNS validation record found in deployment log"
+            sleep 5
+            ELAPSED=$((ELAPSED + 5))
+            echo "Waiting for DNS validation record... ($ELAPSED/$TIMEOUT seconds)"
+          done
+          
+          if [ "$VALIDATION_FOUND" = "false" ]; then
+            echo "Timeout waiting for DNS validation record"
+            kill $CDK_PID 2>/dev/null || true
             cat cert_deploy.log
             exit 1
           fi
+          
+          echo "DNS validation record found, keeping CDK process running for now..."
 
       # Create DNS validation record in Cloudflare
       - name: Create Cloudflare DNS Record for Certificate Validation
@@ -161,11 +184,38 @@ jobs:
         if: env.CLOUDFLARE_RECORD_ID != ''
         run: |
           echo "Waiting for DNS propagation..."
-          sleep 60
+          sleep 120  # Wait 2 minutes for DNS propagation
           
-          # Try to complete the certificate deployment
-          echo "Attempting to complete certificate validation..."
-          cdk deploy SquidCupSite-CertificateStack --require-approval never
+          echo "DNS should be propagated, waiting for certificate validation to complete..."
+          
+          # Wait for the original CDK process to complete (or timeout)
+          WAIT_TIME=0
+          MAX_WAIT=900  # 15 minutes max
+          
+          while [ $WAIT_TIME -lt $MAX_WAIT ]; do
+            # Check if the CloudFormation stack is complete
+            STACK_STATUS=$(aws cloudformation describe-stacks --stack-name SquidCupSite-CertificateStack --query "Stacks[0].StackStatus" --output text 2>/dev/null || echo "UNKNOWN")
+            
+            echo "Stack status: $STACK_STATUS (waited ${WAIT_TIME}s)"
+            
+            if [ "$STACK_STATUS" = "CREATE_COMPLETE" ]; then
+              echo "Certificate stack deployment completed successfully!"
+              break
+            elif [ "$STACK_STATUS" = "CREATE_FAILED" ] || [ "$STACK_STATUS" = "ROLLBACK_COMPLETE" ]; then
+              echo "Certificate stack deployment failed"
+              cat cert_deploy.log || true
+              exit 1
+            fi
+            
+            sleep 30
+            WAIT_TIME=$((WAIT_TIME + 30))
+          done
+          
+          if [ $WAIT_TIME -ge $MAX_WAIT ]; then
+            echo "Timeout waiting for certificate validation"
+            cat cert_deploy.log || true
+            exit 1
+          fi
           
           # Export the ARN
           CERT_ARN=$(aws cloudformation describe-stacks --stack-name SquidCupSite-CertificateStack --query "Stacks[0].Outputs[?OutputKey=='CertificateArn'].OutputValue" --output text)
