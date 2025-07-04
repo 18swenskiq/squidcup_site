@@ -1,7 +1,7 @@
 import { SSMClient, GetParameterCommand } from "@aws-sdk/client-ssm";
 
 // Initialize the SSM client
-const ssmClient = new SSMClient({ region: 'us-east-2' });
+const ssmClient = new SSMClient({ region: 'us-east-1' });
 
 type GameMode = "5v5" | "wingman" | "3v3";
 
@@ -178,6 +178,12 @@ export async function handler(event: any): Promise<any> {
         error: error,
       }),
       statusCode: 500,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'Content-Type,Authorization',
+        'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS',
+        'Access-Control-Allow-Credentials': true,
+      },
     };
   }
 }

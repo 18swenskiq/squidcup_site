@@ -65,11 +65,29 @@ export class ApiStack extends cdk.Stack {
     
     // Add a resource for /maps endpoint
     const mapsResource = api.root.addResource('maps');
-    mapsResource.addMethod('GET', new apigw.LambdaIntegration(getMapsFunction));
+    mapsResource.addMethod('GET', new apigw.LambdaIntegration(getMapsFunction), {
+      methodResponses: [{
+        statusCode: '200',
+        responseParameters: {
+          'method.response.header.Access-Control-Allow-Origin': true,
+          'method.response.header.Access-Control-Allow-Headers': true,
+          'method.response.header.Access-Control-Allow-Methods': true,
+        },
+      }]
+    });
     
     // Add a resource for /servers endpoint
     const serversResource = api.root.addResource('servers');
-    serversResource.addMethod('GET', new apigw.LambdaIntegration(getServersFunction));
+    serversResource.addMethod('GET', new apigw.LambdaIntegration(getServersFunction), {
+      methodResponses: [{
+        statusCode: '200',
+        responseParameters: {
+          'method.response.header.Access-Control-Allow-Origin': true,
+          'method.response.header.Access-Control-Allow-Headers': true,
+          'method.response.header.Access-Control-Allow-Methods': true,
+        },
+      }]
+    });
 
     // Export the API URL as a stack output with a consistent name
     new cdk.CfnOutput(this, 'ApiUrl', {

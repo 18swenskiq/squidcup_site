@@ -9,6 +9,12 @@ export async function handler(event: any): Promise<any> {
   return {
     body: JSON.stringify({message: 'SUCCESS 🎉'}),
     statusCode: 200,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Headers': 'Content-Type,Authorization',
+      'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS',
+      'Access-Control-Allow-Credentials': true,
+    },
   };
 }
 
