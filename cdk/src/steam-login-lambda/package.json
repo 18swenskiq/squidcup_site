@@ -1,0 +1,19 @@
+{
+  "name": "steam-login-lambda",
+  "version": "1.0.0",
+  "description": "Lambda function for Steam OAuth authentication",
+  "main": "index.js",
+  "types": "index.ts",
+  "scripts": {
+    "build": "tsc"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "devDependencies": {
+    "@aws-sdk/client-dynamodb": "^3.0.0",
+    "@aws-sdk/lib-dynamodb": "^3.0.0"
+  },
+  "dependencies": {
+  }
+}

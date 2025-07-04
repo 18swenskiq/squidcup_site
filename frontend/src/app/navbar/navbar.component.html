@@ -28,6 +28,29 @@
           routerLink="/members"
           ><b>MEMBERS</b></a
         >
+        
+        <!-- Steam Login/Logout Section -->
+        <div class="auth-section right-side-item">
+          <div *ngIf="!currentUser" class="login-button">
+            <button 
+              class="steam-login-btn" 
+              (click)="loginWithSteam()"
+              title="Login with Steam">
+              <span class="steam-icon">🎮</span>
+              <span>Login with Steam</span>
+            </button>
+          </div>
+          
+          <div *ngIf="currentUser" class="user-info">
+            <span class="welcome-text">Welcome, Steam User</span>
+            <button 
+              class="logout-btn" 
+              (click)="logout()"
+              title="Logout">
+              Logout
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   </div>

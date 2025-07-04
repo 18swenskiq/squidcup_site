@@ -3,6 +3,7 @@ import { Construct } from 'constructs';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as apigw from "aws-cdk-lib/aws-apigateway";
 import * as iam from 'aws-cdk-lib/aws-iam';
+import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import * as path from 'path';
 
 export class ApiStack extends cdk.Stack {
@@ -15,6 +16,22 @@ export class ApiStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
+    // Create DynamoDB table
+    const table = new dynamodb.Table(this, 'SquidCupTable', {
+      tableName: 'squidcup-data',
+      partitionKey: {
+        name: 'pk',
+        type: dynamodb.AttributeType.STRING
+      },
+      sortKey: {
+        name: 'sk',
+        type: dynamodb.AttributeType.STRING
+      },
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+      removalPolicy: cdk.RemovalPolicy.DESTROY, // Use RETAIN for production
+      pointInTimeRecovery: true,
+    });
+
     const getMapsFunction = new lambda.Function(this, "get-maps-function", {
       runtime: this.RUNTIME,
       memorySize: this.MEMORY_SIZE,
@@ -23,6 +40,7 @@ export class ApiStack extends cdk.Stack {
       code: lambda.Code.fromAsset(path.join(__dirname, '/../src/get-maps-lambda')),
       environment: {
         REGION: this.REGION,
+        TABLE_NAME: table.tableName,
       }
     });
 
@@ -34,6 +52,19 @@ export class ApiStack extends cdk.Stack {
       code: lambda.Code.fromAsset(path.join(__dirname, '/../src/get-servers-lambda')),
       environment: {
         REGION: this.REGION,
+        TABLE_NAME: table.tableName,
+      }
+    });
+
+    const steamLoginFunction = new lambda.Function(this, "steam-login-function", {
+      runtime: this.RUNTIME,
+      memorySize: this.MEMORY_SIZE,
+      timeout: cdk.Duration.seconds(10), // Slightly longer for OAuth operations
+      handler: 'index.handler',
+      code: lambda.Code.fromAsset(path.join(__dirname, '/../src/steam-login-lambda')),
+      environment: {
+        REGION: this.REGION,
+        TABLE_NAME: table.tableName,
       }
     });
 
@@ -43,9 +74,15 @@ export class ApiStack extends cdk.Stack {
       resources: ['*'], // This grants access to all parameters
     });
 
-    // Add the SSM policy to both Lambda functions
+    // Add the SSM policy to all Lambda functions
     getMapsFunction.addToRolePolicy(ssmPolicy);
     getServersFunction.addToRolePolicy(ssmPolicy);
+    steamLoginFunction.addToRolePolicy(ssmPolicy);
+
+    // Grant DynamoDB permissions to Lambda functions
+    table.grantReadWriteData(getMapsFunction);
+    table.grantReadWriteData(getServersFunction);
+    table.grantReadWriteData(steamLoginFunction);
 
     // Create an API Gateway with specific configuration
     const api = new apigw.RestApi(this, 'SquidCupApi', {
@@ -89,11 +126,59 @@ export class ApiStack extends cdk.Stack {
       }]
     });
 
+    // Add a resource for /auth endpoint with Steam login/logout
+    const authResource = api.root.addResource('auth');
+    const steamResource = authResource.addResource('steam');
+    
+    // Steam login endpoint - redirects to Steam OAuth
+    steamResource.addMethod('GET', new apigw.LambdaIntegration(steamLoginFunction), {
+      methodResponses: [{
+        statusCode: '302',
+        responseParameters: {
+          'method.response.header.Access-Control-Allow-Origin': true,
+          'method.response.header.Location': true,
+        },
+      }]
+    });
+    
+    // Steam callback endpoint - handles OAuth callback
+    const callbackResource = steamResource.addResource('callback');
+    callbackResource.addMethod('GET', new apigw.LambdaIntegration(steamLoginFunction), {
+      methodResponses: [{
+        statusCode: '200',
+        responseParameters: {
+          'method.response.header.Access-Control-Allow-Origin': true,
+          'method.response.header.Access-Control-Allow-Headers': true,
+          'method.response.header.Access-Control-Allow-Methods': true,
+        },
+      }]
+    });
+    
+    // Logout endpoint
+    const logoutResource = authResource.addResource('logout');
+    logoutResource.addMethod('POST', new apigw.LambdaIntegration(steamLoginFunction), {
+      methodResponses: [{
+        statusCode: '200',
+        responseParameters: {
+          'method.response.header.Access-Control-Allow-Origin': true,
+          'method.response.header.Access-Control-Allow-Headers': true,
+          'method.response.header.Access-Control-Allow-Methods': true,
+        },
+      }]
+    });
+
     // Export the API URL as a stack output with a consistent name
     new cdk.CfnOutput(this, 'ApiUrl', {
       value: api.url,
       description: 'URL of the API Gateway',
       exportName: 'SquidCupApiUrl'
+    });
+
+    // Export the DynamoDB table name
+    new cdk.CfnOutput(this, 'TableName', {
+      value: table.tableName,
+      description: 'Name of the DynamoDB table',
+      exportName: 'SquidCupTableName'
     });
   }
 }
