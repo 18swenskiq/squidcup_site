@@ -126,14 +126,16 @@ async function getMapsFromSteamAPI(steamApiKey: string, gameModes: GameMode[]): 
 
   console.log("maps response", JSON.stringify(mapsResponse, null, 2));
 
-  return mapsResponse.response.publishedfiledetails.map((map: any) => {
-    return {
-      "name": map.title,
-      "id": map.publishedfileid,
-      "thumbnailUrl": map.preview_url,
-      "gameModes": mapIdsWithGamemodes.find(x => x.id === map.publishedfileid)?.gameModes || []
-    };
-  });
+  return mapsResponse.response.publishedfiledetails
+    .map((map: any) => {
+      return {
+        "name": map.title || "Unknown Map",
+        "id": map.publishedfileid,
+        "thumbnailUrl": map.preview_url || "",
+        "gameModes": mapIdsWithGamemodes.find(x => x.id === map.publishedfileid)?.gameModes || []
+      };
+    })
+    .filter((map: MapResponseObj) => map.name && map.name !== "Unknown Map"); // Filter out maps without proper names
 }
 
 export async function handler(event: any): Promise<any> {
@@ -191,23 +193,49 @@ export async function handler(event: any): Promise<any> {
   try {
     const maps: MapResponseObj[] = await getMapsFromSteamAPI(steamApiKey, selectedGameModes);
     console.log("Maps Successfully Retrieved:", JSON.stringify(maps, null, 2));
-    return {
-      body: JSON.stringify({
-        data: maps.sort((a, b) => a.name.localeCompare(b.name)),
-      }),
+    
+    let sortedMaps;
+    try {
+      sortedMaps = maps.sort((a, b) => a.name.localeCompare(b.name));
+      console.log("Maps successfully sorted");
+    } catch (sortError) {
+      console.error("Error sorting maps:", sortError);
+      sortedMaps = maps; // Return unsorted if sorting fails
+    }
+    
+    const responseBody = {
+      data: sortedMaps,
+    };
+    
+    console.log("Response body size:", JSON.stringify(responseBody).length);
+    console.log("About to return successful response");
+    
+    const response = {
+      body: JSON.stringify(responseBody),
       statusCode: 200,
       headers: {
-        'Access-Control-Allow-Origin': '*', // Consider restricting this in production
+        'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Headers': 'Content-Type,Authorization',
         'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS',
         'Access-Control-Allow-Credentials': true,
-    },
+        'Content-Type': 'application/json',
+      },
     };
+    
+    console.log("Final response object:", JSON.stringify(response, null, 2));
+    return response;
   } catch (error) {
+    console.error("Error in try-catch block:", error);
+    console.error("Error stack:", error instanceof Error ? error.stack : 'No stack available');
+    
     return {
       body: JSON.stringify({
         message: 'ERROR parsing response',
-        error: error,
+        error: error instanceof Error ? {
+          name: error.name,
+          message: error.message,
+          stack: error.stack
+        } : error,
       }),
       statusCode: 500,
       headers: {
@@ -215,6 +243,7 @@ export async function handler(event: any): Promise<any> {
         'Access-Control-Allow-Headers': 'Content-Type,Authorization',
         'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS',
         'Access-Control-Allow-Credentials': true,
+        'Content-Type': 'application/json',
       },
     };
   }
