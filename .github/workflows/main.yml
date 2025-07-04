@@ -42,7 +42,9 @@ jobs:
 
       # Bootstrap all stacks in us-east-1
       - name: Bootstrap CDK
-        run: cdk bootstrap
+        run: |
+          # Bootstrap specifically for us-east-1
+          cdk bootstrap aws://$(aws sts get-caller-identity --query 'Account' --output text)/us-east-1
 
       # Synthesize API stack only
       - name: Synthesize CDK
@@ -81,12 +83,110 @@ jobs:
 
       # Deploy Certificate Stack (now in us-east-1 with everything else)
       - name: Deploy Certificate Stack
+        timeout-minutes: 15
         run: |
+          # Start certificate deployment and capture the validation details
+          cdk deploy SquidCupSite-CertificateStack --require-approval never 2>&1 | tee cert_deploy.log || true
+          
+          # Extract DNS validation details from the log
+          if grep -q "Content of DNS Record is:" cert_deploy.log; then
+            DNS_RECORD=$(grep "Content of DNS Record is:" cert_deploy.log | tail -1)
+            echo "Found DNS validation record: $DNS_RECORD"
+            
+            # Extract the validation record name and value using more robust parsing
+            VALIDATION_NAME=$(echo "$DNS_RECORD" | sed -n 's/.*Name: \([^,]*\),.*/\1/p')
+            VALIDATION_VALUE=$(echo "$DNS_RECORD" | sed -n 's/.*Value: \([^}]*\)}.*/\1/p')
+            
+            echo "Validation Name: $VALIDATION_NAME"
+            echo "Validation Value: $VALIDATION_VALUE"
+            
+            # Store these for the next step
+            echo "VALIDATION_NAME=$VALIDATION_NAME" >> "$GITHUB_ENV"
+            echo "VALIDATION_VALUE=$VALIDATION_VALUE" >> "$GITHUB_ENV"
+          else
+            echo "No DNS validation record found in deployment log"
+            cat cert_deploy.log
+            exit 1
+          fi
+
+      # Create DNS validation record in Cloudflare
+      - name: Create Cloudflare DNS Record for Certificate Validation
+        if: env.VALIDATION_NAME != '' && env.VALIDATION_VALUE != ''
+        run: |
+          # Get the zone ID for spkymnr.xyz
+          ZONE_ID=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones?name=spkymnr.xyz" \
+            -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
+            -H "Content-Type: application/json" | \
+            jq -r '.result[0].id')
+          
+          echo "Zone ID: $ZONE_ID"
+          
+          if [ "$ZONE_ID" = "null" ] || [ -z "$ZONE_ID" ]; then
+            echo "Failed to get Cloudflare zone ID for spkymnr.xyz"
+            exit 1
+          fi
+          
+          # Extract just the subdomain part (remove the main domain)
+          RECORD_NAME=$(echo "$VALIDATION_NAME" | sed 's/\.spkymnr\.xyz\.$//')
+          
+          echo "Creating DNS record: $RECORD_NAME with value: $VALIDATION_VALUE"
+          
+          # Create the CNAME record
+          RECORD_RESPONSE=$(curl -s -X POST "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/dns_records" \
+            -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            --data "{
+              \"type\": \"CNAME\",
+              \"name\": \"$RECORD_NAME\",
+              \"content\": \"$VALIDATION_VALUE\",
+              \"ttl\": 120
+            }")
+          
+          echo "Cloudflare API response: $RECORD_RESPONSE"
+          
+          # Check if record creation was successful
+          SUCCESS=$(echo "$RECORD_RESPONSE" | jq -r '.success')
+          if [ "$SUCCESS" = "true" ]; then
+            RECORD_ID=$(echo "$RECORD_RESPONSE" | jq -r '.result.id')
+            echo "DNS record created successfully with ID: $RECORD_ID"
+            echo "CLOUDFLARE_RECORD_ID=$RECORD_ID" >> "$GITHUB_ENV"
+          else
+            echo "Failed to create DNS record"
+            echo "$RECORD_RESPONSE" | jq -r '.errors[]'
+            exit 1
+          fi
+
+      # Wait for DNS propagation and complete certificate validation
+      - name: Complete Certificate Validation
+        if: env.CLOUDFLARE_RECORD_ID != ''
+        run: |
+          echo "Waiting for DNS propagation..."
+          sleep 60
+          
+          # Try to complete the certificate deployment
+          echo "Attempting to complete certificate validation..."
           cdk deploy SquidCupSite-CertificateStack --require-approval never
-          # Export the ARN and ensure it's captured
+          
+          # Export the ARN
           CERT_ARN=$(aws cloudformation describe-stacks --stack-name SquidCupSite-CertificateStack --query "Stacks[0].Outputs[?OutputKey=='CertificateArn'].OutputValue" --output text)
           echo "Certificate ARN: $CERT_ARN"
           echo "CERT_ARN=$CERT_ARN" >> "$GITHUB_ENV"
+
+      # Clean up the DNS record after certificate is validated
+      - name: Clean up Cloudflare DNS Record
+        if: env.CLOUDFLARE_RECORD_ID != '' && (success() || failure())
+        run: |
+          ZONE_ID=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones?name=spkymnr.xyz" \
+            -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
+            -H "Content-Type: application/json" | \
+            jq -r '.result[0].id')
+          
+          echo "Cleaning up DNS record with ID: $CLOUDFLARE_RECORD_ID"
+          curl -s -X DELETE "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/dns_records/$CLOUDFLARE_RECORD_ID" \
+            -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
+            -H "Content-Type: application/json"
+          
+          echo "DNS validation record cleaned up"
 
       # Debug step to verify environment variables
       - name: Debug Environment
@@ -115,3 +215,77 @@ jobs:
         run: |
           cdk deploy SquidCupSite-FrontendStack \
             --require-approval never
+
+      # Create the permanent CNAME record for squidcup.spkymnr.xyz
+      - name: Create Cloudflare CNAME for Website
+        run: |
+          # Get the CloudFront distribution domain name
+          CLOUDFRONT_DOMAIN=$(aws cloudformation describe-stacks --stack-name SquidCupSite-FrontendStack --query "Stacks[0].Outputs[?OutputKey=='DistributionDomainName'].OutputValue" --output text)
+          echo "CloudFront Domain: $CLOUDFRONT_DOMAIN"
+          
+          if [ -z "$CLOUDFRONT_DOMAIN" ]; then
+            echo "Failed to get CloudFront domain name"
+            exit 1
+          fi
+          
+          # Get the zone ID for spkymnr.xyz
+          ZONE_ID=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones?name=spkymnr.xyz" \
+            -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
+            -H "Content-Type: application/json" | \
+            jq -r '.result[0].id')
+          
+          echo "Zone ID: $ZONE_ID"
+          
+          if [ "$ZONE_ID" = "null" ] || [ -z "$ZONE_ID" ]; then
+            echo "Failed to get Cloudflare zone ID for spkymnr.xyz"
+            exit 1
+          fi
+          
+          # Check if the record already exists
+          EXISTING_RECORD=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/dns_records?name=squidcup.spkymnr.xyz&type=CNAME" \
+            -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
+            -H "Content-Type: application/json")
+          
+          RECORD_COUNT=$(echo "$EXISTING_RECORD" | jq -r '.result | length')
+          
+          if [ "$RECORD_COUNT" -gt 0 ]; then
+            # Update existing record
+            RECORD_ID=$(echo "$EXISTING_RECORD" | jq -r '.result[0].id')
+            echo "Updating existing CNAME record with ID: $RECORD_ID"
+            
+            RECORD_RESPONSE=$(curl -s -X PUT "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/dns_records/$RECORD_ID" \
+              -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
+              -H "Content-Type: application/json" \
+              --data "{
+                \"type\": \"CNAME\",
+                \"name\": \"squidcup\",
+                \"content\": \"$CLOUDFRONT_DOMAIN\",
+                \"ttl\": 300
+              }")
+          else
+            # Create new record
+            echo "Creating new CNAME record for squidcup.spkymnr.xyz"
+            
+            RECORD_RESPONSE=$(curl -s -X POST "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/dns_records" \
+              -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
+              -H "Content-Type: application/json" \
+              --data "{
+                \"type\": \"CNAME\",
+                \"name\": \"squidcup\",
+                \"content\": \"$CLOUDFRONT_DOMAIN\",
+                \"ttl\": 300
+              }")
+          fi
+          
+          echo "Cloudflare API response: $RECORD_RESPONSE"
+          
+          # Check if record creation/update was successful
+          SUCCESS=$(echo "$RECORD_RESPONSE" | jq -r '.success')
+          if [ "$SUCCESS" = "true" ]; then
+            echo "CNAME record for squidcup.spkymnr.xyz created/updated successfully"
+            echo "Your website should be available at: https://squidcup.spkymnr.xyz"
+          else
+            echo "Failed to create/update CNAME record"
+            echo "$RECORD_RESPONSE" | jq -r '.errors[]'
+            exit 1
+          fi
