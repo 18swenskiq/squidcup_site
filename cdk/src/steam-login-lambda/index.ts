@@ -85,7 +85,7 @@ async function handleSteamLogin(event: any): Promise<any> {
   
   const params = new URLSearchParams({
     'openid.ns': 'http://specs.openid.net/auth/2.0',
-    'openid.mode': 'checkid_immediate',
+    'openid.mode': 'checkid_setup',
     'openid.return_to': returnUrl,
     'openid.realm': realm,
     'openid.identity': 'http://specs.openid.net/auth/2.0/identifier_select',
