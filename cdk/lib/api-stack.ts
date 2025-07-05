@@ -4,6 +4,7 @@ import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as apigw from "aws-cdk-lib/aws-apigateway";
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
+import * as logs from 'aws-cdk-lib/aws-logs';
 import * as path from 'path';
 
 export class ApiStack extends cdk.Stack {
@@ -85,13 +86,38 @@ export class ApiStack extends cdk.Stack {
     table.grantReadWriteData(getServersFunction);
     table.grantReadWriteData(steamLoginFunction);
 
+    // Create CloudWatch log group for API Gateway
+    const apiLogGroup = new logs.LogGroup(this, 'ApiGatewayLogGroup', {
+      logGroupName: `/aws/apigateway/squidcup-api`,
+      retention: logs.RetentionDays.ONE_WEEK, // Adjust as needed
+      removalPolicy: cdk.RemovalPolicy.DESTROY, // Use RETAIN for production
+    });
+
     // Create an API Gateway with specific configuration
     const api = new apigw.RestApi(this, 'SquidCupApi', {
       restApiName: 'SquidCupService',
       deployOptions: {
         stageName: 'prod',
+        // Enable CloudWatch logging and detailed metrics
+        loggingLevel: apigw.MethodLoggingLevel.INFO,
+        dataTraceEnabled: true,
+        metricsEnabled: true,
+        tracingEnabled: true,
+        accessLogDestination: new apigw.LogGroupLogDestination(apiLogGroup),
+        accessLogFormat: apigw.AccessLogFormat.jsonWithStandardFields({
+          caller: true,
+          httpMethod: true,
+          ip: true,
+          protocol: true,
+          requestTime: true,
+          resourcePath: true,
+          responseLength: true,
+          status: true,
+          user: true,
+        }),
       },
       // Remove global CORS to avoid conflicts with Steam OpenID
+      cloudWatchRole: true, // Auto-create CloudWatch role for API Gateway
     });
     
     // Add a resource for /maps endpoint
@@ -185,7 +211,11 @@ export class ApiStack extends cdk.Stack {
       }, {
         statusCode: '500',
         responseParameters: {},
-      }]
+      }],
+      requestParameters: {
+        'method.request.header.User-Agent': false,
+        'method.request.header.X-Forwarded-For': false,
+      }
     });
     
     // Steam callback endpoint - handles OAuth callback (no CORS needed)
@@ -205,7 +235,13 @@ export class ApiStack extends cdk.Stack {
       }, {
         statusCode: '500',
         responseParameters: {},
-      }]
+      }],
+      requestParameters: {
+        'method.request.header.User-Agent': false,
+        'method.request.header.X-Forwarded-For': false,
+        'method.request.querystring.openid.mode': false,
+        'method.request.querystring.openid.claimed_id': false,
+      }
     });
     
     // Logout endpoint (needs CORS for frontend calls)
@@ -257,6 +293,12 @@ export class ApiStack extends cdk.Stack {
       value: table.tableName,
       description: 'Name of the DynamoDB table',
       exportName: 'SquidCupTableName'
+    });
+
+    // Export the CloudWatch log group name for easy access
+    new cdk.CfnOutput(this, 'ApiLogGroup', {
+      value: apiLogGroup.logGroupName,
+      description: 'CloudWatch log group for API Gateway logs',
     });
   }
 }
