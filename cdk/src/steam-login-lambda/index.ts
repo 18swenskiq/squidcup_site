@@ -19,19 +19,6 @@ export async function handler(event: any): Promise<any> {
   const method = event.httpMethod;
 
   try {
-    // Handle OPTIONS requests for CORS
-    if (method === 'OPTIONS') {
-      return {
-        statusCode: 200,
-        headers: {
-          'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Headers': 'Content-Type,Authorization',
-          'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
-        },
-        body: '',
-      };
-    }
-    
     // Handle Steam login initiation
     if (path.includes('/auth/steam') && method === 'GET' && !path.includes('callback')) {
       return handleSteamLogin(event);
@@ -100,9 +87,7 @@ async function handleSteamLogin(event: any): Promise<any> {
           console.error('Error creating Steam auth URL:', error);
           resolve({
             statusCode: 500,
-            headers: {
-              'Access-Control-Allow-Origin': '*',
-            },
+            headers: {},
             body: JSON.stringify({ error: 'Failed to create Steam authentication URL' }),
           });
           return;
@@ -114,7 +99,6 @@ async function handleSteamLogin(event: any): Promise<any> {
           statusCode: 302,
           headers: {
             'Location': authUrl,
-            'Access-Control-Allow-Origin': '*',
           },
           body: '',
         });
@@ -164,9 +148,7 @@ async function handleSteamCallback(event: any): Promise<any> {
           console.error('Steam OpenID verification failed:', error);
           resolve({
             statusCode: 400,
-            headers: {
-              'Access-Control-Allow-Origin': '*',
-            },
+            headers: {},
             body: JSON.stringify({ error: 'Steam authentication verification failed' }),
           });
           return;
@@ -181,9 +163,7 @@ async function handleSteamCallback(event: any): Promise<any> {
           console.error('Failed to extract Steam ID from verification result');
           resolve({
             statusCode: 400,
-            headers: {
-              'Access-Control-Allow-Origin': '*',
-            },
+            headers: {},
             body: JSON.stringify({ error: 'Failed to extract Steam ID' }),
           });
           return;
@@ -201,7 +181,6 @@ async function handleSteamCallback(event: any): Promise<any> {
               statusCode: 302,
               headers: {
                 'Location': redirectUrl,
-                'Access-Control-Allow-Origin': '*',
               },
               body: '',
             });
@@ -210,9 +189,7 @@ async function handleSteamCallback(event: any): Promise<any> {
             console.error('Error storing user session:', storeError);
             resolve({
               statusCode: 500,
-              headers: {
-                'Access-Control-Allow-Origin': '*',
-              },
+              headers: {},
               body: JSON.stringify({ error: 'Failed to create user session' }),
             });
           });

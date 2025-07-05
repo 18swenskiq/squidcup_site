@@ -91,19 +91,36 @@ export class ApiStack extends cdk.Stack {
       deployOptions: {
         stageName: 'prod',
       },
-      // Enable CORS
-      defaultCorsPreflightOptions: {
-        allowOrigins: ['*'], // Consider restricting this to specific domains in production
-        allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-        allowHeaders: ['Content-Type', 'Authorization'],
-        allowCredentials: true,
-        maxAge: cdk.Duration.days(1)
-      }
+      // Remove global CORS to avoid conflicts with Steam OpenID
     });
     
     // Add a resource for /maps endpoint
     const mapsResource = api.root.addResource('maps');
     mapsResource.addMethod('GET', new apigw.LambdaIntegration(getMapsFunction), {
+      methodResponses: [{
+        statusCode: '200',
+        responseParameters: {
+          'method.response.header.Access-Control-Allow-Origin': true,
+          'method.response.header.Access-Control-Allow-Headers': true,
+          'method.response.header.Access-Control-Allow-Methods': true,
+        },
+      }]
+    });
+    
+    // Add OPTIONS method for maps endpoint
+    mapsResource.addMethod('OPTIONS', new apigw.MockIntegration({
+      integrationResponses: [{
+        statusCode: '200',
+        responseParameters: {
+          'method.response.header.Access-Control-Allow-Origin': "'*'",
+          'method.response.header.Access-Control-Allow-Headers': "'Content-Type,Authorization'",
+          'method.response.header.Access-Control-Allow-Methods': "'GET,POST,OPTIONS'",
+        },
+      }],
+      requestTemplates: {
+        'application/json': '{"statusCode": 200}'
+      }
+    }), {
       methodResponses: [{
         statusCode: '200',
         responseParameters: {
@@ -126,37 +143,75 @@ export class ApiStack extends cdk.Stack {
         },
       }]
     });
+    
+    // Add OPTIONS method for servers endpoint
+    serversResource.addMethod('OPTIONS', new apigw.MockIntegration({
+      integrationResponses: [{
+        statusCode: '200',
+        responseParameters: {
+          'method.response.header.Access-Control-Allow-Origin': "'*'",
+          'method.response.header.Access-Control-Allow-Headers': "'Content-Type,Authorization'",
+          'method.response.header.Access-Control-Allow-Methods': "'GET,POST,OPTIONS'",
+        },
+      }],
+      requestTemplates: {
+        'application/json': '{"statusCode": 200}'
+      }
+    }), {
+      methodResponses: [{
+        statusCode: '200',
+        responseParameters: {
+          'method.response.header.Access-Control-Allow-Origin': true,
+          'method.response.header.Access-Control-Allow-Headers': true,
+          'method.response.header.Access-Control-Allow-Methods': true,
+        },
+      }]
+    });
 
     // Add a resource for /auth endpoint with Steam login/logout
     const authResource = api.root.addResource('auth');
     const steamResource = authResource.addResource('steam');
     
-    // Steam login endpoint - redirects to Steam OAuth
+    // Steam login endpoint - redirects to Steam OAuth (no CORS needed)
     steamResource.addMethod('GET', new apigw.LambdaIntegration(steamLoginFunction), {
       methodResponses: [{
         statusCode: '302',
         responseParameters: {
-          'method.response.header.Access-Control-Allow-Origin': true,
           'method.response.header.Location': true,
         },
       }, {
         statusCode: '200',
-        responseParameters: {
-          'method.response.header.Access-Control-Allow-Origin': true,
-        },
+        responseParameters: {},
+      }, {
+        statusCode: '500',
+        responseParameters: {},
       }]
     });
     
-    // Steam callback endpoint - handles OAuth callback
+    // Steam callback endpoint - handles OAuth callback (no CORS needed)
     const callbackResource = steamResource.addResource('callback');
     callbackResource.addMethod('GET', new apigw.LambdaIntegration(steamLoginFunction), {
       methodResponses: [{
         statusCode: '302',
         responseParameters: {
-          'method.response.header.Access-Control-Allow-Origin': true,
           'method.response.header.Location': true,
         },
       }, {
+        statusCode: '200',
+        responseParameters: {},
+      }, {
+        statusCode: '400',
+        responseParameters: {},
+      }, {
+        statusCode: '500',
+        responseParameters: {},
+      }]
+    });
+    
+    // Logout endpoint (needs CORS for frontend calls)
+    const logoutResource = authResource.addResource('logout');
+    logoutResource.addMethod('POST', new apigw.LambdaIntegration(steamLoginFunction), {
+      methodResponses: [{
         statusCode: '200',
         responseParameters: {
           'method.response.header.Access-Control-Allow-Origin': true,
@@ -166,9 +221,20 @@ export class ApiStack extends cdk.Stack {
       }]
     });
     
-    // Logout endpoint
-    const logoutResource = authResource.addResource('logout');
-    logoutResource.addMethod('POST', new apigw.LambdaIntegration(steamLoginFunction), {
+    // Add OPTIONS method for logout endpoint
+    logoutResource.addMethod('OPTIONS', new apigw.MockIntegration({
+      integrationResponses: [{
+        statusCode: '200',
+        responseParameters: {
+          'method.response.header.Access-Control-Allow-Origin': "'*'",
+          'method.response.header.Access-Control-Allow-Headers': "'Content-Type,Authorization'",
+          'method.response.header.Access-Control-Allow-Methods': "'POST,OPTIONS'",
+        },
+      }],
+      requestTemplates: {
+        'application/json': '{"statusCode": 200}'
+      }
+    }), {
       methodResponses: [{
         statusCode: '200',
         responseParameters: {
