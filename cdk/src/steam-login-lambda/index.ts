@@ -18,6 +18,19 @@ export async function handler(event: any): Promise<any> {
   const method = event.httpMethod;
 
   try {
+    // Handle OPTIONS requests for CORS
+    if (method === 'OPTIONS') {
+      return {
+        statusCode: 200,
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Headers': 'Content-Type,Authorization',
+          'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
+        },
+        body: '',
+      };
+    }
+    
     // Handle Steam login initiation
     if (path.includes('/auth/steam') && method === 'GET' && !path.includes('callback')) {
       return handleSteamLogin(event);
@@ -65,11 +78,14 @@ async function handleSteamLogin(event: any): Promise<any> {
   const returnUrl = `${apiDomain}/auth/steam/callback`;
   const realm = frontendDomain;
   
+  console.log('DEBUG - Request context:', JSON.stringify(event.requestContext, null, 2));
+  console.log('DEBUG - Constructed apiDomain:', apiDomain);
+  console.log('DEBUG - Constructed returnUrl:', returnUrl);
   console.log('Steam login redirect:', { returnUrl, realm, frontendDomain });
   
   const params = new URLSearchParams({
     'openid.ns': 'http://specs.openid.net/auth/2.0',
-    'openid.mode': 'checkid_setup',
+    'openid.mode': 'checkid_immediate',
     'openid.return_to': returnUrl,
     'openid.realm': realm,
     'openid.identity': 'http://specs.openid.net/auth/2.0/identifier_select',

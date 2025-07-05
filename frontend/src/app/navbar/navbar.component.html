@@ -32,13 +32,12 @@
         <!-- Steam Login/Logout Section -->
         <div class="auth-section right-side-item">
           <div *ngIf="!currentUser" class="login-button">
-            <button 
+            <img 
+              src="assets/sits_large_border.png"
+              alt="Login with Steam"
               class="steam-login-btn" 
               (click)="loginWithSteam()"
               title="Login with Steam">
-              <span class="steam-icon">🎮</span>
-              <span>Login with Steam</span>
-            </button>
           </div>
           
           <div *ngIf="currentUser" class="user-info">

@@ -147,6 +147,18 @@ export class ApiStack extends cdk.Stack {
       }]
     });
     
+    // Add OPTIONS method for Steam login endpoint
+    steamResource.addMethod('OPTIONS', new apigw.LambdaIntegration(steamLoginFunction), {
+      methodResponses: [{
+        statusCode: '200',
+        responseParameters: {
+          'method.response.header.Access-Control-Allow-Origin': true,
+          'method.response.header.Access-Control-Allow-Headers': true,
+          'method.response.header.Access-Control-Allow-Methods': true,
+        },
+      }]
+    });
+    
     // Steam callback endpoint - handles OAuth callback
     const callbackResource = steamResource.addResource('callback');
     callbackResource.addMethod('GET', new apigw.LambdaIntegration(steamLoginFunction), {
@@ -166,9 +178,33 @@ export class ApiStack extends cdk.Stack {
       }]
     });
     
+    // Add OPTIONS method for CORS preflight
+    callbackResource.addMethod('OPTIONS', new apigw.LambdaIntegration(steamLoginFunction), {
+      methodResponses: [{
+        statusCode: '200',
+        responseParameters: {
+          'method.response.header.Access-Control-Allow-Origin': true,
+          'method.response.header.Access-Control-Allow-Headers': true,
+          'method.response.header.Access-Control-Allow-Methods': true,
+        },
+      }]
+    });
+    
     // Logout endpoint
     const logoutResource = authResource.addResource('logout');
     logoutResource.addMethod('POST', new apigw.LambdaIntegration(steamLoginFunction), {
+      methodResponses: [{
+        statusCode: '200',
+        responseParameters: {
+          'method.response.header.Access-Control-Allow-Origin': true,
+          'method.response.header.Access-Control-Allow-Headers': true,
+          'method.response.header.Access-Control-Allow-Methods': true,
+        },
+      }]
+    });
+    
+    // Add OPTIONS method for logout endpoint
+    logoutResource.addMethod('OPTIONS', new apigw.LambdaIntegration(steamLoginFunction), {
       methodResponses: [{
         statusCode: '200',
         responseParameters: {

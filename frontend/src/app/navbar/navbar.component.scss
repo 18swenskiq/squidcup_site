@@ -56,27 +56,20 @@ h3 {
 }
 
 .steam-login-btn {
-  background: linear-gradient(135deg, #1b2838 0%, #2a475e 100%);
-  color: white;
-  border: none;
-  padding: 8px 16px;
-  border-radius: 4px;
   cursor: pointer;
-  font-size: 14px;
-  font-weight: bold;
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  height: 40px; // Adjust size as needed
   transition: all 0.3s ease;
+  border: none;
+  background: none;
   
   &:hover {
-    background: linear-gradient(135deg, #2a475e 0%, #1b2838 100%);
     transform: translateY(-1px);
+    filter: brightness(1.1);
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
   }
   
-  .steam-icon {
-    font-size: 16px;
+  &:active {
+    transform: translateY(0);
   }
 }
 
