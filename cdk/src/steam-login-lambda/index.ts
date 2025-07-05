@@ -5,7 +5,7 @@ import * as crypto from 'crypto';
 const dynamoClient = new DynamoDBClient({ region: process.env.REGION });
 const docClient = DynamoDBDocumentClient.from(dynamoClient);
 
-const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:4200';
+const FRONTEND_URL = process.env.FRONTEND_URL || 'https://squidcup.spkymnr.xyz';
 
 export async function handler(event: any): Promise<any> {
   console.log('Steam login event:', JSON.stringify(event, null, 2));
@@ -53,9 +53,15 @@ export async function handler(event: any): Promise<any> {
 };
 
 async function handleSteamLogin(event: any): Promise<any> {
-  // Generate Steam OpenID URL
-  const returnUrl = `${event.headers.origin || FRONTEND_URL}/api/auth/steam/callback`;
-  const realm = event.headers.origin || FRONTEND_URL;
+  // Get the actual domain from the request
+  const apiDomain = `https://${event.requestContext.domainName}${event.requestContext.stage ? `/${event.requestContext.stage}` : ''}`;
+  const frontendDomain = event.headers.origin || FRONTEND_URL;
+  
+  // Generate Steam OpenID URL - callback goes to our API, not frontend
+  const returnUrl = `${apiDomain}/auth/steam/callback`;
+  const realm = frontendDomain;
+  
+  console.log('Steam login redirect:', { returnUrl, realm, frontendDomain });
   
   const params = new URLSearchParams({
     'openid.ns': 'http://specs.openid.net/auth/2.0',
@@ -125,7 +131,10 @@ async function handleSteamCallback(event: any): Promise<any> {
     }));
 
     // Redirect back to frontend with session token
-    const redirectUrl = `${FRONTEND_URL}?token=${sessionToken}&steamId=${steamId}`;
+    const frontendDomain = event.headers.origin || FRONTEND_URL;
+    const redirectUrl = `${frontendDomain}?token=${sessionToken}&steamId=${steamId}`;
+    
+    console.log('Redirecting to frontend:', redirectUrl);
 
     return {
       statusCode: 302,

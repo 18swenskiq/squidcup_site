@@ -65,6 +65,7 @@ export class ApiStack extends cdk.Stack {
       environment: {
         REGION: this.REGION,
         TABLE_NAME: table.tableName,
+        FRONTEND_URL: 'https://squidcup.spkymnr.xyz', // Your actual domain
       }
     });
 
