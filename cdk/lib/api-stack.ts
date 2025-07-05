@@ -139,6 +139,11 @@ export class ApiStack extends cdk.Stack {
           'method.response.header.Access-Control-Allow-Origin': true,
           'method.response.header.Location': true,
         },
+      }, {
+        statusCode: '200',
+        responseParameters: {
+          'method.response.header.Access-Control-Allow-Origin': true,
+        },
       }]
     });
     
@@ -146,6 +151,12 @@ export class ApiStack extends cdk.Stack {
     const callbackResource = steamResource.addResource('callback');
     callbackResource.addMethod('GET', new apigw.LambdaIntegration(steamLoginFunction), {
       methodResponses: [{
+        statusCode: '302',
+        responseParameters: {
+          'method.response.header.Access-Control-Allow-Origin': true,
+          'method.response.header.Location': true,
+        },
+      }, {
         statusCode: '200',
         responseParameters: {
           'method.response.header.Access-Control-Allow-Origin': true,

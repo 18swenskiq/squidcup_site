@@ -43,21 +43,30 @@ export class AuthService {
   loginWithSteam(): void {
     // Only redirect in browser environment
     if (isPlatformBrowser(this.platformId)) {
-      window.location.href = `${environment.apiUrl}/auth/steam`;
+      const loginUrl = `${environment.apiUrl}/auth/steam`;
+      console.log('Steam login - redirecting to:', loginUrl);
+      window.location.href = loginUrl;
+    } else {
+      console.error('Steam login attempted in non-browser environment');
     }
   }
 
   handleLoginCallback(token: string, steamId: string): void {
+    console.log('Steam login callback received:', { token: token?.substring(0, 10) + '...', steamId });
+    
     // Store session information only in browser environment
     if (isPlatformBrowser(this.platformId)) {
       localStorage.setItem('sessionToken', token);
       localStorage.setItem('steamId', steamId);
+      console.log('Session stored in localStorage');
     }
     
     this.currentUserSubject.next({
       steamId,
       sessionToken: token
     });
+    
+    console.log('User logged in successfully');
   }
 
   logout(): Observable<any> {

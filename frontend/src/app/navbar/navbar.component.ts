@@ -31,10 +31,14 @@ export class NavbarComponent implements OnInit, OnDestroy {
 
     // Check for login callback parameters
     this.route.queryParams.subscribe(params => {
+      console.log('Route query params:', params);
       if (params['token'] && params['steamId']) {
+        console.log('Steam login callback detected, processing...');
         this.authService.handleLoginCallback(params['token'], params['steamId']);
         // Clean up URL
         this.router.navigate(['/'], { replaceUrl: true });
+      } else if (Object.keys(params).length > 0) {
+        console.log('Query params present but no token/steamId found');
       }
     });
   }
@@ -44,6 +48,7 @@ export class NavbarComponent implements OnInit, OnDestroy {
   }
 
   loginWithSteam(): void {
+    console.log('Steam login button clicked');
     this.authService.loginWithSteam();
   }
 
