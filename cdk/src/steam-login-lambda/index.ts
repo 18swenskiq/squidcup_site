@@ -8,7 +8,11 @@ const docClient = DynamoDBDocumentClient.from(dynamoClient);
 const FRONTEND_URL = process.env.FRONTEND_URL || 'https://squidcup.spkymnr.xyz';
 
 export async function handler(event: any): Promise<any> {
-  console.log('Steam login event:', JSON.stringify(event, null, 2));
+  console.log('Steam login event received');
+  console.log('Path:', event.path);
+  console.log('Method:', event.httpMethod);
+  console.log('Headers:', JSON.stringify(event.headers, null, 2));
+  console.log('Query params:', JSON.stringify(event.queryStringParameters, null, 2));
 
   const path = event.path;
   const method = event.httpMethod;
@@ -87,19 +91,47 @@ async function handleSteamLogin(event: any): Promise<any> {
 async function handleSteamCallback(event: any): Promise<any> {
   const queryParams = event.queryStringParameters || {};
   
+  console.log('Steam callback received:', queryParams);
+  
   // Verify the Steam OpenID response
   if (!queryParams['openid.claimed_id']) {
+    console.error('No claimed_id in Steam response');
     return {
       statusCode: 400,
       headers: {
         'Access-Control-Allow-Origin': '*',
       },
-      body: JSON.stringify({ error: 'Invalid Steam response' }),
+      body: JSON.stringify({ error: 'Invalid Steam response - no claimed_id' }),
+    };
+  }
+
+  // Check if Steam returned an error
+  if (queryParams['openid.mode'] !== 'id_res') {
+    console.error('Steam OpenID mode is not id_res:', queryParams['openid.mode']);
+    return {
+      statusCode: 400,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+      },
+      body: JSON.stringify({ error: 'Steam authentication failed' }),
     };
   }
 
   // Extract Steam ID from the claimed_id
   const steamId = queryParams['openid.claimed_id'].replace('https://steamcommunity.com/openid/id/', '');
+  
+  console.log('Extracted Steam ID:', steamId);
+  
+  if (!steamId || steamId === queryParams['openid.claimed_id']) {
+    console.error('Failed to extract Steam ID from claimed_id:', queryParams['openid.claimed_id']);
+    return {
+      statusCode: 400,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+      },
+      body: JSON.stringify({ error: 'Invalid Steam ID format' }),
+    };
+  }
   
   try {
     // Store user session in DynamoDB
