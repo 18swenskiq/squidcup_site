@@ -12,8 +12,10 @@
   },
   "devDependencies": {
     "@aws-sdk/client-dynamodb": "^3.0.0",
-    "@aws-sdk/lib-dynamodb": "^3.0.0"
+    "@aws-sdk/lib-dynamodb": "^3.0.0",
+    "@types/openid": "^2.0.5"
   },
   "dependencies": {
+    "openid": "^2.0.13"
   }
 }
