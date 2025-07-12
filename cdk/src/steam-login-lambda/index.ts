@@ -64,7 +64,8 @@ async function handleSteamLogin(event: any): Promise<any> {
     const frontendDomain = event.headers.origin || FRONTEND_URL;
     
     const returnUrl = `${apiDomain}/auth/steam/callback`;
-    const realm = frontendDomain;
+    // Test: Use the same domain as return URL for realm to see if Steam validates domain consistency
+    const realm = apiDomain;
     
     console.log('DEBUG - Constructed returnUrl:', returnUrl);
     console.log('DEBUG - Realm:', realm);
@@ -126,7 +127,8 @@ async function handleSteamCallback(event: any): Promise<any> {
     const frontendDomain = event.headers.origin || FRONTEND_URL;
     
     const returnUrl = `${apiDomain}/auth/steam/callback`;
-    const realm = frontendDomain;
+    // Test: Use the same domain as return URL for realm to see if Steam validates domain consistency
+    const realm = apiDomain;
     
     // Create a relyingParty for verification
     const relyingParty = new openid.RelyingParty(
