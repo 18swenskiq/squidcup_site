@@ -69,48 +69,32 @@ async function handleSteamLogin(event: any): Promise<any> {
     console.log('DEBUG - Constructed returnUrl:', returnUrl);
     console.log('DEBUG - Realm:', realm);
     
-    // Create a relyingParty using the openid library
-    const relyingParty = new openid.RelyingParty(
-      returnUrl, // return URL
-      realm, // realm (your frontend domain)
-      true, // use stateless verification
-      false, // don't use strict mode
-      [] // no additional extensions
-    );
-    
-    // Steam's OpenID provider URL
-    const steamOpenIdUrl = 'https://steamcommunity.com/openid';
-    
-    return new Promise((resolve) => {
-      relyingParty.authenticate(steamOpenIdUrl, false, (error: any, authUrl: string | null) => {
-        if (error || !authUrl) {
-          console.error('Error creating Steam auth URL:', error);
-          resolve({
-            statusCode: 500,
-            headers: {},
-            body: JSON.stringify({ error: 'Failed to create Steam authentication URL' }),
-          });
-          return;
-        }
-        
-        console.log('Generated Steam auth URL:', authUrl);
-        
-        resolve({
-          statusCode: 302,
-          headers: {
-            'Location': authUrl,
-          },
-          body: '',
-        });
-      });
+    // Steam uses OpenID 1.1, not 2.0. Let's build the URL manually to ensure compliance
+    const steamOpenIdParams = new URLSearchParams({
+      'openid.ns': 'http://specs.openid.net/auth/2.0', // Steam actually supports 2.0
+      'openid.mode': 'checkid_setup',
+      'openid.return_to': returnUrl,
+      'openid.realm': realm,
+      'openid.identity': 'http://specs.openid.net/auth/2.0/identifier_select',
+      'openid.claimed_id': 'http://specs.openid.net/auth/2.0/identifier_select'
     });
+    
+    const steamLoginUrl = `https://steamcommunity.com/openid/login?${steamOpenIdParams.toString()}`;
+    
+    console.log('Generated Steam auth URL:', steamLoginUrl);
+    
+    return {
+      statusCode: 302,
+      headers: {
+        'Location': steamLoginUrl,
+      },
+      body: '',
+    };
   } catch (error) {
     console.error('Error in handleSteamLogin:', error);
     return {
       statusCode: 500,
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-      },
+      headers: {},
       body: JSON.stringify({ error: 'Internal server error' }),
     };
   }
