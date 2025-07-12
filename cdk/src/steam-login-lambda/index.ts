@@ -155,12 +155,16 @@ async function handleSteamCallback(event: any): Promise<any> {
         }
         
         console.log('Steam OpenID verification successful:', result);
+        console.log('Result authenticated:', result.authenticated);
+        console.log('Result claimedIdentifier:', result.claimedIdentifier);
         
         // Extract Steam ID from the authenticated identity
-        const steamId = result.authenticated ? result.claimedIdentifier?.replace('https://steamcommunity.com/openid/id/', '') : null;
+        // Steam uses HTTP (not HTTPS) for the claimed identifier format
+        const steamId = result.authenticated ? result.claimedIdentifier?.replace('http://steamcommunity.com/openid/id/', '') : null;
         
         if (!steamId) {
           console.error('Failed to extract Steam ID from verification result');
+          console.error('Claimed identifier:', result.claimedIdentifier);
           resolve({
             statusCode: 400,
             headers: {},
