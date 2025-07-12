@@ -55,6 +55,12 @@ h3 {
   align-items: center;
 }
 
+.login-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .steam-login-btn {
   cursor: pointer;
   height: 40px; // Adjust size as needed
