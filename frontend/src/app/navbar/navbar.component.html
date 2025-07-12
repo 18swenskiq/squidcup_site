@@ -41,7 +41,14 @@
           </div>
           
           <div *ngIf="currentUser" class="user-info">
-            <span class="welcome-text">Welcome, Steam User</span>
+            <img 
+              *ngIf="currentUser.profile?.avatar" 
+              [src]="currentUser.profile?.avatar" 
+              alt="Profile Picture"
+              class="profile-avatar">
+            <span class="welcome-text">
+              Welcome, {{ currentUser.profile?.name || 'Steam User' }}
+            </span>
             <button 
               class="logout-btn" 
               (click)="logout()"

@@ -8,6 +8,12 @@ export interface User {
   steamId: string;
   sessionToken: string;
   lastLogin?: string;
+  profile?: {
+    name: string;
+    avatar: string;
+    loccountrycode?: string;
+    locstatecode?: string;
+  };
 }
 
 @Injectable({
@@ -32,9 +38,27 @@ export class AuthService {
       const steamId = localStorage.getItem('steamId');
       
       if (sessionToken && steamId) {
-        this.currentUserSubject.next({
+        const user: User = {
           steamId,
           sessionToken
+        };
+        this.currentUserSubject.next(user);
+        
+        // Fetch user profile for existing session
+        this.fetchUserProfile(sessionToken).subscribe({
+          next: (profile) => {
+            const updatedUser: User = {
+              ...user,
+              profile: profile
+            };
+            this.currentUserSubject.next(updatedUser);
+            console.log('Existing user profile loaded:', profile);
+          },
+          error: (error) => {
+            console.error('Failed to load existing user profile:', error);
+            // If profile fails to load, user might have invalid session
+            // But we'll keep them logged in for now
+          }
         });
       }
     }
@@ -61,12 +85,38 @@ export class AuthService {
       console.log('Session stored in localStorage');
     }
     
-    this.currentUserSubject.next({
+    const user: User = {
       steamId,
       sessionToken: token
+    };
+    
+    this.currentUserSubject.next(user);
+    
+    // Fetch user profile after login
+    this.fetchUserProfile(token).subscribe({
+      next: (profile) => {
+        const updatedUser: User = {
+          ...user,
+          profile: profile
+        };
+        this.currentUserSubject.next(updatedUser);
+        console.log('User profile loaded:', profile);
+      },
+      error: (error) => {
+        console.error('Failed to load user profile:', error);
+        // User is still logged in, just without profile data
+      }
     });
     
     console.log('User logged in successfully');
+  }
+
+  private fetchUserProfile(sessionToken: string): Observable<any> {
+    return this.http.get(`${environment.apiUrl}/profile`, {
+      headers: {
+        'Authorization': `Bearer ${sessionToken}`
+      }
+    });
   }
 
   logout(): Observable<any> {

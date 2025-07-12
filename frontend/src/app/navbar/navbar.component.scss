@@ -79,6 +79,14 @@ h3 {
   gap: 12px;
   color: white;
   
+  .profile-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 2px solid #ffffff;
+    object-fit: cover;
+  }
+  
   .welcome-text {
     font-size: 14px;
     font-weight: normal;

@@ -1,0 +1,22 @@
+{
+  "name": "get-user-profile-lambda",
+  "version": "1.0.0",
+  "description": "Lambda function to get user profile from Steam API",
+  "main": "index.js",
+  "types": "index.ts",
+  "scripts": {
+    "build": "tsc"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "devDependencies": {
+    "@aws-sdk/client-ssm": "^3.759.0",
+    "@aws-sdk/client-dynamodb": "^3.759.0",
+    "@aws-sdk/lib-dynamodb": "^3.759.0",
+    "@types/node-fetch": "^2.6.12"
+  },
+  "dependencies": {
+    "node-fetch": "^2.6.7"
+  }
+}
