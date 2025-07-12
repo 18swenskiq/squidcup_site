@@ -146,7 +146,7 @@ export async function handler(event: any): Promise<any> {
     }
 
     // Get Steam API key from Parameter Store
-    const steamApiKey = await getParameterValue('/squidcup/steam/api-key');
+    const steamApiKey = await getParameterValue('/unencrypted/SteamApiKey');
     
     // Get Steam user profile
     const steamProfile = await getSteamUserProfile(steamApiKey, session.userId);
