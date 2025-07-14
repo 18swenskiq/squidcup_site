@@ -5,7 +5,7 @@
 }
 
 .admin-section {
-  margin-bottom: 2rem;
+  margin-bottom: 3rem;
 }
 
 .admin-section h2 {
@@ -20,6 +20,171 @@
   margin-bottom: 1.5rem;
 }
 
+// Server Management Styles
+.server-form-container {
+  background: #1a1a1a;
+  border: 1px solid #333333;
+  border-radius: 8px;
+  padding: 2rem;
+  margin-bottom: 2rem;
+}
+
+.server-form-container h3 {
+  color: #ffffff;
+  margin-bottom: 1.5rem;
+  font-size: 1.3rem;
+}
+
+.server-form {
+  .form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  .form-group {
+    display: flex;
+    flex-direction: column;
+  }
+
+  label {
+    color: #ffffff;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+  }
+
+  .form-control {
+    padding: 0.75rem;
+    background: #2a2a2a;
+    border: 1px solid #444444;
+    border-radius: 4px;
+    color: #ffffff;
+    font-size: 0.9rem;
+    
+    &:focus {
+      outline: none;
+      border-color: #007bff;
+      box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.2);
+    }
+    
+    &::placeholder {
+      color: #888888;
+    }
+  }
+
+  .form-actions {
+    margin-top: 1.5rem;
+    display: flex;
+    justify-content: flex-end;
+  }
+}
+
+.server-list-container {
+  background: #1a1a1a;
+  border: 1px solid #333333;
+  border-radius: 8px;
+  padding: 2rem;
+  margin-bottom: 2rem;
+}
+
+.server-list-container h3 {
+  color: #ffffff;
+  margin-bottom: 1.5rem;
+  font-size: 1.3rem;
+}
+
+.no-servers {
+  text-align: center;
+  color: #888888;
+  padding: 2rem;
+}
+
+.server-list {
+  display: grid;
+  gap: 1rem;
+}
+
+.server-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #2a2a2a;
+  border: 1px solid #444444;
+  border-radius: 6px;
+  padding: 1.5rem;
+  transition: background-color 0.3s ease;
+  
+  &:hover {
+    background: #333333;
+  }
+}
+
+.server-info {
+  flex: 1;
+  
+  h4 {
+    color: #ffffff;
+    margin: 0 0 0.5rem 0;
+    font-size: 1.1rem;
+  }
+  
+  p {
+    color: #cccccc;
+    margin: 0.25rem 0;
+    font-size: 0.9rem;
+  }
+}
+
+.server-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+// Button Styles
+.btn {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
+.btn-primary {
+  background: #007bff;
+  color: white;
+  
+  &:hover:not(:disabled) {
+    background: #0056b3;
+  }
+}
+
+.btn-secondary {
+  background: #6c757d;
+  color: white;
+  
+  &:hover:not(:disabled) {
+    background: #545b62;
+  }
+}
+
+.btn-danger {
+  background: #dc3545;
+  color: white;
+  
+  &:hover:not(:disabled) {
+    background: #c82333;
+  }
+}
+
+// Existing Admin Cards Styles
 .admin-cards {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
@@ -69,4 +234,100 @@
 
 .admin-btn:active {
   transform: translateY(1px);
+}
+
+// Server Edit Form Styles
+.server-edit-form {
+  background: #1a1a1a;
+  border: 1px solid #333333;
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin: 1rem 0;
+  width: 100%;
+  
+  .form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  .form-group {
+    display: flex;
+    flex-direction: column;
+  }
+
+  label {
+    color: #ffffff;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    font-size: 0.9rem;
+  }
+
+  .form-control {
+    background: #2a2a2a;
+    border: 1px solid #555555;
+    border-radius: 4px;
+    color: #ffffff;
+    padding: 0.75rem;
+    font-size: 0.9rem;
+    transition: border-color 0.3s ease;
+  }
+
+  .form-control:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+  }
+
+  .form-actions {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1.5rem;
+  }
+
+  .btn {
+    background: #007bff;
+    color: white;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: background-color 0.3s ease;
+  }
+
+  .btn:hover {
+    background: #0056b3;
+  }
+
+  .btn:disabled {
+    background: #666666;
+    cursor: not-allowed;
+  }
+
+  .btn-secondary {
+    background: #6c757d;
+  }
+
+  .btn-secondary:hover {
+    background: #5a6268;
+  }
+}
+
+// Responsive Design
+@media (max-width: 768px) {
+  .server-form .form-row {
+    grid-template-columns: 1fr;
+  }
+  
+  .server-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+  
+  .server-actions {
+    align-self: flex-end;
+  }
 }

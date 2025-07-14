@@ -82,6 +82,30 @@ export class ApiStack extends cdk.Stack {
       }
     });
 
+    const addServerFunction = new lambda.Function(this, "add-server-function", {
+      runtime: this.RUNTIME,
+      memorySize: this.MEMORY_SIZE,
+      timeout: this.TIMEOUT,
+      handler: 'index.handler',
+      code: lambda.Code.fromAsset(path.join(__dirname, '/../src/add-server-lambda')),
+      environment: {
+        REGION: this.REGION,
+        TABLE_NAME: table.tableName,
+      }
+    });
+
+    const deleteServerFunction = new lambda.Function(this, "delete-server-function", {
+      runtime: this.RUNTIME,
+      memorySize: this.MEMORY_SIZE,
+      timeout: this.TIMEOUT,
+      handler: 'index.handler',
+      code: lambda.Code.fromAsset(path.join(__dirname, '/../src/delete-server-lambda')),
+      environment: {
+        REGION: this.REGION,
+        TABLE_NAME: table.tableName,
+      }
+    });
+
     // Create an SSM parameter access policy
     const ssmPolicy = new iam.PolicyStatement({
       actions: ['ssm:GetParameter'],
@@ -99,6 +123,8 @@ export class ApiStack extends cdk.Stack {
     table.grantReadWriteData(getServersFunction);
     table.grantReadWriteData(steamLoginFunction);
     table.grantReadWriteData(getUserProfileFunction);
+    table.grantReadWriteData(addServerFunction);
+    table.grantReadWriteData(deleteServerFunction);
 
     // Create CloudWatch log group for API Gateway
     const apiLogGroup = new logs.LogGroup(this, 'ApiGatewayLogGroup', {
@@ -184,6 +210,31 @@ export class ApiStack extends cdk.Stack {
       }]
     });
     
+    // Add servers/{id} resource for PUT operations
+    const serverIdResource = serversResource.addResource('{id}');
+    
+    // Add PUT method for servers/{id} endpoint (admin only)
+    serverIdResource.addMethod('PUT', new apigw.LambdaIntegration(getServersFunction), {
+      methodResponses: [{
+        statusCode: '200',
+        responseParameters: {
+          'method.response.header.Access-Control-Allow-Origin': true,
+          'method.response.header.Access-Control-Allow-Headers': true,
+          'method.response.header.Access-Control-Allow-Methods': true,
+        },
+      }, {
+        statusCode: '401',
+        responseParameters: {
+          'method.response.header.Access-Control-Allow-Origin': true,
+        },
+      }, {
+        statusCode: '403',
+        responseParameters: {
+          'method.response.header.Access-Control-Allow-Origin': true,
+        },
+      }]
+    });
+    
     // Add OPTIONS method for servers endpoint
     serversResource.addMethod('OPTIONS', new apigw.MockIntegration({
       integrationResponses: [{
@@ -191,7 +242,31 @@ export class ApiStack extends cdk.Stack {
         responseParameters: {
           'method.response.header.Access-Control-Allow-Origin': "'*'",
           'method.response.header.Access-Control-Allow-Headers': "'Content-Type,Authorization'",
-          'method.response.header.Access-Control-Allow-Methods': "'GET,POST,OPTIONS'",
+          'method.response.header.Access-Control-Allow-Methods': "'GET,OPTIONS'",
+        },
+      }],
+      requestTemplates: {
+        'application/json': '{"statusCode": 200}'
+      }
+    }), {
+      methodResponses: [{
+        statusCode: '200',
+        responseParameters: {
+          'method.response.header.Access-Control-Allow-Origin': true,
+          'method.response.header.Access-Control-Allow-Headers': true,
+          'method.response.header.Access-Control-Allow-Methods': true,
+        },
+      }]
+    });
+    
+    // Add OPTIONS method for servers/{id} endpoint
+    serverIdResource.addMethod('OPTIONS', new apigw.MockIntegration({
+      integrationResponses: [{
+        statusCode: '200',
+        responseParameters: {
+          'method.response.header.Access-Control-Allow-Origin': "'*'",
+          'method.response.header.Access-Control-Allow-Headers': "'Content-Type,Authorization'",
+          'method.response.header.Access-Control-Allow-Methods': "'PUT,OPTIONS'",
         },
       }],
       requestTemplates: {
@@ -323,6 +398,111 @@ export class ApiStack extends cdk.Stack {
           'method.response.header.Access-Control-Allow-Origin': "'*'",
           'method.response.header.Access-Control-Allow-Headers': "'Content-Type,Authorization'",
           'method.response.header.Access-Control-Allow-Methods': "'GET,OPTIONS'",
+        },
+      }],
+      requestTemplates: {
+        'application/json': '{"statusCode": 200}'
+      }
+    }), {
+      methodResponses: [{
+        statusCode: '200',
+        responseParameters: {
+          'method.response.header.Access-Control-Allow-Origin': true,
+          'method.response.header.Access-Control-Allow-Headers': true,
+          'method.response.header.Access-Control-Allow-Methods': true,
+        },
+      }]
+    });
+
+    // Add a resource for /addServer endpoint
+    const addServerResource = api.root.addResource('addServer');
+    addServerResource.addMethod('POST', new apigw.LambdaIntegration(addServerFunction), {
+      methodResponses: [{
+        statusCode: '201',
+        responseParameters: {
+          'method.response.header.Access-Control-Allow-Origin': true,
+          'method.response.header.Access-Control-Allow-Headers': true,
+          'method.response.header.Access-Control-Allow-Methods': true,
+        },
+      }, {
+        statusCode: '400',
+        responseParameters: {
+          'method.response.header.Access-Control-Allow-Origin': true,
+        },
+      }, {
+        statusCode: '401',
+        responseParameters: {
+          'method.response.header.Access-Control-Allow-Origin': true,
+        },
+      }, {
+        statusCode: '403',
+        responseParameters: {
+          'method.response.header.Access-Control-Allow-Origin': true,
+        },
+      }]
+    });
+    
+    // Add OPTIONS method for addServer endpoint
+    addServerResource.addMethod('OPTIONS', new apigw.MockIntegration({
+      integrationResponses: [{
+        statusCode: '200',
+        responseParameters: {
+          'method.response.header.Access-Control-Allow-Origin': "'*'",
+          'method.response.header.Access-Control-Allow-Headers': "'Content-Type,Authorization'",
+          'method.response.header.Access-Control-Allow-Methods': "'POST,OPTIONS'",
+        },
+      }],
+      requestTemplates: {
+        'application/json': '{"statusCode": 200}'
+      }
+    }), {
+      methodResponses: [{
+        statusCode: '200',
+        responseParameters: {
+          'method.response.header.Access-Control-Allow-Origin': true,
+          'method.response.header.Access-Control-Allow-Headers': true,
+          'method.response.header.Access-Control-Allow-Methods': true,
+        },
+      }]
+    });
+
+    // Add a resource for /deleteServer endpoint
+    const deleteServerResource = api.root.addResource('deleteServer');
+    const deleteServerIdResource = deleteServerResource.addResource('{id}');
+    deleteServerIdResource.addMethod('DELETE', new apigw.LambdaIntegration(deleteServerFunction), {
+      methodResponses: [{
+        statusCode: '200',
+        responseParameters: {
+          'method.response.header.Access-Control-Allow-Origin': true,
+          'method.response.header.Access-Control-Allow-Headers': true,
+          'method.response.header.Access-Control-Allow-Methods': true,
+        },
+      }, {
+        statusCode: '401',
+        responseParameters: {
+          'method.response.header.Access-Control-Allow-Origin': true,
+        },
+      }, {
+        statusCode: '403',
+        responseParameters: {
+          'method.response.header.Access-Control-Allow-Origin': true,
+        },
+      }, {
+        statusCode: '404',
+        responseParameters: {
+          'method.response.header.Access-Control-Allow-Origin': true,
+        },
+      }]
+    });
+    
+    // Add OPTIONS method for deleteServer/{id} endpoint
+    deleteServerIdResource.addMethod('OPTIONS', new apigw.MockIntegration({
+      integrationResponses: [{
+        statusCode: '200',
+        responseParameters: {
+          'method.response.header.Access-Control-Allow-Origin': "'*'",
+          'method.response.header.Access-Control-Allow-Headers': "'Content-Type,Authorization'",
+          'method.response.header.Access-Control-Allow-Methods': "'DELETE,OPTIONS'",
         },
       }],
       requestTemplates: {

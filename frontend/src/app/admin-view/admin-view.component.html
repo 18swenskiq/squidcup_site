@@ -4,6 +4,205 @@
 ></app-page-header>
 
 <div class="admin-content">
+  <!-- Server Management Section -->
+  <div class="admin-section">
+    <h2>Server Management</h2>
+    <p>Manage game servers and their configurations</p>
+    
+    <!-- Add Server Form -->
+    <div class="server-form-container">
+      <h3>Add New Server</h3>
+      <form (ngSubmit)="addServer()" #serverForm="ngForm" class="server-form">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="ip">IP Address</label>
+            <input 
+              type="text" 
+              id="ip" 
+              name="ip" 
+              [(ngModel)]="newServer.ip" 
+              required 
+              class="form-control"
+              placeholder="192.168.1.100">
+          </div>
+          <div class="form-group">
+            <label for="port">Port</label>
+            <input 
+              type="number" 
+              id="port" 
+              name="port" 
+              [(ngModel)]="newServer.port" 
+              required 
+              class="form-control"
+              placeholder="27015">
+          </div>
+        </div>
+        
+        <div class="form-row">
+          <div class="form-group">
+            <label for="location">Physical Location</label>
+            <input 
+              type="text" 
+              id="location" 
+              name="location" 
+              [(ngModel)]="newServer.location" 
+              required 
+              class="form-control"
+              placeholder="New York, USA">
+          </div>
+          <div class="form-group">
+            <label for="nickname">Nickname</label>
+            <input 
+              type="text" 
+              id="nickname" 
+              name="nickname" 
+              [(ngModel)]="newServer.nickname" 
+              required 
+              class="form-control"
+              placeholder="NYC Server #1">
+          </div>
+        </div>
+        
+        <div class="form-row">
+          <div class="form-group">
+            <label for="rconPassword">RCON Password</label>
+            <input 
+              type="password" 
+              id="rconPassword" 
+              name="rconPassword" 
+              [(ngModel)]="newServer.rconPassword" 
+              required 
+              class="form-control"
+              placeholder="Enter RCON password">
+          </div>
+          <div class="form-group">
+            <label for="maxPlayers">Max Players</label>
+            <input 
+              type="number" 
+              id="maxPlayers" 
+              name="maxPlayers" 
+              [(ngModel)]="newServer.maxPlayers" 
+              required 
+              class="form-control"
+              placeholder="32">
+          </div>
+        </div>
+        
+        <div class="form-actions">
+          <button type="submit" [disabled]="!serverForm.form.valid || isLoading" class="btn btn-primary">
+            {{ isLoading ? 'Adding...' : 'Add Server' }}
+          </button>
+        </div>
+      </form>
+    </div>
+    
+    <!-- Server List -->
+    <div class="server-list-container">
+      <h3>Existing Servers</h3>
+      <div *ngIf="servers.length === 0" class="no-servers">
+        <p>No servers configured yet. Add your first server above.</p>
+      </div>
+      
+      <div *ngIf="servers.length > 0" class="server-list">
+        <div *ngFor="let server of servers; trackBy: trackByServerId" class="server-item">
+          <div *ngIf="editingServer?.id !== server.id" class="server-info">
+            <h4>{{ server.nickname }}</h4>
+            <p><strong>Address:</strong> {{ server.ip }}:{{ server.port }}</p>
+            <p><strong>Location:</strong> {{ server.location }}</p>
+            <p><strong>Max Players:</strong> {{ server.maxPlayers }}</p>
+          </div>
+          
+          <!-- Edit form -->
+          <div *ngIf="editingServer?.id === server.id" class="server-edit-form">
+            <form (ngSubmit)="updateServer()" #editForm="ngForm">
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="edit-ip">IP Address</label>
+                  <input 
+                    type="text" 
+                    id="edit-ip" 
+                    name="ip" 
+                    [(ngModel)]="editingServer.ip" 
+                    required 
+                    class="form-control">
+                </div>
+                <div class="form-group">
+                  <label for="edit-port">Port</label>
+                  <input 
+                    type="number" 
+                    id="edit-port" 
+                    name="port" 
+                    [(ngModel)]="editingServer.port" 
+                    required 
+                    class="form-control">
+                </div>
+              </div>
+              
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="edit-location">Physical Location</label>
+                  <input 
+                    type="text" 
+                    id="edit-location" 
+                    name="location" 
+                    [(ngModel)]="editingServer.location" 
+                    required 
+                    class="form-control">
+                </div>
+                <div class="form-group">
+                  <label for="edit-nickname">Nickname</label>
+                  <input 
+                    type="text" 
+                    id="edit-nickname" 
+                    name="nickname" 
+                    [(ngModel)]="editingServer.nickname" 
+                    required 
+                    class="form-control">
+                </div>
+              </div>
+              
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="edit-rconPassword">RCON Password</label>
+                  <input 
+                    type="password" 
+                    id="edit-rconPassword" 
+                    name="rconPassword" 
+                    [(ngModel)]="editingServer.rconPassword" 
+                    required 
+                    class="form-control">
+                </div>
+                <div class="form-group">
+                  <label for="edit-maxPlayers">Max Players</label>
+                  <input 
+                    type="number" 
+                    id="edit-maxPlayers" 
+                    name="maxPlayers" 
+                    [(ngModel)]="editingServer.maxPlayers" 
+                    required 
+                    class="form-control">
+                </div>
+              </div>
+              
+              <div class="form-actions">
+                <button type="submit" [disabled]="!editForm.form.valid || isLoading" class="btn btn-primary">
+                  {{ isLoading ? 'Updating...' : 'Update Server' }}
+                </button>
+                <button type="button" (click)="cancelEdit()" class="btn btn-secondary">Cancel</button>
+              </div>
+            </form>
+          </div>
+          
+          <div *ngIf="editingServer?.id !== server.id" class="server-actions">
+            <button (click)="editServer(server)" class="btn btn-secondary">Edit</button>
+            <button (click)="deleteServer(server.id)" class="btn btn-danger">Delete</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Other Admin Sections -->
   <div class="admin-section">
     <h2>System Management</h2>
     <p>Welcome to the admin panel. Here you can manage system settings and monitor application status.</p>

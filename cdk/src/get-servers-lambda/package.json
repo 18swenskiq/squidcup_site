@@ -7,6 +7,10 @@
   "scripts": {
     "build": "tsc"
   },
+  "devDependencies": {
+    "@aws-sdk/client-dynamodb": "^3.759.0",
+    "@aws-sdk/lib-dynamodb": "^3.759.0"
+  },
   "dependencies": {},
   "engines": {
     "node": ">=18.0.0"
