@@ -2,6 +2,7 @@ import { Injectable, Inject, PLATFORM_ID } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { BehaviorSubject, Observable } from 'rxjs';
+import { tap, catchError } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
 
 export interface User {
@@ -56,8 +57,12 @@ export class AuthService {
           },
           error: (error) => {
             console.error('Failed to load existing user profile:', error);
-            // If profile fails to load, user might have invalid session
-            // But we'll keep them logged in for now
+            // If profile fails with 401, session is invalid - log user out
+            if (error.status === 401) {
+              console.log('Session expired, logging user out');
+              this.clearSession();
+            }
+            // For other errors, keep them logged in but without profile data
           }
         });
       }
@@ -104,7 +109,12 @@ export class AuthService {
       },
       error: (error) => {
         console.error('Failed to load user profile:', error);
-        // User is still logged in, just without profile data
+        // If profile fails with 401, session is invalid - log user out
+        if (error.status === 401) {
+          console.log('Session invalid after login, logging user out');
+          this.clearSession();
+        }
+        // For other errors, keep them logged in but without profile data
       }
     });
     
@@ -165,5 +175,33 @@ export class AuthService {
 
   getCurrentUser(): User | null {
     return this.currentUserSubject.value;
+  }
+
+  refreshUserProfile(): Observable<any> {
+    const currentUser = this.getCurrentUser();
+    if (!currentUser) {
+      return new Observable(observer => {
+        observer.error({ message: 'No user logged in' });
+      });
+    }
+
+    return this.fetchUserProfile(currentUser.sessionToken).pipe(
+      tap((profile: any) => {
+        const updatedUser: User = {
+          ...currentUser,
+          profile: profile
+        };
+        this.currentUserSubject.next(updatedUser);
+        console.log('User profile refreshed:', profile);
+      }),
+      catchError((error: any) => {
+        console.error('Failed to refresh user profile:', error);
+        if (error.status === 401) {
+          console.log('Session expired during refresh, logging user out');
+          this.clearSession();
+        }
+        throw error;
+      })
+    );
   }
 }
