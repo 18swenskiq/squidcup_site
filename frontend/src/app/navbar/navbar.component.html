@@ -23,10 +23,11 @@
           ><b>PROJECTS</b></a
         >
         <a
+          *ngIf="currentUser && isAdmin()"
           class="button right-side-item"
           style="text-decoration: none"
-          routerLink="/members"
-          ><b>MEMBERS</b></a
+          routerLink="/admin"
+          ><b>ADMIN</b></a
         >
         
         <!-- Steam Login/Logout Section -->

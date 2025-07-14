@@ -3,10 +3,13 @@ import { ProjectsComponent } from './projects-view/projects.component';
 import { GamesViewComponent } from './games-view/games-view.component';
 import { MainViewComponent } from './main-view/main-view.component';
 import { PlayViewComponent } from './play-view/play-view.component';
+import { AdminViewComponent } from './admin-view/admin-view.component';
+import { AdminGuard } from './guards/admin.guard';
 
 export const routes: Routes = [
   { path: '', component: MainViewComponent },
   { path: 'games', component: GamesViewComponent },
   { path: 'projects', component: ProjectsComponent },
-  { path: 'play', component: PlayViewComponent }
+  { path: 'play', component: PlayViewComponent },
+  { path: 'admin', component: AdminViewComponent, canActivate: [AdminGuard] }
 ];

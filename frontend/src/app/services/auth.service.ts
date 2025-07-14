@@ -177,6 +177,11 @@ export class AuthService {
     return this.currentUserSubject.value;
   }
 
+  isAdmin(): boolean {
+    const currentUser = this.getCurrentUser();
+    return currentUser?.steamId === '76561198041569692';
+  }
+
   refreshUserProfile(): Observable<any> {
     const currentUser = this.getCurrentUser();
     if (!currentUser) {

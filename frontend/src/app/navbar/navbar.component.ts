@@ -47,6 +47,10 @@ export class NavbarComponent implements OnInit, OnDestroy {
     this.subscriptions.forEach(sub => sub.unsubscribe());
   }
 
+  isAdmin(): boolean {
+    return this.authService.isAdmin();
+  }
+
   loginWithSteam(): void {
     console.log('Steam login button clicked');
     this.authService.loginWithSteam();
