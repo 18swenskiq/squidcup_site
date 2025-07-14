@@ -6,97 +6,84 @@
 
 .admin-section {
   margin-bottom: 3rem;
-}
-
-.admin-section h2 {
-  color: #ffffff;
-  margin-bottom: 1rem;
-  border-bottom: 2px solid #007bff;
-  padding-bottom: 0.5rem;
-}
-
-.admin-section p {
-  color: #cccccc;
-  margin-bottom: 1.5rem;
-}
-
-// Server Management Styles
-.server-form-container {
-  background: #1a1a1a;
-  border: 1px solid #333333;
-  border-radius: 8px;
-  padding: 2rem;
-  margin-bottom: 2rem;
-}
-
-.server-form-container h3 {
-  color: #ffffff;
-  margin-bottom: 1.5rem;
-  font-size: 1.3rem;
-}
-
-.server-form {
-  .form-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1rem;
+  h2 {
+    color: #fff;
     margin-bottom: 1rem;
+    border-bottom: 2px solid #007bff;
+    padding-bottom: 0.5rem;
   }
-
-  .form-group {
-    display: flex;
-    flex-direction: column;
-  }
-
-  label {
-    color: #ffffff;
-    margin-bottom: 0.5rem;
-    font-weight: 500;
-  }
-
-  .form-control {
-    padding: 0.75rem;
-    background: #2a2a2a;
-    border: 1px solid #444444;
-    border-radius: 4px;
-    color: #ffffff;
-    font-size: 0.9rem;
-    
-    &:focus {
-      outline: none;
-      border-color: #007bff;
-      box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.2);
-    }
-    
-    &::placeholder {
-      color: #888888;
-    }
-  }
-
-  .form-actions {
-    margin-top: 1.5rem;
-    display: flex;
-    justify-content: flex-end;
+  p {
+    color: #ccc;
+    margin-bottom: 1.5rem;
   }
 }
 
-.server-list-container {
+.server-form-container, .server-list-container, .admin-card, .server-edit-form {
   background: #1a1a1a;
-  border: 1px solid #333333;
+  border: 1px solid #333;
   border-radius: 8px;
   padding: 2rem;
   margin-bottom: 2rem;
 }
 
-.server-list-container h3 {
-  color: #ffffff;
+.server-form-container h3, .server-list-container h3 {
+  color: #fff;
   margin-bottom: 1.5rem;
   font-size: 1.3rem;
+}
+
+.server-form .form-row, .server-edit-form .form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.server-form .form-group, .server-edit-form .form-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.server-form label, .server-edit-form label {
+  color: #fff;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+  font-size: 0.9rem;
+}
+
+.server-form .form-control, .server-edit-form .form-control {
+  padding: 0.75rem;
+  background: #2a2a2a;
+  border: 1px solid #444;
+  border-radius: 4px;
+  color: #fff;
+  font-size: 0.9rem;
+  transition: border-color 0.3s;
+  
+  &:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.2);
+  }
+  
+  &::placeholder {
+    color: #888;
+  }
+}
+
+.server-form .form-actions, .server-edit-form .form-actions {
+  margin-top: 1.5rem;
+  display: flex;
+  gap: 1rem;
+}
+
+.server-form .form-actions {
+  justify-content: flex-end;
 }
 
 .no-servers {
   text-align: center;
-  color: #888888;
+  color: #888;
   padding: 2rem;
 }
 
@@ -110,13 +97,13 @@
   justify-content: space-between;
   align-items: center;
   background: #2a2a2a;
-  border: 1px solid #444444;
+  border: 1px solid #444;
   border-radius: 6px;
   padding: 1.5rem;
-  transition: background-color 0.3s ease;
+  transition: background-color 0.3s;
   
   &:hover {
-    background: #333333;
+    background: #333;
   }
 }
 
@@ -124,13 +111,13 @@
   flex: 1;
   
   h4 {
-    color: #ffffff;
+    color: #fff;
     margin: 0 0 0.5rem 0;
     font-size: 1.1rem;
   }
   
   p {
-    color: #cccccc;
+    color: #ccc;
     margin: 0.25rem 0;
     font-size: 0.9rem;
   }
@@ -141,7 +128,6 @@
   gap: 0.5rem;
 }
 
-// Button Styles
 .btn {
   padding: 0.75rem 1.5rem;
   border: none;
@@ -149,7 +135,7 @@
   cursor: pointer;
   font-size: 0.9rem;
   font-weight: 500;
-  transition: all 0.3s ease;
+  transition: all 0.3s;
   
   &:disabled {
     opacity: 0.6;
@@ -157,7 +143,7 @@
   }
 }
 
-.btn-primary {
+.btn-primary, .admin-btn, .server-edit-form .btn {
   background: #007bff;
   color: white;
   
@@ -166,7 +152,7 @@
   }
 }
 
-.btn-secondary {
+.btn-secondary, .server-edit-form .btn-secondary {
   background: #6c757d;
   color: white;
   
@@ -184,7 +170,6 @@
   }
 }
 
-// Existing Admin Cards Styles
 .admin-cards {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
@@ -193,131 +178,53 @@
 }
 
 .admin-card {
-  background: #1a1a1a;
-  border: 1px solid #333333;
-  border-radius: 8px;
   padding: 1.5rem;
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
-}
-
-.admin-card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 4px 20px rgba(0, 123, 255, 0.3);
-}
-
-.admin-card h3 {
-  color: #ffffff;
-  margin-bottom: 1rem;
-  font-size: 1.2rem;
-}
-
-.admin-card p {
-  color: #aaaaaa;
-  margin-bottom: 1.5rem;
-  font-size: 0.9rem;
+  transition: transform 0.3s, box-shadow 0.3s;
+  
+  &:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 4px 20px rgba(0, 123, 255, 0.3);
+  }
+  
+  h3 {
+    color: #fff;
+    margin-bottom: 1rem;
+    font-size: 1.2rem;
+  }
+  
+  p {
+    color: #aaa;
+    margin-bottom: 1.5rem;
+    font-size: 0.9rem;
+  }
 }
 
 .admin-btn {
-  background: #007bff;
-  color: white;
   border: none;
   padding: 0.75rem 1.5rem;
   border-radius: 4px;
   cursor: pointer;
   font-size: 0.9rem;
-  transition: background-color 0.3s ease;
+  transition: background-color 0.3s;
+  
+  &:active {
+    transform: translateY(1px);
+  }
 }
 
-.admin-btn:hover {
-  background: #0056b3;
-}
-
-.admin-btn:active {
-  transform: translateY(1px);
-}
-
-// Server Edit Form Styles
 .server-edit-form {
-  background: #1a1a1a;
-  border: 1px solid #333333;
-  border-radius: 8px;
   padding: 1.5rem;
   margin: 1rem 0;
   width: 100%;
   
-  .form-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1rem;
-    margin-bottom: 1rem;
-  }
-
-  .form-group {
-    display: flex;
-    flex-direction: column;
-  }
-
-  label {
-    color: #ffffff;
-    margin-bottom: 0.5rem;
-    font-weight: 500;
-    font-size: 0.9rem;
-  }
-
-  .form-control {
-    background: #2a2a2a;
-    border: 1px solid #555555;
-    border-radius: 4px;
-    color: #ffffff;
-    padding: 0.75rem;
-    font-size: 0.9rem;
-    transition: border-color 0.3s ease;
-  }
-
-  .form-control:focus {
-    outline: none;
-    border-color: #007bff;
-    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
-  }
-
-  .form-actions {
-    display: flex;
-    gap: 1rem;
-    margin-top: 1.5rem;
-  }
-
-  .btn {
-    background: #007bff;
-    color: white;
-    border: none;
-    padding: 0.75rem 1.5rem;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 0.9rem;
-    transition: background-color 0.3s ease;
-  }
-
-  .btn:hover {
-    background: #0056b3;
-  }
-
   .btn:disabled {
-    background: #666666;
+    background: #666;
     cursor: not-allowed;
-  }
-
-  .btn-secondary {
-    background: #6c757d;
-  }
-
-  .btn-secondary:hover {
-    background: #5a6268;
   }
 }
 
-// Responsive Design
 @media (max-width: 768px) {
-  .server-form .form-row {
+  .server-form .form-row, .server-edit-form .form-row {
     grid-template-columns: 1fr;
   }
   
