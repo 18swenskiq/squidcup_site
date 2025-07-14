@@ -122,7 +122,7 @@
                     type="text" 
                     id="edit-ip" 
                     name="ip" 
-                    [(ngModel)]="editingServer.ip" 
+                    [(ngModel)]="editingServer!.ip" 
                     required 
                     class="form-control">
                 </div>
@@ -132,7 +132,7 @@
                     type="number" 
                     id="edit-port" 
                     name="port" 
-                    [(ngModel)]="editingServer.port" 
+                    [(ngModel)]="editingServer!.port" 
                     required 
                     class="form-control">
                 </div>
@@ -145,7 +145,7 @@
                     type="text" 
                     id="edit-location" 
                     name="location" 
-                    [(ngModel)]="editingServer.location" 
+                    [(ngModel)]="editingServer!.location" 
                     required 
                     class="form-control">
                 </div>
@@ -155,7 +155,7 @@
                     type="text" 
                     id="edit-nickname" 
                     name="nickname" 
-                    [(ngModel)]="editingServer.nickname" 
+                    [(ngModel)]="editingServer!.nickname" 
                     required 
                     class="form-control">
                 </div>
@@ -168,7 +168,7 @@
                     type="password" 
                     id="edit-rconPassword" 
                     name="rconPassword" 
-                    [(ngModel)]="editingServer.rconPassword" 
+                    [(ngModel)]="editingServer!.rconPassword" 
                     required 
                     class="form-control">
                 </div>
@@ -178,7 +178,7 @@
                     type="number" 
                     id="edit-maxPlayers" 
                     name="maxPlayers" 
-                    [(ngModel)]="editingServer.maxPlayers" 
+                    [(ngModel)]="editingServer!.maxPlayers" 
                     required 
                     class="form-control">
                 </div>

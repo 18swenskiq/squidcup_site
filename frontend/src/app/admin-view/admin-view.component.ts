@@ -7,7 +7,16 @@ import { HttpClient } from '@angular/common/http';
 import { environment } from '../../environments/environment';
 
 export interface GameServer {
-  id?: string;
+  id: string;
+  ip: string;
+  port: number;
+  location: string;
+  rconPassword: string;
+  maxPlayers: number;
+  nickname: string;
+}
+
+export interface NewGameServer {
   ip: string;
   port: number;
   location: string;
@@ -28,7 +37,7 @@ export class AdminViewComponent implements OnInit {
   isLoading = false;
   editingServer: GameServer | null = null;
   
-  newServer: GameServer = {
+  newServer: NewGameServer = {
     ip: '',
     port: 27015,
     location: '',
