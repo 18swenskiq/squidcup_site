@@ -30,11 +30,6 @@
           ><b>ADMIN</b></a
         >
         
-        <!-- Debug info (remove in production) -->
-        <div *ngIf="currentUser" style="color: red; font-size: 10px; margin: 5px;">
-          DEBUG: localStorage ID: {{ currentUser.steamId }} | Profile ID: {{ currentUser.profile?.steamId || 'Loading...' }} | Admin: {{ isAdmin() }}
-        </div>
-        
         <!-- Steam Login/Logout Section -->
         <div class="auth-section right-side-item">
           <div *ngIf="!currentUser" class="login-button">

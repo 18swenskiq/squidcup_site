@@ -51,6 +51,24 @@ async function getParameterValue(parameterName: string): Promise<string> {
   }
 }
 
+// Function to extract numeric Steam ID from OpenID URL
+function extractSteamIdFromOpenId(steamId: string): string {
+  // If it's already a numeric Steam ID, return as is
+  if (/^\d+$/.test(steamId)) {
+    return steamId;
+  }
+  
+  // Extract from OpenID URL format: https://steamcommunity.com/openid/id/76561198041569692
+  const match = steamId.match(/\/id\/(\d+)$/);
+  if (match && match[1]) {
+    return match[1];
+  }
+  
+  // If no match found, return the original value
+  console.warn('Could not extract Steam ID from:', steamId);
+  return steamId;
+}
+
 // Function to get user session from DynamoDB
 async function getUserSession(sessionToken: string): Promise<{ userId: string; expiresAt: string } | null> {
   try {
@@ -145,11 +163,15 @@ export async function handler(event: any): Promise<any> {
       };
     }
 
+    // Extract numeric Steam ID from the session userId
+    const numericSteamId = extractSteamIdFromOpenId(session.userId);
+    console.log('Session userId:', session.userId, 'Extracted Steam ID:', numericSteamId);
+
     // Get Steam API key from Parameter Store
     const steamApiKey = await getParameterValue('/unencrypted/SteamApiKey');
     
-    // Get Steam user profile
-    const steamProfile = await getSteamUserProfile(steamApiKey, session.userId);
+    // Get Steam user profile using the numeric Steam ID
+    const steamProfile = await getSteamUserProfile(steamApiKey, numericSteamId);
     
     if (!steamProfile) {
       return {
@@ -171,7 +193,7 @@ export async function handler(event: any): Promise<any> {
         'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
       },
       body: JSON.stringify({
-        steamId: session.userId, // Include the server-verified Steam ID
+        steamId: numericSteamId, // Use the extracted numeric Steam ID
         name: steamProfile.personaname,
         avatar: steamProfile.avatar,
         loccountrycode: steamProfile.loccountrycode,
