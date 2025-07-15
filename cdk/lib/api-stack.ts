@@ -33,6 +33,19 @@ export class ApiStack extends cdk.Stack {
       pointInTimeRecovery: true,
     });
 
+    // Add GSI1 for querying active queues
+    table.addGlobalSecondaryIndex({
+      indexName: 'GSI1',
+      partitionKey: {
+        name: 'GSI1PK',
+        type: dynamodb.AttributeType.STRING
+      },
+      sortKey: {
+        name: 'GSI1SK',
+        type: dynamodb.AttributeType.STRING
+      },
+    });
+
     const getMapsFunction = new lambda.Function(this, "get-maps-function", {
       runtime: this.RUNTIME,
       memorySize: this.MEMORY_SIZE,

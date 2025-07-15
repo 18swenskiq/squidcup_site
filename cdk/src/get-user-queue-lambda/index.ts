@@ -52,14 +52,17 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
     }
 
     // Get session token from headers
-    const sessionToken = event.headers.Authorization || event.headers.authorization;
-    if (!sessionToken) {
+    const authHeader = event.headers.Authorization || event.headers.authorization;
+    if (!authHeader) {
       return {
         statusCode: 401,
         headers: corsHeaders,
         body: JSON.stringify({ error: 'No session token provided' }),
       };
     }
+
+    // Extract token from Bearer format
+    const sessionToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : authHeader;
 
     // Validate session
     const sessionQuery = new QueryCommand({
