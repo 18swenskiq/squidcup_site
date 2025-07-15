@@ -2,10 +2,10 @@ import { Component } from '@angular/core';
 import { PageHeaderComponent } from '../page-header/page-header.component';
 
 @Component({
-  selector: 'app-games-view',
+  selector: 'app-leaderboard-view',
   standalone: true,
   imports: [PageHeaderComponent],
-  templateUrl: './games-view.component.html',
-  styleUrl: './games-view.component.scss',
+  templateUrl: './leaderboard-view.component.html',
+  styleUrl: './leaderboard-view.component.scss',
 })
-export class GamesViewComponent {}
+export class LeaderboardViewComponent {}
