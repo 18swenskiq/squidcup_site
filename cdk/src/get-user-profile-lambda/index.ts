@@ -171,6 +171,7 @@ export async function handler(event: any): Promise<any> {
         'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
       },
       body: JSON.stringify({
+        steamId: session.userId, // Include the server-verified Steam ID
         name: steamProfile.personaname,
         avatar: steamProfile.avatar,
         loccountrycode: steamProfile.loccountrycode,

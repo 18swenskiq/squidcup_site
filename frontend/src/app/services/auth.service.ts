@@ -6,10 +6,11 @@ import { tap, catchError } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
 
 export interface User {
-  steamId: string;
+  steamId: string; // Steam ID from localStorage (for backward compatibility)
   sessionToken: string;
   lastLogin?: string;
   profile?: {
+    steamId?: string; // Server-verified Steam ID from profile endpoint
     name: string;
     avatar: string;
     loccountrycode?: string;
@@ -39,8 +40,11 @@ export class AuthService {
       const steamId = localStorage.getItem('steamId');
       
       if (sessionToken && steamId) {
+        // Extract numeric Steam ID from OpenID URL if needed
+        const numericSteamId = this.extractSteamIdFromOpenId(steamId);
+        
         const user: User = {
-          steamId,
+          steamId: numericSteamId,
           sessionToken
         };
         this.currentUserSubject.next(user);
@@ -69,6 +73,23 @@ export class AuthService {
     }
   }
 
+  private extractSteamIdFromOpenId(steamId: string): string {
+    // If it's already a numeric Steam ID, return as is
+    if (/^\d+$/.test(steamId)) {
+      return steamId;
+    }
+    
+    // Extract from OpenID URL format: https://steamcommunity.com/openid/id/76561198041569692
+    const match = steamId.match(/\/id\/(\d+)$/);
+    if (match && match[1]) {
+      return match[1];
+    }
+    
+    // If no match found, return the original value
+    console.warn('Could not extract Steam ID from:', steamId);
+    return steamId;
+  }
+
   loginWithSteam(): void {
     // Only redirect in browser environment
     if (isPlatformBrowser(this.platformId)) {
@@ -83,15 +104,19 @@ export class AuthService {
   handleLoginCallback(token: string, steamId: string): void {
     console.log('Steam login callback received:', { token: token?.substring(0, 10) + '...', steamId });
     
+    // Extract numeric Steam ID from OpenID URL if needed
+    const numericSteamId = this.extractSteamIdFromOpenId(steamId);
+    console.log('Extracted Steam ID:', numericSteamId);
+    
     // Store session information only in browser environment
     if (isPlatformBrowser(this.platformId)) {
       localStorage.setItem('sessionToken', token);
-      localStorage.setItem('steamId', steamId);
+      localStorage.setItem('steamId', numericSteamId);
       console.log('Session stored in localStorage');
     }
     
     const user: User = {
-      steamId,
+      steamId: numericSteamId,
       sessionToken: token
     };
     
@@ -179,7 +204,13 @@ export class AuthService {
 
   isAdmin(): boolean {
     const currentUser = this.getCurrentUser();
-    return currentUser?.steamId === '76561198041569692';
+    if (!currentUser) {
+      return false;
+    }
+    
+    // Use server-verified Steam ID from profile if available, otherwise fall back to localStorage Steam ID
+    const steamId = currentUser.profile?.steamId || currentUser.steamId;
+    return steamId === '76561198041569692';
   }
 
   refreshUserProfile(): Observable<any> {
