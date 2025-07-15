@@ -89,14 +89,17 @@ export class PlayViewComponent implements OnInit, OnDestroy {
 
   startQueue(): void {
     if (this.queueForm.valid) {
-      this.http.post(`${this.apiBaseUrl}/startQueue`, this.queueForm.value).subscribe({
+      const headers = this.authService.getAuthHeaders();
+      this.http.post(`${this.apiBaseUrl}/startQueue`, this.queueForm.value, { headers }).subscribe({
         next: (response) => {
           console.log('Queue started successfully', response);
           // Handle successful queue start
+          // You might want to show a success message or redirect
         },
         error: (error) => {
           console.error('Error starting queue', error);
           // Handle error
+          // You might want to show an error message
         }
       });
     }

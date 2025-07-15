@@ -240,4 +240,16 @@ export class AuthService {
       })
     );
   }
+
+  getAuthHeaders(): { [header: string]: string } {
+    const currentUser = this.getCurrentUser();
+    if (!currentUser || !currentUser.sessionToken) {
+      return {};
+    }
+
+    return {
+      'Authorization': `Bearer ${currentUser.sessionToken}`,
+      'Content-Type': 'application/json'
+    };
+  }
 }

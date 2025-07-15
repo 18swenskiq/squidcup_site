@@ -106,6 +106,18 @@ export class ApiStack extends cdk.Stack {
       }
     });
 
+    const startQueueFunction = new lambda.Function(this, "start-queue-function", {
+      runtime: this.RUNTIME,
+      memorySize: this.MEMORY_SIZE,
+      timeout: this.TIMEOUT,
+      handler: 'index.handler',
+      code: lambda.Code.fromAsset(path.join(__dirname, '/../src/start-queue-lambda')),
+      environment: {
+        REGION: this.REGION,
+        TABLE_NAME: table.tableName,
+      }
+    });
+
     // Create an SSM parameter access policy
     const ssmPolicy = new iam.PolicyStatement({
       actions: ['ssm:GetParameter'],
@@ -125,6 +137,7 @@ export class ApiStack extends cdk.Stack {
     table.grantReadWriteData(getUserProfileFunction);
     table.grantReadWriteData(addServerFunction);
     table.grantReadWriteData(deleteServerFunction);
+    table.grantReadWriteData(startQueueFunction);
 
     // Create CloudWatch log group for API Gateway
     const apiLogGroup = new logs.LogGroup(this, 'ApiGatewayLogGroup', {
@@ -503,6 +516,58 @@ export class ApiStack extends cdk.Stack {
           'method.response.header.Access-Control-Allow-Origin': "'*'",
           'method.response.header.Access-Control-Allow-Headers': "'Content-Type,Authorization'",
           'method.response.header.Access-Control-Allow-Methods': "'DELETE,OPTIONS'",
+        },
+      }],
+      requestTemplates: {
+        'application/json': '{"statusCode": 200}'
+      }
+    }), {
+      methodResponses: [{
+        statusCode: '200',
+        responseParameters: {
+          'method.response.header.Access-Control-Allow-Origin': true,
+          'method.response.header.Access-Control-Allow-Headers': true,
+          'method.response.header.Access-Control-Allow-Methods': true,
+        },
+      }]
+    });
+
+    // Add a resource for /startQueue endpoint
+    const startQueueResource = api.root.addResource('startQueue');
+    startQueueResource.addMethod('POST', new apigw.LambdaIntegration(startQueueFunction), {
+      methodResponses: [{
+        statusCode: '201',
+        responseParameters: {
+          'method.response.header.Access-Control-Allow-Origin': true,
+          'method.response.header.Access-Control-Allow-Headers': true,
+          'method.response.header.Access-Control-Allow-Methods': true,
+        },
+      }, {
+        statusCode: '400',
+        responseParameters: {
+          'method.response.header.Access-Control-Allow-Origin': true,
+        },
+      }, {
+        statusCode: '401',
+        responseParameters: {
+          'method.response.header.Access-Control-Allow-Origin': true,
+        },
+      }, {
+        statusCode: '403',
+        responseParameters: {
+          'method.response.header.Access-Control-Allow-Origin': true,
+        },
+      }]
+    });
+    
+    // Add OPTIONS method for startQueue endpoint
+    startQueueResource.addMethod('OPTIONS', new apigw.MockIntegration({
+      integrationResponses: [{
+        statusCode: '200',
+        responseParameters: {
+          'method.response.header.Access-Control-Allow-Origin': "'*'",
+          'method.response.header.Access-Control-Allow-Headers': "'Content-Type,Authorization'",
+          'method.response.header.Access-Control-Allow-Methods': "'POST,OPTIONS'",
         },
       }],
       requestTemplates: {
