@@ -1,80 +1,123 @@
 <div class="play-view-container">
-  <div class="queue-column start-queue">
-    <h2>Start a Queue</h2>
-    <div *ngIf="!isLoggedIn" class="login-required">
-      <p>Please log in to start a queue.</p>
-    </div>
-    <form [formGroup]="queueForm" (ngSubmit)="startQueue()" *ngIf="isLoggedIn">
-      <div class="form-group">
-        <label for="gameMode">GAME MODE</label>
-        <select id="gameMode" formControlName="gameMode" (change)="onGameModeChange()">
-          <option value="" disabled selected>Select a game mode</option>
-          <option value="wingman">Wingman</option>
-          <option value="3v3">3v3</option>
-          <option value="5v5">5v5</option>
-        </select>
+  <!-- Lobby View - Show if user is in a queue -->
+  <div *ngIf="viewState.showLobby && userQueueStatus?.queue" class="lobby-view">
+    <h2>Queue Lobby</h2>
+    <div class="lobby-info">
+      <div class="queue-details">
+        <h3>{{ userQueueStatus?.queue?.gameMode?.toUpperCase() }} - {{ userQueueStatus?.queue?.ranked ? 'Ranked' : 'Unranked' }}</h3>
+        <p><strong>Map Selection:</strong> {{ userQueueStatus?.queue?.mapSelectionMode }}</p>
+        <p><strong>Host:</strong> {{ userQueueStatus?.isHost ? 'You' : userQueueStatus?.queue?.hostSteamId }}</p>
+        <p><strong>Queue Duration:</strong> {{ getQueueDuration() }}</p>
+        <p><strong>Players:</strong> {{ getJoinersCount() + 1 }} / {{ getMaxPlayers() }}</p>
       </div>
-
-      <div class="form-group">
-        <label for="mapSelectionMode">MAP SELECTION MODE</label>
-        <select id="mapSelectionMode" formControlName="mapSelectionMode">
-          <option value="" disabled selected>Select map selection mode</option>
-          <option value="all-pick">All Pick</option>
-          <option value="host-pick">Host Pick</option>
-          <option value="random-map">Random Map</option>
-        </select>
-      </div>
-
-      <div class="form-group">
-        <label for="server">SERVER</label>
-        <select id="server" formControlName="server" [disabled]="!queueForm.get('gameMode')?.value">
-          <option value="" disabled selected>Select a server</option>
-          <option *ngFor="let server of availableServers" [value]="server.id">{{server.nickname}}</option>
-        </select>
-      </div>
-
-      <div class="form-group">
-        <label for="password">PASSWORD (OPTIONAL)</label>
-        <input type="text" id="password" formControlName="password">
-      </div>
-
-      <div class="form-group checkbox">
-        <input type="checkbox" id="ranked" formControlName="ranked">
-        <label for="ranked">Ranked?</label>
-      </div>
-
-      <button type="submit" [disabled]="queueForm.invalid">Start Queue</button>
-    </form>
-  </div>
-
-  <div class="queue-column join-queue">
-    <h2>Join a Queue</h2>
-    <div *ngIf="!isLoggedIn" class="login-required">
-      <p>Please log in to join a queue.</p>
-    </div>
-    <div *ngIf="isLoggedIn" class="active-queues">
-      <div class="queue-headers">
-        <span>Queue Host</span>
-        <span>Game Mode</span>
-        <span>Players</span>
-        <span>Server</span>
-        <span>Ranked?</span>
-        <span>Password?</span>
-      </div>
-      <div class="queue-list">
-        <div class="queue-item" 
-             *ngFor="let queue of activeQueues" 
-             (click)="selectQueue(queue)"
-             [class.selected]="selectedQueue?.id === queue.id">
-          <span>{{ queue.host }}</span>
-          <span>{{ queue.gameMode }}</span>
-          <span>{{ queue.players }}</span>
-          <span>{{ queue.server }}</span>
-          <span>{{ queue.ranked ? 'Yes' : 'No' }}</span>
-          <span>{{ queue.hasPassword ? 'Yes' : 'No' }}</span>
+      
+      <div class="player-slots">
+        <h4>Players in Queue:</h4>
+        <div class="player-list">
+          <!-- Host slot -->
+          <div class="player-slot filled">
+            <span class="player-name">{{ userQueueStatus?.isHost ? 'You (Host)' : (userQueueStatus?.queue?.hostSteamId || 'Host') + ' (Host)' }}</span>
+          </div>
+          
+          <!-- Joiner slots -->
+          <div *ngFor="let joiner of userQueueStatus?.queue?.joiners || []" class="player-slot filled">
+            <span class="player-name">{{ joiner.steamId === authService.getCurrentUser()?.steamId ? 'You' : joiner.steamId }}</span>
+          </div>
+          
+          <!-- Empty slots -->
+          <div *ngFor="let i of [].constructor(getMaxPlayers() - getJoinersCount() - 1)" class="player-slot empty">
+            <span class="player-name">Waiting for player...</span>
+          </div>
         </div>
       </div>
+      
+      <div class="lobby-actions">
+        <button class="leave-queue-btn" (click)="leaveQueue()">Leave Queue</button>
+      </div>
     </div>
-    <button class="join-button" [disabled]="!selectedQueue || !isLoggedIn" (click)="joinQueue()" *ngIf="isLoggedIn">Join Queue</button>
+  </div>
+
+  <!-- Start Queue and Join Queue Views - Show if user is not in a queue -->
+  <div *ngIf="!viewState.showLobby" class="queue-columns">
+    <!-- Start Queue Section -->
+    <div class="queue-column start-queue" *ngIf="viewState.showStartQueue">
+      <h2>Start a Queue</h2>
+      <div *ngIf="!isLoggedIn" class="login-required">
+        <p>Please log in to start a queue.</p>
+      </div>
+      <form [formGroup]="queueForm" (ngSubmit)="startQueue()" *ngIf="isLoggedIn">
+        <div class="form-group">
+          <label for="gameMode">GAME MODE</label>
+          <select id="gameMode" formControlName="gameMode" (change)="onGameModeChange()">
+            <option value="" disabled selected>Select a game mode</option>
+            <option value="wingman">Wingman</option>
+            <option value="3v3">3v3</option>
+            <option value="5v5">5v5</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="mapSelectionMode">MAP SELECTION MODE</label>
+          <select id="mapSelectionMode" formControlName="mapSelectionMode">
+            <option value="" disabled selected>Select map selection mode</option>
+            <option value="all-pick">All Pick</option>
+            <option value="host-pick">Host Pick</option>
+            <option value="random-map">Random Map</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="server">SERVER</label>
+          <select id="server" formControlName="server" [disabled]="!queueForm.get('gameMode')?.value">
+            <option value="" disabled selected>Select a server</option>
+            <option *ngFor="let server of availableServers" [value]="server.id">{{server.nickname}}</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="password">PASSWORD (OPTIONAL)</label>
+          <input type="text" id="password" formControlName="password">
+        </div>
+
+        <div class="form-group checkbox">
+          <input type="checkbox" id="ranked" formControlName="ranked">
+          <label for="ranked">Ranked?</label>
+        </div>
+
+        <button type="submit" [disabled]="queueForm.invalid">Start Queue</button>
+      </form>
+    </div>
+
+    <!-- Join Queue Section -->
+    <div class="queue-column join-queue" *ngIf="viewState.showJoinQueue">
+      <h2>Join a Queue</h2>
+      <div *ngIf="!isLoggedIn" class="login-required">
+        <p>Please log in to join a queue.</p>
+      </div>
+      <div *ngIf="isLoggedIn" class="active-queues">
+        <div class="queue-headers">
+          <span>Queue Host</span>
+          <span>Game Mode</span>
+          <span>Players</span>
+          <span>Server</span>
+          <span>Ranked?</span>
+          <span>Password?</span>
+        </div>
+        <div class="queue-list">
+          <div class="queue-item" 
+               *ngFor="let queue of activeQueues" 
+               (click)="selectQueue(queue)"
+               [class.selected]="selectedQueue?.id === queue.id">
+            <span>{{ queue.host }}</span>
+            <span>{{ queue.gameMode }}</span>
+            <span>{{ queue.players }}</span>
+            <span>{{ queue.server }}</span>
+            <span>{{ queue.ranked ? 'Yes' : 'No' }}</span>
+            <span>{{ queue.hasPassword ? 'Yes' : 'No' }}</span>
+          </div>
+        </div>
+      </div>
+      <button class="join-button" [disabled]="!selectedQueue || !isLoggedIn" (click)="joinQueue()" *ngIf="isLoggedIn">Join Queue</button>
+    </div>
   </div>
 </div>

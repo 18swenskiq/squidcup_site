@@ -118,6 +118,18 @@ export class ApiStack extends cdk.Stack {
       }
     });
 
+    const getUserQueueFunction = new lambda.Function(this, "get-user-queue-function", {
+      runtime: this.RUNTIME,
+      memorySize: this.MEMORY_SIZE,
+      timeout: this.TIMEOUT,
+      handler: 'index.handler',
+      code: lambda.Code.fromAsset(path.join(__dirname, '/../src/get-user-queue-lambda')),
+      environment: {
+        REGION: this.REGION,
+        TABLE_NAME: table.tableName,
+      }
+    });
+
     // Create an SSM parameter access policy
     const ssmPolicy = new iam.PolicyStatement({
       actions: ['ssm:GetParameter'],
@@ -129,6 +141,7 @@ export class ApiStack extends cdk.Stack {
     getServersFunction.addToRolePolicy(ssmPolicy);
     steamLoginFunction.addToRolePolicy(ssmPolicy);
     getUserProfileFunction.addToRolePolicy(ssmPolicy);
+    getUserQueueFunction.addToRolePolicy(ssmPolicy);
 
     // Grant DynamoDB permissions to Lambda functions
     table.grantReadWriteData(getMapsFunction);
@@ -138,6 +151,7 @@ export class ApiStack extends cdk.Stack {
     table.grantReadWriteData(addServerFunction);
     table.grantReadWriteData(deleteServerFunction);
     table.grantReadWriteData(startQueueFunction);
+    table.grantReadWriteData(getUserQueueFunction);
 
     // Create CloudWatch log group for API Gateway
     const apiLogGroup = new logs.LogGroup(this, 'ApiGatewayLogGroup', {
@@ -568,6 +582,53 @@ export class ApiStack extends cdk.Stack {
           'method.response.header.Access-Control-Allow-Origin': "'*'",
           'method.response.header.Access-Control-Allow-Headers': "'Content-Type,Authorization'",
           'method.response.header.Access-Control-Allow-Methods': "'POST,OPTIONS'",
+        },
+      }],
+      requestTemplates: {
+        'application/json': '{"statusCode": 200}'
+      }
+    }), {
+      methodResponses: [{
+        statusCode: '200',
+        responseParameters: {
+          'method.response.header.Access-Control-Allow-Origin': true,
+          'method.response.header.Access-Control-Allow-Headers': true,
+          'method.response.header.Access-Control-Allow-Methods': true,
+        },
+      }]
+    });
+
+    // Add a resource for /userQueue endpoint
+    const userQueueResource = api.root.addResource('userQueue');
+    userQueueResource.addMethod('GET', new apigw.LambdaIntegration(getUserQueueFunction), {
+      methodResponses: [{
+        statusCode: '200',
+        responseParameters: {
+          'method.response.header.Access-Control-Allow-Origin': true,
+          'method.response.header.Access-Control-Allow-Headers': true,
+          'method.response.header.Access-Control-Allow-Methods': true,
+        },
+      }, {
+        statusCode: '401',
+        responseParameters: {
+          'method.response.header.Access-Control-Allow-Origin': true,
+        },
+      }, {
+        statusCode: '500',
+        responseParameters: {
+          'method.response.header.Access-Control-Allow-Origin': true,
+        },
+      }]
+    });
+    
+    // Add OPTIONS method for userQueue endpoint
+    userQueueResource.addMethod('OPTIONS', new apigw.MockIntegration({
+      integrationResponses: [{
+        statusCode: '200',
+        responseParameters: {
+          'method.response.header.Access-Control-Allow-Origin': "'*'",
+          'method.response.header.Access-Control-Allow-Headers': "'Content-Type,Authorization'",
+          'method.response.header.Access-Control-Allow-Methods': "'GET,OPTIONS'",
         },
       }],
       requestTemplates: {

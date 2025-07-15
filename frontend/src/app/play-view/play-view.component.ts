@@ -6,29 +6,7 @@ import { interval, Subscription } from 'rxjs';
 import { switchMap } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
 import { AuthService } from '../services/auth.service';
-
-interface GameServer {
-  id: string;
-  ip: string;
-  port: number;
-  location: string;
-  defaultPassword: string;
-  maxPlayers: number;
-  nickname: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-interface Queue {
-  id: string;
-  host: string;
-  gameMode: string;
-  players: string;
-  server: string;
-  map: string;
-  hasPassword: boolean;
-  ranked: boolean;
-}
+import { GameServer, UserQueueStatus, Queue, ViewState, ActiveQueue } from './play-view.interfaces';
 
 @Component({
   selector: 'app-play-view',
@@ -42,19 +20,33 @@ export class PlayViewComponent implements OnInit, OnDestroy {
   availableServers: GameServer[] = [];
   activeQueues: Queue[] = [];
   selectedQueue: Queue | null = null;
+  userQueueStatus: UserQueueStatus | null = null;
+  viewState: ViewState = {
+    showStartQueue: true,
+    showJoinQueue: true,
+    showLobby: false
+  };
+  
   private queueSubscription?: Subscription;
+  private userQueueSubscription?: Subscription;
   private apiBaseUrl: string = environment.apiUrl;
 
-  constructor(private fb: FormBuilder, private http: HttpClient, private authService: AuthService) {}
+  constructor(private fb: FormBuilder, private http: HttpClient, public authService: AuthService) {}
 
   ngOnInit(): void {
     this.initForm();
+    if (this.isLoggedIn) {
+      this.startUserQueueStatusPolling();
+    }
     this.startQueuePolling();
   }
 
   ngOnDestroy(): void {
     if (this.queueSubscription) {
       this.queueSubscription.unsubscribe();
+    }
+    if (this.userQueueSubscription) {
+      this.userQueueSubscription.unsubscribe();
     }
   }
 
@@ -70,6 +62,41 @@ export class PlayViewComponent implements OnInit, OnDestroy {
 
   get isLoggedIn(): boolean {
     return this.authService.isLoggedIn();
+  }
+
+  private startUserQueueStatusPolling(): void {
+    this.userQueueSubscription = interval(3000) // Poll every 3 seconds
+      .pipe(
+        switchMap(() => {
+          const headers = this.authService.getAuthHeaders();
+          return this.http.get<UserQueueStatus>(`${this.apiBaseUrl}/userQueue`, { headers });
+        })
+      )
+      .subscribe({
+        next: (status) => {
+          this.userQueueStatus = status;
+          this.updateViewState();
+        },
+        error: (error) => {
+          console.error('Error fetching user queue status:', error);
+        }
+      });
+  }
+
+  private updateViewState(): void {
+    if (this.userQueueStatus?.inQueue) {
+      this.viewState = {
+        showStartQueue: false,
+        showJoinQueue: false,
+        showLobby: true
+      };
+    } else {
+      this.viewState = {
+        showStartQueue: true,
+        showJoinQueue: true,
+        showLobby: false
+      };
+    }
   }
 
   onGameModeChange(): void {
@@ -93,12 +120,10 @@ export class PlayViewComponent implements OnInit, OnDestroy {
       this.http.post(`${this.apiBaseUrl}/startQueue`, this.queueForm.value, { headers }).subscribe({
         next: (response) => {
           console.log('Queue started successfully', response);
-          // Handle successful queue start
-          // You might want to show a success message or redirect
+          // The user queue status polling will automatically update the view
         },
         error: (error) => {
           console.error('Error starting queue', error);
-          // Handle error
           // You might want to show an error message
         }
       });
@@ -145,6 +170,21 @@ export class PlayViewComponent implements OnInit, OnDestroy {
     }
   }
 
+  leaveQueue(): void {
+    if (!this.userQueueStatus?.queue) return;
+    
+    const headers = this.authService.getAuthHeaders();
+    this.http.delete(`${this.apiBaseUrl}/leaveQueue/${this.userQueueStatus.queue.id}`, { headers }).subscribe({
+      next: (response) => {
+        console.log('Left queue successfully', response);
+        // The user queue status polling will automatically update the view
+      },
+      error: (error) => {
+        console.error('Error leaving queue', error);
+      }
+    });
+  }
+
   private startQueuePolling(): void {
     this.queueSubscription = interval(5000) // Poll every 5 seconds
       .pipe(
@@ -162,5 +202,33 @@ export class PlayViewComponent implements OnInit, OnDestroy {
           console.error('Error fetching queues', error);
         }
       });
+  }
+
+  getQueueDuration(): string {
+    if (!this.userQueueStatus?.queue?.startTime) return '';
+    
+    const startTime = new Date(this.userQueueStatus.queue.startTime);
+    const now = new Date();
+    const duration = now.getTime() - startTime.getTime();
+    
+    const minutes = Math.floor(duration / 60000);
+    const seconds = Math.floor((duration % 60000) / 1000);
+    
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  }
+
+  getJoinersCount(): number {
+    return this.userQueueStatus?.queue?.joiners.length || 0;
+  }
+
+  getMaxPlayers(): number {
+    if (!this.userQueueStatus?.queue?.gameMode) return 0;
+    
+    switch (this.userQueueStatus.queue.gameMode) {
+      case 'wingman': return 4;
+      case '3v3': return 6;
+      case '5v5': return 10;
+      default: return 0;
+    }
   }
 }
