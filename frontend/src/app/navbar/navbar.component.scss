@@ -94,18 +94,26 @@ h3 {
   }
   
   .welcome-text {
-    font-size: 14px;
-    font-weight: normal;
+    font-family: Century Gothic, CenturyGothic, AppleGothic, sans-serif;
+    font-size: 16px;
+    font-weight: bold;
+    color: whitesmoke;
+    text-transform: uppercase;
+    letter-spacing: 1px;
   }
   
   .logout-btn {
     background: #dc3545;
     color: white;
     border: none;
-    padding: 6px 12px;
+    padding: 8px 16px;
     border-radius: 4px;
     cursor: pointer;
+    font-family: Century Gothic, CenturyGothic, AppleGothic, sans-serif;
     font-size: 12px;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
     transition: background-color 0.3s ease;
     
     &:hover {
