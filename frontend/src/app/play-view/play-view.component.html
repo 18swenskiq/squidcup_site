@@ -1,7 +1,10 @@
 <div class="play-view-container">
   <div class="queue-column start-queue">
     <h2>Start a Queue</h2>
-    <form [formGroup]="queueForm" (ngSubmit)="startQueue()">
+    <div *ngIf="!isLoggedIn" class="login-required">
+      <p>Please log in to start a queue.</p>
+    </div>
+    <form [formGroup]="queueForm" (ngSubmit)="startQueue()" *ngIf="isLoggedIn">
       <div class="form-group">
         <label for="gameMode">GAME MODE</label>
         <select id="gameMode" formControlName="gameMode" (change)="onGameModeChange()">
@@ -13,10 +16,12 @@
       </div>
 
       <div class="form-group">
-        <label for="map">MAP</label>
-        <select id="map" formControlName="map" [disabled]="!queueForm.get('gameMode')?.value">
-          <option value="" disabled selected>Select a map</option>
-          <option *ngFor="let map of availableMaps" [value]="map">{{map.name}}</option>
+        <label for="mapSelectionMode">MAP SELECTION MODE</label>
+        <select id="mapSelectionMode" formControlName="mapSelectionMode">
+          <option value="" disabled selected>Select map selection mode</option>
+          <option value="all-pick">All Pick</option>
+          <option value="host-pick">Host Pick</option>
+          <option value="random-map">Random Map</option>
         </select>
       </div>
 
@@ -44,7 +49,10 @@
 
   <div class="queue-column join-queue">
     <h2>Join a Queue</h2>
-    <div class="active-queues">
+    <div *ngIf="!isLoggedIn" class="login-required">
+      <p>Please log in to join a queue.</p>
+    </div>
+    <div *ngIf="isLoggedIn" class="active-queues">
       <div class="queue-headers">
         <span>Queue Host</span>
         <span>Game Mode</span>
@@ -67,6 +75,6 @@
         </div>
       </div>
     </div>
-    <button class="join-button" [disabled]="!selectedQueue" (click)="joinQueue()">Join Queue</button>
+    <button class="join-button" [disabled]="!selectedQueue || !isLoggedIn" (click)="joinQueue()" *ngIf="isLoggedIn">Join Queue</button>
   </div>
 </div>

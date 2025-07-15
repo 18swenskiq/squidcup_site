@@ -5,8 +5,7 @@ import { HttpClient, HttpClientModule } from '@angular/common/http';
 import { interval, Subscription } from 'rxjs';
 import { switchMap } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
-
-type MapsResponse = { "name": string, "id": string, "thumbnailUrl": string, "gameModes": ("wingman" | "3v3" | "5v5")[] };
+import { AuthService } from '../services/auth.service';
 
 interface GameServer {
   id: string;
@@ -40,14 +39,13 @@ interface Queue {
 })
 export class PlayViewComponent implements OnInit, OnDestroy {
   queueForm!: FormGroup;
-  availableMaps: MapsResponse[] = [];
   availableServers: GameServer[] = [];
   activeQueues: Queue[] = [];
   selectedQueue: Queue | null = null;
   private queueSubscription?: Subscription;
   private apiBaseUrl: string = environment.apiUrl;
 
-  constructor(private fb: FormBuilder, private http: HttpClient) {}
+  constructor(private fb: FormBuilder, private http: HttpClient, private authService: AuthService) {}
 
   ngOnInit(): void {
     this.initForm();
@@ -63,28 +61,24 @@ export class PlayViewComponent implements OnInit, OnDestroy {
   private initForm(): void {
     this.queueForm = this.fb.group({
       gameMode: ['', Validators.required],
-      map: [{ value: '', disabled: true }, Validators.required],
+      mapSelectionMode: ['', Validators.required],
       server: [{ value: '', disabled: true }, Validators.required],
       password: [''],
       ranked: [true]
     });
   }
 
+  get isLoggedIn(): boolean {
+    return this.authService.isLoggedIn();
+  }
+
   onGameModeChange(): void {
     const gameMode = this.queueForm.get('gameMode')?.value;
 
-    this.queueForm.controls['map'].reset({ value: '', disabled: true });
     this.queueForm.controls['server'].reset({ value: '', disabled: true });
-    this.availableMaps = [];
     this.availableServers = [];
 
     if (gameMode) {
-      // Fetch maps based on selected game mode
-      this.http.get<{ data: MapsResponse[]}>(`${this.apiBaseUrl}maps?gamemode=${gameMode}`).subscribe(maps => {
-        this.availableMaps = maps.data;
-        this.queueForm.get('map')?.enable();
-      });
-
       // Fetch servers based on selected game mode
       this.http.get<GameServer[]>(`${this.apiBaseUrl}servers?gamemode=${gameMode}`).subscribe(servers => {
         this.availableServers = servers;
