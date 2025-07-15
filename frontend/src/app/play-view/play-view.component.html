@@ -24,7 +24,7 @@
         <label for="server">SERVER</label>
         <select id="server" formControlName="server" [disabled]="!queueForm.get('gameMode')?.value">
           <option value="" disabled selected>Select a server</option>
-          <option *ngFor="let server of availableServers" [value]="server">{{server}}</option>
+          <option *ngFor="let server of availableServers" [value]="server.id">{{server.nickname}}</option>
         </select>
       </div>
 

@@ -8,6 +8,18 @@ import { environment } from '../../environments/environment';
 
 type MapsResponse = { "name": string, "id": string, "thumbnailUrl": string, "gameModes": ("wingman" | "3v3" | "5v5")[] };
 
+interface GameServer {
+  id: string;
+  ip: string;
+  port: number;
+  location: string;
+  defaultPassword: string;
+  maxPlayers: number;
+  nickname: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 interface Queue {
   id: string;
   host: string;
@@ -29,7 +41,7 @@ interface Queue {
 export class PlayViewComponent implements OnInit, OnDestroy {
   queueForm!: FormGroup;
   availableMaps: MapsResponse[] = [];
-  availableServers: string[] = [];
+  availableServers: GameServer[] = [];
   activeQueues: Queue[] = [];
   selectedQueue: Queue | null = null;
   private queueSubscription?: Subscription;
@@ -74,7 +86,7 @@ export class PlayViewComponent implements OnInit, OnDestroy {
       });
 
       // Fetch servers based on selected game mode
-      this.http.get<string[]>(`${this.apiBaseUrl}servers?gamemode=${gameMode}`).subscribe(servers => {
+      this.http.get<GameServer[]>(`${this.apiBaseUrl}servers?gamemode=${gameMode}`).subscribe(servers => {
         this.availableServers = servers;
         this.queueForm.get('server')?.enable();
       });

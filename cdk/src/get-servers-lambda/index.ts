@@ -66,7 +66,7 @@ export async function handler(event: any): Promise<any> {
   try {
     // Handle GET /servers - Get all servers
     if (method === 'GET' && path === '/servers') {
-      return await handleGetServers();
+      return await handleGetServers(event);
     }
 
     // Handle PUT /servers/{id} - Update server (admin only)
@@ -98,22 +98,50 @@ export async function handler(event: any): Promise<any> {
   }
 }
 
-async function handleGetServers(): Promise<any> {
+async function handleGetServers(event?: any): Promise<any> {
   try {
+    // Get gamemode from query parameters
+    const gamemode = event?.queryStringParameters?.gamemode;
+    
+    // Determine minimum players required based on gamemode
+    const getMinPlayersForGamemode = (gamemode: string): number => {
+      switch (gamemode) {
+        case 'wingman':
+          return 4; // 2v2
+        case '3v3':
+          return 6; // 3v3
+        case '5v5':
+          return 10; // 5v5
+        default:
+          return 0; // No filtering if gamemode not specified or invalid
+      }
+    };
+
+    const minPlayers = getMinPlayersForGamemode(gamemode);
+    
+    // Build the filter expression
+    let filterExpression = 'begins_with(pk, :pk)';
+    const expressionAttributeValues: any = {
+      ':pk': 'SERVER#'
+    };
+    
+    // Add player count filter if gamemode is specified
+    if (minPlayers > 0) {
+      filterExpression += ' AND maxPlayers >= :minPlayers';
+      expressionAttributeValues[':minPlayers'] = minPlayers;
+    }
+
     const result = await docClient.send(new ScanCommand({
       TableName: process.env.TABLE_NAME,
-      FilterExpression: 'begins_with(pk, :pk)',
-      ExpressionAttributeValues: {
-        ':pk': 'SERVER#'
-      }
+      FilterExpression: filterExpression,
+      ExpressionAttributeValues: expressionAttributeValues
     }));
 
-    const servers: GameServer[] = result.Items?.map((item: any) => ({
+    const servers: Omit<GameServer, 'rconPassword'>[] = result.Items?.map((item: any) => ({
       id: item.pk.replace('SERVER#', ''),
       ip: item.ip,
       port: item.port,
       location: item.location,
-      rconPassword: item.rconPassword,
       defaultPassword: item.defaultPassword || '', // Handle existing servers without defaultPassword
       maxPlayers: item.maxPlayers,
       nickname: item.nickname,
