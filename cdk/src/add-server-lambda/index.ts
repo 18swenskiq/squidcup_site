@@ -11,6 +11,7 @@ export interface GameServer {
   port: number;
   location: string;
   rconPassword: string;
+  defaultPassword: string;
   maxPlayers: number;
   nickname: string;
   createdAt: string;
@@ -85,7 +86,7 @@ export async function handler(event: any): Promise<any> {
     }
 
     const serverData = JSON.parse(event.body);
-    const { ip, port, location, rconPassword, maxPlayers, nickname } = serverData;
+    const { ip, port, location, rconPassword, defaultPassword, maxPlayers, nickname } = serverData;
     
     if (!ip || !port || !location || !rconPassword || !maxPlayers || !nickname) {
       return {
@@ -106,6 +107,7 @@ export async function handler(event: any): Promise<any> {
       port: Number(port),
       location,
       rconPassword,
+      defaultPassword: defaultPassword || '', // Optional field, default to empty string
       maxPlayers: Number(maxPlayers),
       nickname,
       createdAt: now,

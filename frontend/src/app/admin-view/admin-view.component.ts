@@ -12,6 +12,7 @@ export interface GameServer {
   port: number;
   location: string;
   rconPassword: string;
+  defaultPassword: string;
   maxPlayers: number;
   nickname: string;
 }
@@ -21,6 +22,7 @@ export interface NewGameServer {
   port: number;
   location: string;
   rconPassword: string;
+  defaultPassword: string;
   maxPlayers: number;
   nickname: string;
 }
@@ -42,6 +44,7 @@ export class AdminViewComponent implements OnInit {
     port: 27015,
     location: '',
     rconPassword: '',
+    defaultPassword: '',
     maxPlayers: 32,
     nickname: ''
   };
@@ -164,6 +167,7 @@ export class AdminViewComponent implements OnInit {
       port: 27015,
       location: '',
       rconPassword: '',
+      defaultPassword: '',
       maxPlayers: 32,
       nickname: ''
     };

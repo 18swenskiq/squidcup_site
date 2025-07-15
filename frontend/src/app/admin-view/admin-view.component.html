@@ -76,6 +76,19 @@
               placeholder="Enter RCON password">
           </div>
           <div class="form-group">
+            <label for="defaultPassword">Default Connection Password</label>
+            <input 
+              type="password" 
+              id="defaultPassword" 
+              name="defaultPassword" 
+              [(ngModel)]="newServer.defaultPassword" 
+              class="form-control"
+              placeholder="Enter server connection password (optional)">
+          </div>
+        </div>
+        
+        <div class="form-row">
+          <div class="form-group">
             <label for="maxPlayers">Max Players</label>
             <input 
               type="number" 
@@ -172,6 +185,18 @@
                     required 
                     class="form-control">
                 </div>
+                <div class="form-group">
+                  <label for="edit-defaultPassword">Default Connection Password</label>
+                  <input 
+                    type="password" 
+                    id="edit-defaultPassword" 
+                    name="defaultPassword" 
+                    [(ngModel)]="editingServer!.defaultPassword" 
+                    class="form-control">
+                </div>
+              </div>
+              
+              <div class="form-row">
                 <div class="form-group">
                   <label for="edit-maxPlayers">Max Players</label>
                   <input 

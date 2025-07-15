@@ -11,6 +11,7 @@ export interface GameServer {
   port: number;
   location: string;
   rconPassword: string;
+  defaultPassword: string;
   maxPlayers: number;
   nickname: string;
   createdAt: string;
@@ -113,6 +114,7 @@ async function handleGetServers(): Promise<any> {
       port: item.port,
       location: item.location,
       rconPassword: item.rconPassword,
+      defaultPassword: item.defaultPassword || '', // Handle existing servers without defaultPassword
       maxPlayers: item.maxPlayers,
       nickname: item.nickname,
       createdAt: item.createdAt,
@@ -167,7 +169,7 @@ async function handleUpdateServer(event: any, serverId: string): Promise<any> {
       };
     }
 
-    const { ip, port, location, rconPassword, maxPlayers, nickname } = JSON.parse(event.body);
+    const { ip, port, location, rconPassword, defaultPassword, maxPlayers, nickname } = JSON.parse(event.body);
     
     if (!ip || !port || !location || !rconPassword || !maxPlayers || !nickname) {
       return {
@@ -185,6 +187,7 @@ async function handleUpdateServer(event: any, serverId: string): Promise<any> {
       port: Number(port),
       location,
       rconPassword,
+      defaultPassword: defaultPassword || '', // Optional field, default to empty string
       maxPlayers: Number(maxPlayers),
       nickname,
       updatedAt: new Date().toISOString(),
