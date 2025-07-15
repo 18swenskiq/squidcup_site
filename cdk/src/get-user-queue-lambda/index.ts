@@ -1,5 +1,5 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
-import { DynamoDBClient, QueryCommand } from '@aws-sdk/client-dynamodb';
+import { DynamoDBClient, QueryCommand, ScanCommand } from '@aws-sdk/client-dynamodb';
 import { unmarshall } from '@aws-sdk/util-dynamodb';
 
 const dynamoClient = new DynamoDBClient({ region: process.env.REGION });
@@ -132,16 +132,39 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
     }
 
     // If not a host, query all active queues to see if user is a joiner
-    const allQueuesQuery = new QueryCommand({
-      TableName: process.env.TABLE_NAME,
-      IndexName: 'GSI1',
-      KeyConditionExpression: 'GSI1PK = :gsi1pk',
-      ExpressionAttributeValues: {
-        ':gsi1pk': { S: 'ACTIVEQUEUE' },
-      },
-    });
+    let allQueuesResult;
+    try {
+      const allQueuesQuery = new QueryCommand({
+        TableName: process.env.TABLE_NAME,
+        IndexName: 'GSI1',
+        KeyConditionExpression: 'GSI1PK = :gsi1pk',
+        ExpressionAttributeValues: {
+          ':gsi1pk': { S: 'ACTIVEQUEUE' },
+        },
+      });
 
-    const allQueuesResult = await dynamoClient.send(allQueuesQuery);
+      allQueuesResult = await dynamoClient.send(allQueuesQuery);
+    } catch (error: any) {
+      console.error('Error querying GSI1 (might be backfilling):', error);
+      
+      // Handle specific GSI backfilling errors
+      if (error.name === 'ValidationException' && 
+          (error.message?.includes('GSI1') || error.message?.includes('Global Secondary Index'))) {
+        console.log('GSI1 is likely still backfilling, using fallback scan method');
+      }
+      
+      // If GSI is backfilling, fall back to scanning the main table
+      // This is less efficient but works while the GSI is being created
+      const scanCommand = new ScanCommand({
+        TableName: process.env.TABLE_NAME,
+        FilterExpression: 'begins_with(pk, :pkPrefix)',
+        ExpressionAttributeValues: {
+          ':pkPrefix': { S: 'ACTIVEQUEUE#' },
+        },
+      });
+
+      allQueuesResult = await dynamoClient.send(scanCommand);
+    }
     
     if (allQueuesResult.Items) {
       for (const item of allQueuesResult.Items) {
