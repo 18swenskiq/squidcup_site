@@ -49,9 +49,28 @@ async function getUserSession(sessionToken: string): Promise<{ userId: string; e
   }
 }
 
+// Function to extract numeric Steam ID from OpenID URL
+function extractSteamIdFromOpenId(steamId: string): string {
+  // If it's already a numeric Steam ID, return as is
+  if (/^\d+$/.test(steamId)) {
+    return steamId;
+  }
+  
+  // Extract from OpenID URL format: https://steamcommunity.com/openid/id/76561198041569692
+  const match = steamId.match(/\/id\/(\d+)$/);
+  if (match && match[1]) {
+    return match[1];
+  }
+  
+  // If no match found, return the original value
+  console.warn('Could not extract Steam ID from:', steamId);
+  return steamId;
+}
+
 // Function to check if user is admin
 function isAdmin(userId: string): boolean {
-  return userId === '76561198041569692';
+  const numericSteamId = extractSteamIdFromOpenId(userId);
+  return numericSteamId === '76561198041569692';
 }
 
 export async function handler(event: any): Promise<any> {
@@ -73,7 +92,9 @@ export async function handler(event: any): Promise<any> {
     }
 
     const sessionToken = authHeader.substring(7);
+    console.log('Extracted session token:', sessionToken);
     const session = await getUserSession(sessionToken);
+    console.log('Session result:', session);
     
     if (!session || !isAdmin(session.userId)) {
       return {
