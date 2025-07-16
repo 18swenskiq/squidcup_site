@@ -1,7 +1,9 @@
 *.js
+*.js.map
 !jest.config.js
 *.d.ts
 node_modules
+*.ts.map
 
 # CDK asset staging directory
 .cdk.staging

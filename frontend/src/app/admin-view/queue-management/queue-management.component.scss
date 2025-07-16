@@ -1,0 +1,243 @@
+.queue-management {
+  h2 {
+    color: #2c3e50;
+    margin-bottom: 0.5rem;
+  }
+
+  p {
+    color: #6c7b7f;
+    margin-bottom: 2rem;
+  }
+
+  .queue-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2rem;
+
+    .stat-card {
+      background: #f8f9fa;
+      padding: 1.5rem;
+      border-radius: 8px;
+      text-align: center;
+      border: 1px solid #e9ecef;
+
+      h3 {
+        font-size: 2rem;
+        margin: 0 0 0.5rem 0;
+        color: #2c3e50;
+      }
+
+      p {
+        margin: 0;
+        color: #6c7b7f;
+        font-size: 0.9rem;
+      }
+
+      .refresh-btn {
+        background: #007bff;
+        color: white;
+        border: none;
+        padding: 0.5rem 1rem;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.9rem;
+        transition: background-color 0.2s;
+
+        &:hover:not(:disabled) {
+          background: #0056b3;
+        }
+
+        &:disabled {
+          background: #6c757d;
+          cursor: not-allowed;
+        }
+      }
+    }
+  }
+
+  .queue-item {
+    background: white;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    transition: transform 0.2s;
+
+    &:hover {
+      transform: translateY(-2px);
+    }
+
+    .queue-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 1rem;
+
+      .queue-info {
+        h3 {
+          margin: 0 0 0.5rem 0;
+          color: #2c3e50;
+        }
+
+        .queue-id {
+          font-size: 0.8rem;
+          color: #6c757d;
+          font-family: monospace;
+          background: #f8f9fa;
+          padding: 0.2rem 0.4rem;
+          border-radius: 4px;
+        }
+      }
+
+      .queue-meta {
+        .time-ago {
+          font-size: 0.9rem;
+          color: #6c757d;
+          background: #f8f9fa;
+          padding: 0.3rem 0.6rem;
+          border-radius: 4px;
+        }
+      }
+    }
+
+    .queue-details {
+      margin-bottom: 1rem;
+
+      .detail-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
+        margin-bottom: 0.5rem;
+
+        .detail-item {
+          label {
+            font-weight: 600;
+            color: #495057;
+            margin-right: 0.5rem;
+          }
+
+          span {
+            color: #6c757d;
+
+            &.badge {
+              background: #e9ecef;
+              padding: 0.2rem 0.5rem;
+              border-radius: 12px;
+              font-size: 0.8rem;
+
+              &.ranked {
+                background: #ffd43b;
+                color: #212529;
+              }
+            }
+          }
+        }
+      }
+    }
+
+    .queue-players {
+      margin-bottom: 1rem;
+
+      h4 {
+        color: #2c3e50;
+        margin-bottom: 0.5rem;
+      }
+
+      .player-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.5rem;
+        background: #f8f9fa;
+        border-radius: 4px;
+        margin-bottom: 0.5rem;
+
+        &.host {
+          background: #e3f2fd;
+          border-left: 4px solid #2196f3;
+        }
+
+        .player-name {
+          font-weight: 500;
+          color: #2c3e50;
+        }
+
+        .player-role {
+          font-size: 0.8rem;
+          color: #6c757d;
+          background: white;
+          padding: 0.2rem 0.5rem;
+          border-radius: 12px;
+        }
+      }
+    }
+
+    .queue-actions {
+      display: flex;
+      gap: 0.5rem;
+
+      .action-btn {
+        padding: 0.5rem 1rem;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.9rem;
+        transition: all 0.2s;
+
+        &.danger {
+          background: #dc3545;
+          color: white;
+
+          &:hover {
+            background: #c82333;
+          }
+        }
+
+        &.secondary {
+          background: #6c757d;
+          color: white;
+
+          &:hover {
+            background: #5a6268;
+          }
+        }
+      }
+    }
+  }
+
+  .no-queues, .loading-container {
+    text-align: center;
+    padding: 3rem;
+    color: #6c757d;
+
+    h3 {
+      color: #495057;
+      margin-bottom: 1rem;
+    }
+  }
+}
+
+@media (max-width: 768px) {
+  .queue-management {
+    .queue-stats {
+      grid-template-columns: 1fr;
+    }
+
+    .queue-item {
+      .queue-header {
+        flex-direction: column;
+        gap: 1rem;
+      }
+
+      .queue-details .detail-row {
+        grid-template-columns: 1fr;
+      }
+
+      .queue-actions {
+        flex-direction: column;
+      }
+    }
+  }
+}

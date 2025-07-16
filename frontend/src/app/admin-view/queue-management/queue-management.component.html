@@ -1,0 +1,95 @@
+<div class="queue-management">
+  <h2>Active Queues</h2>
+  <p>Monitor and manage active game queues</p>
+  
+  <div class="queue-stats">
+    <div class="stat-card">
+      <h3>{{ queues.length }}</h3>
+      <p>Total Active Queues</p>
+    </div>
+    <div class="stat-card">
+      <h3>{{ getTotalPlayers() }}</h3>
+      <p>Total Players in Queues</p>
+    </div>
+    <div class="stat-card">
+      <button class="refresh-btn" (click)="loadQueues()" [disabled]="isLoadingQueues">
+        <span *ngIf="!isLoadingQueues">🔄 Refresh</span>
+        <span *ngIf="isLoadingQueues">Loading...</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="queues-container" *ngIf="!isLoadingQueues">
+    <div class="queue-list" *ngIf="queues.length > 0">
+      <div class="queue-item" *ngFor="let queue of queues; trackBy: trackByQueueId">
+        <div class="queue-header">
+          <div class="queue-info">
+            <h3>{{ queue.hostName }}'s Queue</h3>
+            <span class="queue-id">{{ queue.id }}</span>
+          </div>
+          <div class="queue-meta">
+            <span class="time-ago">{{ getTimeSinceCreation(queue.createdAt) }}</span>
+          </div>
+        </div>
+        
+        <div class="queue-details">
+          <div class="detail-row">
+            <div class="detail-item">
+              <label>Host:</label>
+              <span>{{ queue.hostName }}</span>
+            </div>
+            <div class="detail-item">
+              <label>Server:</label>
+              <span>{{ queue.serverId }}</span>
+            </div>
+          </div>
+          
+          <div class="detail-row">
+            <div class="detail-item">
+              <label>Mode:</label>
+              <span>{{ queue.gameMode }}</span>
+            </div>
+            <div class="detail-item">
+              <label>Type:</label>
+              <span class="badge" [class.ranked]="queue.ranked">
+                {{ queue.ranked ? 'Ranked' : 'Casual' }}
+              </span>
+            </div>
+          </div>
+        </div>
+        
+        <div class="queue-players" *ngIf="queue.joiners.length > 0">
+          <h4>Players ({{ queue.joiners.length + 1 }})</h4>
+          <div class="players-list">
+            <div class="player-item host">
+              <span class="player-name">{{ queue.hostName }}</span>
+              <span class="player-role">Host</span>
+            </div>
+            <div class="player-item" *ngFor="let joiner of queue.joiners">
+              <span class="player-name">{{ joiner.name }}</span>
+              <span class="player-role">Player</span>
+            </div>
+          </div>
+        </div>
+        
+        <div class="queue-actions">
+          <button class="action-btn danger" (click)="removeQueue(queue.id)">
+            Remove Queue
+          </button>
+          <button class="action-btn secondary" (click)="viewQueueDetails(queue)">
+            View Details
+          </button>
+        </div>
+      </div>
+    </div>
+    
+    <div class="no-queues" *ngIf="queues.length === 0">
+      <h3>No Active Queues</h3>
+      <p>There are currently no active game queues.</p>
+    </div>
+  </div>
+  
+  <div class="loading-container" *ngIf="isLoadingQueues">
+    <p>Loading queues...</p>
+  </div>
+</div>
