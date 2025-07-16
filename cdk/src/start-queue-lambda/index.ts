@@ -147,7 +147,7 @@ export async function handler(event: any): Promise<any> {
     await docClient.send(new PutCommand({
       TableName: process.env.TABLE_NAME,
       Item: {
-        pk: `ACTIVEQUEUE#${hostSteamId}`,
+        pk: `ACTIVEQUEUE#${queueId}`,
         sk: 'METADATA',
         GSI1PK: 'ACTIVEQUEUE',
         GSI1SK: queueId,

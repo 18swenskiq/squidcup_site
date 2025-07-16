@@ -5,15 +5,33 @@ import { unmarshall } from '@aws-sdk/util-dynamodb';
 const dynamoClient = new DynamoDBClient({ region: process.env.REGION });
 
 interface SessionData {
-  steamId: string;
-  accessToken: string;
-  refreshToken: string;
-  expiresAt: number;
-  steamProfile: {
-    steamid: string;
-    personaname: string;
-    avatarfull: string;
-  };
+  userId: string;
+  expiresAt: string;
+  createdAt: string;
+}
+
+// Function to extract numeric Steam ID from OpenID URL
+function extractSteamIdFromOpenId(steamId: string): string {
+  // Handle null/undefined steamId
+  if (!steamId) {
+    console.error('steamId is null or undefined');
+    return '';
+  }
+  
+  // If it's already a numeric Steam ID, return as is
+  if (/^\d+$/.test(steamId)) {
+    return steamId;
+  }
+  
+  // Extract from OpenID URL format: https://steamcommunity.com/openid/id/76561198041569692
+  const match = steamId.match(/\/id\/(\d+)$/);
+  if (match && match[1]) {
+    return match[1];
+  }
+  
+  // If no match found, return the original value
+  console.warn('Could not extract Steam ID from:', steamId);
+  return steamId;
 }
 
 interface ActiveQueueData {
@@ -35,6 +53,9 @@ interface ActiveQueueData {
 }
 
 export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
+  console.log('Get user queue handler started');
+  console.log('Event:', JSON.stringify(event, null, 2));
+  
   const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token',
@@ -85,7 +106,8 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
     const sessionData = unmarshall(sessionResult.Items[0]) as SessionData;
     
     // Check if session is expired
-    if (sessionData.expiresAt < Date.now()) {
+    const expiresAtTime = new Date(sessionData.expiresAt).getTime();
+    if (expiresAtTime < Date.now()) {
       return {
         statusCode: 401,
         headers: corsHeaders,
@@ -93,21 +115,26 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
       };
     }
 
-    const userSteamId = sessionData.steamId;
+    const userSteamId = extractSteamIdFromOpenId(sessionData.userId);
+    console.log('User Steam ID:', userSteamId);
 
     // Query for active queues where the user is the host
-    const hostQuery = new QueryCommand({
+    const hostScanCommand = new ScanCommand({
       TableName: process.env.TABLE_NAME,
-      KeyConditionExpression: 'pk = :pk',
+      FilterExpression: 'begins_with(pk, :pkPrefix) AND hostSteamId = :hostSteamId',
       ExpressionAttributeValues: {
-        ':pk': { S: `ACTIVEQUEUE#${userSteamId}` },
+        ':pkPrefix': { S: 'ACTIVEQUEUE#' },
+        ':hostSteamId': { S: userSteamId },
       },
     });
 
-    const hostResult = await dynamoClient.send(hostQuery);
+    const hostResult = await dynamoClient.send(hostScanCommand);
+    
+    console.log('Host scan result:', hostResult.Items ? `Found ${hostResult.Items.length} hosted queues` : 'No hosted queues found');
     
     if (hostResult.Items && hostResult.Items.length > 0) {
       const queueData = unmarshall(hostResult.Items[0]) as ActiveQueueData;
+      console.log('User is hosting queue:', queueData.pk);
       return {
         statusCode: 200,
         headers: corsHeaders,
@@ -167,13 +194,17 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
     }
     
     if (allQueuesResult.Items) {
+      console.log('Checking', allQueuesResult.Items.length, 'queues for user participation');
       for (const item of allQueuesResult.Items) {
         const queueData = unmarshall(item) as ActiveQueueData;
+        console.log('Checking queue:', queueData.pk, 'with host:', queueData.hostSteamId);
         
         // Check if user is in the joiners array
         const isJoiner = queueData.joiners.some(joiner => joiner.steamId === userSteamId);
+        console.log('User is joiner?', isJoiner, 'Joiners:', queueData.joiners.map(j => j.steamId));
         
         if (isJoiner) {
+          console.log('User found as joiner in queue:', queueData.pk);
           return {
             statusCode: 200,
             headers: corsHeaders,
