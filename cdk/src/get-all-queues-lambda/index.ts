@@ -7,20 +7,20 @@ const dynamoClient = new DynamoDBClient({ region: process.env.REGION });
 const ssmClient = new SSMClient({ region: process.env.REGION });
 
 interface SessionData {
-  steamId: string;
-  accessToken: string;
-  refreshToken: string;
-  expiresAt: number;
-  steamProfile: {
-    steamid: string;
-    personaname: string;
-    avatarfull: string;
-  };
+  userId: string;
+  expiresAt: string;
+  createdAt: string;
 }
 
 // Function to extract numeric Steam ID from OpenID URL
 function extractSteamIdFromOpenId(steamId: string): string {
   console.log('extractSteamIdFromOpenId called with:', steamId);
+  
+  // Handle null/undefined steamId
+  if (!steamId) {
+    console.error('steamId is null or undefined');
+    return '';
+  }
   
   // If it's already a numeric Steam ID, return as is
   if (/^\d+$/.test(steamId)) {
@@ -158,13 +158,15 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
 
     const sessionData = unmarshall(sessionResult.Items[0]) as SessionData;
     console.log('Session data:', {
-      steamId: sessionData.steamId,
+      userId: sessionData.userId,
       expiresAt: sessionData.expiresAt,
       currentTime: Date.now(),
     });
+    console.log('Full session data structure:', JSON.stringify(sessionData, null, 2));
     
     // Check if session is expired
-    if (sessionData.expiresAt < Date.now()) {
+    const expiresAtTime = new Date(sessionData.expiresAt).getTime();
+    if (expiresAtTime < Date.now()) {
       console.log('Session expired');
       return {
         statusCode: 401,
@@ -174,8 +176,8 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
     }
 
     // Check if user is admin
-    console.log('Checking admin status for Steam ID:', sessionData.steamId);
-    const adminCheck = isAdmin(sessionData.steamId);
+    console.log('Checking admin status for Steam ID:', sessionData.userId);
+    const adminCheck = isAdmin(sessionData.userId);
     console.log('Admin check result:', adminCheck);
     
     if (!adminCheck) {
