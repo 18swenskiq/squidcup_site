@@ -18,15 +18,35 @@ interface SessionData {
   };
 }
 
-interface UserProfile {
+// Function to extract numeric Steam ID from OpenID URL
+function extractSteamIdFromOpenId(steamId: string): string {
+  // If it's already a numeric Steam ID, return as is
+  if (/^\d+$/.test(steamId)) {
+    return steamId;
+  }
+  
+  // Extract from OpenID URL format: https://steamcommunity.com/openid/id/76561198041569692
+  const match = steamId.match(/\/id\/(\d+)$/);
+  if (match && match[1]) {
+    return match[1];
+  }
+  
+  // If no match found, return the original value
+  console.warn('Could not extract Steam ID from:', steamId);
+  return steamId;
+}
+
+// Function to check if user is admin
+function isAdmin(userId: string): boolean {
+  const numericSteamId = extractSteamIdFromOpenId(userId);
+  return numericSteamId === '76561198041569692';
+}
+
+interface UserData {
   steamId: string;
-  personaname: string;
-  avatarfull: string;
-  role: string;
-  isActive: boolean;
-  lastLogin: string;
-  createdAt: string;
-  updatedAt: string;
+  personaname?: string;
+  lastLogin?: string;
+  createdAt?: string;
 }
 
 interface ActiveQueueData {
@@ -125,28 +145,8 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
       };
     }
 
-    // Get user profile to check admin status
-    const userQuery = new QueryCommand({
-      TableName: process.env.TABLE_NAME,
-      KeyConditionExpression: 'pk = :pk',
-      ExpressionAttributeValues: {
-        ':pk': { S: `USER#${sessionData.steamId}` },
-      },
-    });
-
-    const userResult = await dynamoClient.send(userQuery);
-    if (!userResult.Items || userResult.Items.length === 0) {
-      return {
-        statusCode: 401,
-        headers: corsHeaders,
-        body: JSON.stringify({ error: 'User not found' }),
-      };
-    }
-
-    const userProfile = unmarshall(userResult.Items[0]) as UserProfile;
-    
     // Check if user is admin
-    if (userProfile.role !== 'admin') {
+    if (!isAdmin(sessionData.steamId)) {
       return {
         statusCode: 403,
         headers: corsHeaders,
@@ -208,8 +208,8 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
     
     if (usersResult.Items) {
       for (const item of usersResult.Items) {
-        const user = unmarshall(item) as UserProfile;
-        usersMap.set(user.steamId, user.personaname);
+        const user = unmarshall(item) as UserData;
+        usersMap.set(user.steamId, user.personaname || 'Unknown');
       }
     }
 
