@@ -22,6 +22,7 @@ export class PlayViewComponent implements OnInit, OnDestroy {
   activeQueues: Queue[] = [];
   selectedQueue: Queue | null = null;
   userQueueStatus: UserQueueStatus | null = null;
+  isLoadingUserQueue: boolean = true;
   viewState: ViewState = {
     showStartQueue: true,
     showJoinQueue: true,
@@ -37,7 +38,10 @@ export class PlayViewComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.initForm();
     if (this.isLoggedIn) {
+      this.checkInitialUserQueueStatus();
       this.startUserQueueStatusPolling();
+    } else {
+      this.isLoadingUserQueue = false;
     }
     this.startQueuePolling();
   }
@@ -63,6 +67,23 @@ export class PlayViewComponent implements OnInit, OnDestroy {
 
   get isLoggedIn(): boolean {
     return this.authService.isLoggedIn();
+  }
+
+  private checkInitialUserQueueStatus(): void {
+    const headers = this.authService.getAuthHeaders();
+    this.http.get<UserQueueStatus>(`${this.apiBaseUrl}/userQueue`, { headers })
+      .subscribe({
+        next: (status) => {
+          this.userQueueStatus = status;
+          this.isLoadingUserQueue = false;
+          this.updateViewState();
+        },
+        error: (error) => {
+          console.error('Error fetching initial user queue status:', error);
+          this.isLoadingUserQueue = false;
+          this.updateViewState();
+        }
+      });
   }
 
   private startUserQueueStatusPolling(): void {

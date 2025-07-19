@@ -1,6 +1,12 @@
 <div class="play-view-container">
+  <!-- Loading State -->
+  <div *ngIf="isLoadingUserQueue && isLoggedIn" class="loading-container">
+    <div class="loading-spinner"></div>
+    <p>Checking queue status...</p>
+  </div>
+
   <!-- Lobby View - Show if user is in a queue -->
-  <div *ngIf="viewState.showLobby && userQueueStatus?.queue" class="lobby-view">
+  <div *ngIf="!isLoadingUserQueue && viewState.showLobby && userQueueStatus?.queue" class="lobby-view">
     <h2>Queue Lobby</h2>
     <div class="lobby-info">
       <div class="queue-details">
@@ -40,7 +46,7 @@
   </div>
 
   <!-- Start Queue and Join Queue Views - Show if user is not in a queue -->
-  <div *ngIf="!viewState.showLobby" class="queue-columns">
+  <div *ngIf="!isLoadingUserQueue && !viewState.showLobby" class="queue-columns">
     <!-- Start Queue Section -->
     <div class="queue-column start-queue" *ngIf="viewState.showStartQueue">
       <h2>Start a Queue</h2>
@@ -123,8 +129,8 @@
     </div>
   </div>
   
-  <!-- Queue History Section - Show when not in a lobby -->
-  <div *ngIf="!viewState.showLobby" class="queue-history-section">
+  <!-- Queue History Section - Show when not in a lobby and not loading -->
+  <div *ngIf="!isLoadingUserQueue && !viewState.showLobby" class="queue-history-section">
     <app-queue-history></app-queue-history>
   </div>
 </div>
