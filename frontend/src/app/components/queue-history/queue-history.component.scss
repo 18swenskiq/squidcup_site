@@ -1,0 +1,192 @@
+.queue-history-container {
+  background: rgba(0,0,0,0.6);
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-top: 2rem;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.queue-history-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.queue-history-header h3 {
+  color: #e0e0e0;
+  margin: 0;
+  font-size: 1.4rem;
+  font-weight: 600;
+}
+
+.history-count {
+  color: #888;
+  font-size: 0.9rem;
+}
+
+.loading-state, .error-state, .empty-state, .not-logged-in {
+  text-align: center;
+  padding: 2rem;
+}
+
+.loading-state p, .empty-state p, .not-logged-in p {
+  color: #888;
+  margin: 0;
+}
+
+.loading-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+}
+
+.loading-spinner {
+  width: 24px;
+  height: 24px;
+  border: 2px solid #444;
+  border-top: 2px solid #00d4ff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 1rem;
+}
+
+.error-message {
+  color: #ff6b6b;
+  margin: 0;
+}
+
+.empty-state p, .not-logged-in p {
+  font-style: italic;
+}
+
+.queue-history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.queue-history-item {
+  background: rgba(255,255,255,0.05);
+  border-radius: 6px;
+  padding: 1rem;
+  border-left: 4px solid transparent;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.queue-history-item:hover {
+  background: rgba(255,255,255,0.08);
+  transform: translateX(2px);
+}
+
+.queue-history-item.status-completed { border-left-color: #4caf50; }
+.queue-history-item.status-cancelled { border-left-color: #ff9800; }
+.queue-history-item.status-disbanded { border-left-color: #f44336; }
+.queue-history-item.status-timeout { border-left-color: #9e9e9e; }
+.queue-history-item.status-error { border-left-color: #e91e63; }
+
+.queue-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 0.5rem;
+}
+
+.queue-game-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.game-mode {
+  color: #e0e0e0;
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+.map-mode {
+  color: #b0b0b0;
+  font-size: 0.85rem;
+}
+
+.ranked-indicator {
+  background: linear-gradient(135deg, #ffd700, #ffb700);
+  color: #000;
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+  align-self: flex-start;
+  text-transform: uppercase;
+}
+
+.queue-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.25rem;
+}
+
+.time-ago {
+  color: #888;
+  font-size: 0.8rem;
+}
+
+.role-indicator {
+  background: rgba(0,212,255,0.2);
+  color: #00d4ff;
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+  text-transform: uppercase;
+}
+
+.queue-item-details {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 0.5rem;
+}
+
+.status-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.status-icon {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.status-icon.status-completed { background: #4caf50; }
+.status-icon.status-cancelled { background: #ff9800; }
+.status-icon.status-disbanded { background: #f44336; }
+.status-icon.status-timeout { background: #9e9e9e; }
+.status-icon.status-error { background: #e91e63; }
+
+.status-text {
+  color: #b0b0b0;
+  font-size: 0.85rem;
+}
+
+.queue-stats {
+  display: flex;
+  gap: 1rem;
+  font-size: 0.8rem;
+  color: #888;
+}
+
+.player-count, .duration {
+  white-space: nowrap;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}

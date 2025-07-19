@@ -7,11 +7,12 @@ import { switchMap } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
 import { AuthService } from '../services/auth.service';
 import { GameServer, UserQueueStatus, Queue, ViewState, ActiveQueue } from './play-view.interfaces';
+import { QueueHistoryComponent } from '../components/queue-history/queue-history.component';
 
 @Component({
   selector: 'app-play-view',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, HttpClientModule],
+  imports: [CommonModule, ReactiveFormsModule, HttpClientModule, QueueHistoryComponent],
   templateUrl: './play-view.component.html',
   styleUrl: './play-view.component.scss'
 })
@@ -173,14 +174,43 @@ export class PlayViewComponent implements OnInit, OnDestroy {
   leaveQueue(): void {
     if (!this.userQueueStatus?.queue) return;
     
-    const headers = this.authService.getAuthHeaders();
-    this.http.delete(`${this.apiBaseUrl}/leaveQueue/${this.userQueueStatus.queue.id}`, { headers }).subscribe({
-      next: (response) => {
+    // Show confirmation dialog if user is host
+    if (this.userQueueStatus.isHost) {
+      const confirmed = confirm('You are the host. Leaving will disband the entire queue for all players. Are you sure you want to continue?');
+      if (!confirmed) {
+        return;
+      }
+    }
+    
+    const currentUser = this.authService.getCurrentUser();
+    if (!currentUser) return;
+    
+    const headers = {
+      'Authorization': `Bearer ${currentUser.sessionToken}`,
+      'Content-Type': 'application/json'
+    };
+    
+    this.http.post(`${this.apiBaseUrl}/leaveQueue`, {}, { headers }).subscribe({
+      next: (response: any) => {
         console.log('Left queue successfully', response);
+        
+        if (response.wasHost) {
+          alert('Queue has been disbanded successfully.');
+        } else {
+          alert('You have left the queue successfully.');
+        }
+        
         // The user queue status polling will automatically update the view
       },
       error: (error) => {
         console.error('Error leaving queue', error);
+        
+        // Show user-friendly error message
+        let errorMessage = 'Failed to leave queue. Please try again.';
+        if (error.status === 400 && error.error?.error) {
+          errorMessage = error.error.error;
+        }
+        alert(errorMessage);
       }
     });
   }

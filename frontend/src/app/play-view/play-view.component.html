@@ -32,7 +32,9 @@
       </div>
       
       <div class="lobby-actions">
-        <button class="leave-queue-btn" (click)="leaveQueue()">Leave Queue</button>
+        <button class="leave-queue-btn" (click)="leaveQueue()">
+          {{ userQueueStatus?.isHost ? 'Disband Queue' : 'Leave Queue' }}
+        </button>
       </div>
     </div>
   </div>
@@ -119,5 +121,10 @@
       </div>
       <button class="join-button" [disabled]="!selectedQueue || !isLoggedIn" (click)="joinQueue()" *ngIf="isLoggedIn">Join Queue</button>
     </div>
+  </div>
+  
+  <!-- Queue History Section - Show when not in a lobby -->
+  <div *ngIf="!viewState.showLobby" class="queue-history-section">
+    <app-queue-history></app-queue-history>
   </div>
 </div>

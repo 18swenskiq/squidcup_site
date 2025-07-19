@@ -1,0 +1,56 @@
+<div class="queue-history-container">
+  <div class="queue-history-header">
+    <h3>Queue History</h3>
+    <span class="history-count" *ngIf="queueHistory.length > 0">{{ queueHistory.length }} recent queues</span>
+  </div>
+
+  <div class="queue-history-content" *ngIf="authService.getCurrentUser(); else notLoggedIn">
+    <div class="loading-state" *ngIf="isLoading">
+      <div class="loading-spinner"></div>
+      <p>Loading queue history...</p>
+    </div>
+
+    <div class="error-state" *ngIf="error">
+      <p class="error-message">{{ error }}</p>
+    </div>
+
+    <div class="empty-state" *ngIf="!isLoading && !error && queueHistory.length === 0">
+      <p>No queue history found. Start or join a queue to see your history here!</p>
+    </div>
+
+    <div class="queue-history-list" *ngIf="!isLoading && !error && queueHistory.length > 0">
+      <div class="queue-history-item" 
+           *ngFor="let entry of queueHistory; let i = index"
+           [class]="getStatusClass(entry.status)">
+        <div class="queue-item-header">
+          <div class="queue-game-info">
+            <span class="game-mode">{{ formatGameMode(entry.gameMode) }}</span>
+            <span class="map-mode">{{ formatMapSelectionMode(entry.mapSelectionMode) }}</span>
+            <span class="ranked-indicator" *ngIf="entry.ranked">RANKED</span>
+          </div>
+          <div class="queue-meta">
+            <span class="time-ago">{{ getRelativeTime(entry.startTime) }}</span>
+            <span class="role-indicator" *ngIf="entry.wasHost">HOST</span>
+          </div>
+        </div>
+        
+        <div class="queue-item-details">
+          <div class="status-info">
+            <span class="status-icon" [class]="getStatusClass(entry.status)"></span>
+            <span class="status-text">{{ entry.statusDescription }}</span>
+          </div>
+          <div class="queue-stats">
+            <span class="player-count">{{ entry.finalPlayerCount }} players</span>
+            <span class="duration">{{ entry.duration }} duration</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <ng-template #notLoggedIn>
+    <div class="not-logged-in">
+      <p>Please log in to view your queue history.</p>
+    </div>
+  </ng-template>
+</div>

@@ -1,0 +1,19 @@
+{
+  "name": "get-queue-history-lambda",
+  "version": "1.0.0",
+  "description": "Lambda function to get user's queue history",
+  "main": "index.js",
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist && rm -rf *.js && rm -rf *.d.ts"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@aws-sdk/client-dynamodb": "^3.x",
+    "@aws-sdk/lib-dynamodb": "^3.x",
+    "@aws-sdk/util-dynamodb": "^3.x",
+    "@types/aws-lambda": "^8.x",
+    "@types/node": "^20.x",
+    "typescript": "^5.x"
+  }
+}

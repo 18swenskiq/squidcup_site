@@ -1,26 +1,10 @@
+import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { DynamoDBDocumentClient, PutCommand, GetCommand } from '@aws-sdk/lib-dynamodb';
+import { DynamoDBDocumentClient, GetCommand, PutCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
 import * as crypto from 'crypto';
 
 const dynamoClient = new DynamoDBClient({ region: process.env.REGION });
 const docClient = DynamoDBDocumentClient.from(dynamoClient);
-
-export interface ActiveQueue {
-  id: string;
-  hostSteamId: string;
-  gameMode: string;
-  mapSelectionMode: string;
-  serverId: string;
-  password?: string;
-  ranked: boolean;
-  startTime: string;
-  joiners: Array<{
-    steamId: string;
-    joinTime: string;
-  }>;
-  createdAt: string;
-  updatedAt: string;
-}
 
 // Function to get user session from DynamoDB
 async function getUserSession(sessionToken: string): Promise<{ userId: string; expiresAt: string } | null> {
@@ -75,7 +59,7 @@ function extractSteamIdFromOpenId(steamId: string): string {
 async function storeQueueHistoryEvent(
   queueId: string,
   userSteamId: string,
-  eventType: 'start' | 'join' | 'leave' | 'disband' | 'timeout' | 'complete',
+  eventType: 'join' | 'leave' | 'disband' | 'timeout' | 'complete',
   eventData?: any
 ): Promise<void> {
   try {
@@ -105,10 +89,16 @@ async function storeQueueHistoryEvent(
   }
 }
 
-export async function handler(event: any): Promise<any> {
-  console.log('Start queue event received');
+export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
+  console.log('Join queue event received');
   console.log('Headers:', JSON.stringify(event.headers, null, 2));
   console.log('Body:', event.body);
+
+  const corsHeaders = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'Content-Type,Authorization',
+    'Access-Control-Allow-Methods': 'POST,OPTIONS',
+  };
 
   try {
     // Get session token from Authorization header
@@ -116,9 +106,7 @@ export async function handler(event: any): Promise<any> {
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return {
         statusCode: 401,
-        headers: {
-          'Access-Control-Allow-Origin': '*',
-        },
+        headers: corsHeaders,
         body: JSON.stringify({ error: 'Missing or invalid authorization header' }),
       };
     }
@@ -132,93 +120,127 @@ export async function handler(event: any): Promise<any> {
     if (!session) {
       return {
         statusCode: 401,
-        headers: {
-          'Access-Control-Allow-Origin': '*',
-        },
+        headers: corsHeaders,
         body: JSON.stringify({ error: 'Invalid or expired session' }),
       };
     }
 
     // Extract Steam ID from session
-    const hostSteamId = extractSteamIdFromOpenId(session.userId);
-    console.log('Host Steam ID:', hostSteamId);
+    const userSteamId = extractSteamIdFromOpenId(session.userId);
+    console.log('User Steam ID:', userSteamId);
 
     // Parse request body
-    const queueData = JSON.parse(event.body);
-    const { gameMode, mapSelectionMode, server, password, ranked } = queueData;
+    const { queueId } = JSON.parse(event.body || '{}');
     
-    // Validate required fields
-    if (!gameMode || !mapSelectionMode || !server) {
+    if (!queueId) {
       return {
         statusCode: 400,
-        headers: {
-          'Access-Control-Allow-Origin': '*',
-        },
-        body: JSON.stringify({ error: 'Missing required fields: gameMode, mapSelectionMode, server' }),
+        headers: corsHeaders,
+        body: JSON.stringify({ error: 'Queue ID is required' }),
       };
     }
 
-    // Generate queue ID
-    const queueId = crypto.randomUUID();
-    const now = new Date().toISOString();
-
-    // Create the active queue object
-    const activeQueue: ActiveQueue = {
-      id: queueId,
-      hostSteamId,
-      gameMode,
-      mapSelectionMode,
-      serverId: server, // This is the server ID from the form
-      password: password || undefined, // Only include if provided
-      ranked: ranked === true,
-      startTime: now,
-      joiners: [], // Empty array initially
-      createdAt: now,
-      updatedAt: now
-    };
-
-    // Store in DynamoDB
-    await docClient.send(new PutCommand({
+    // Get the queue from DynamoDB
+    const queueResult = await docClient.send(new GetCommand({
       TableName: process.env.TABLE_NAME,
-      Item: {
+      Key: {
         pk: `ACTIVEQUEUE#${queueId}`,
         sk: 'METADATA',
-        GSI1PK: 'ACTIVEQUEUE',
-        GSI1SK: queueId,
-        ...activeQueue
-      }
+      },
+    }));
+
+    if (!queueResult.Item) {
+      return {
+        statusCode: 404,
+        headers: corsHeaders,
+        body: JSON.stringify({ error: 'Queue not found' }),
+      };
+    }
+
+    const queueData = queueResult.Item;
+    console.log('Found queue:', queueData);
+
+    // Check if user is already the host
+    if (queueData.hostSteamId === userSteamId) {
+      return {
+        statusCode: 400,
+        headers: corsHeaders,
+        body: JSON.stringify({ error: 'You are already the host of this queue' }),
+      };
+    }
+
+    // Check if user is already a joiner
+    const isAlreadyJoiner = queueData.joiners.some((joiner: any) => joiner.steamId === userSteamId);
+    if (isAlreadyJoiner) {
+      return {
+        statusCode: 400,
+        headers: corsHeaders,
+        body: JSON.stringify({ error: 'You are already in this queue' }),
+      };
+    }
+
+    // Add user to the joiners array
+    const now = new Date().toISOString();
+    const newJoiner = {
+      steamId: userSteamId,
+      joinTime: now,
+    };
+
+    const updatedJoiners = [...queueData.joiners, newJoiner];
+
+    // Update the queue in DynamoDB
+    await docClient.send(new UpdateCommand({
+      TableName: process.env.TABLE_NAME,
+      Key: {
+        pk: `ACTIVEQUEUE#${queueId}`,
+        sk: 'METADATA',
+      },
+      UpdateExpression: 'SET joiners = :joiners, updatedAt = :updatedAt',
+      ExpressionAttributeValues: {
+        ':joiners': updatedJoiners,
+        ':updatedAt': now,
+      },
     }));
 
     // Store queue history event
-    await storeQueueHistoryEvent(queueId, hostSteamId, 'start', {
-      gameMode,
-      mapSelectionMode,
-      serverId: server,
-      ranked,
+    await storeQueueHistoryEvent(queueId, userSteamId, 'join', {
+      gameMode: queueData.gameMode,
+      mapSelectionMode: queueData.mapSelectionMode,
+      hostSteamId: queueData.hostSteamId,
     });
 
-    console.log('Queue created successfully:', activeQueue);
+    console.log('User joined queue successfully');
 
     return {
-      statusCode: 201,
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Headers': 'Content-Type,Authorization',
-        'Access-Control-Allow-Methods': 'POST,OPTIONS',
-      },
-      body: JSON.stringify(activeQueue),
+      statusCode: 200,
+      headers: corsHeaders,
+      body: JSON.stringify({
+        message: 'Successfully joined queue',
+        queue: {
+          id: queueId,
+          hostSteamId: queueData.hostSteamId,
+          gameMode: queueData.gameMode,
+          mapSelectionMode: queueData.mapSelectionMode,
+          serverId: queueData.serverId,
+          hasPassword: !!queueData.password,
+          ranked: queueData.ranked,
+          startTime: queueData.startTime,
+          joiners: updatedJoiners,
+          createdAt: queueData.createdAt,
+          updatedAt: now,
+        }
+      }),
     };
+
   } catch (error) {
-    console.error('Error starting queue:', error);
+    console.error('Error joining queue:', error);
     return {
       statusCode: 500,
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-      },
-      body: JSON.stringify({ error: 'Failed to start queue' }),
+      headers: corsHeaders,
+      body: JSON.stringify({ error: 'Failed to join queue' }),
     };
   }
 }
 
-// Also export using CommonJS for maximum compatibility
+// Export using CommonJS for maximum compatibility
 exports.handler = handler;
