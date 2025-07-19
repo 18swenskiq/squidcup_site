@@ -75,6 +75,19 @@ export class QueueHistoryComponent implements OnInit {
     const mockData: QueueHistoryEntry[] = [
       {
         id: 'q1',
+        gameMode: '1v1',
+        mapSelectionMode: 'random',
+        ranked: false,
+        startTime: new Date(now.getTime() - 1 * 60 * 60 * 1000).toISOString(),
+        endTime: new Date(now.getTime() - 0.5 * 60 * 60 * 1000).toISOString(),
+        status: 'completed',
+        statusDescription: 'Queue filled and lobby was created',
+        wasHost: true,
+        finalPlayerCount: 2,
+        duration: '30m'
+      },
+      {
+        id: 'q2',
         gameMode: 'turf_war',
         mapSelectionMode: 'random',
         ranked: false,
@@ -87,7 +100,7 @@ export class QueueHistoryComponent implements OnInit {
         duration: '30m'
       },
       {
-        id: 'q2',
+        id: 'q3',
         gameMode: 'ranked_battles',
         mapSelectionMode: 'vote',
         ranked: true,
@@ -100,7 +113,7 @@ export class QueueHistoryComponent implements OnInit {
         duration: '30m'
       },
       {
-        id: 'q3',
+        id: 'q4',
         gameMode: 'splat_zones',
         mapSelectionMode: 'host_choice',
         ranked: false,
@@ -113,7 +126,7 @@ export class QueueHistoryComponent implements OnInit {
         duration: '1h'
       },
       {
-        id: 'q4',
+        id: 'q5',
         gameMode: 'tower_control',
         mapSelectionMode: 'random',
         ranked: true,

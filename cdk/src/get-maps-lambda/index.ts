@@ -3,7 +3,7 @@ import { SSMClient, GetParameterCommand } from "@aws-sdk/client-ssm";
 // Initialize the SSM client
 const ssmClient = new SSMClient({ region: 'us-east-1' });
 
-type GameMode = "5v5" | "wingman" | "3v3";
+type GameMode = "5v5" | "wingman" | "3v3" | "1v1";
 
 type MapResponseObj = {
   "name": string,
@@ -15,7 +15,8 @@ type MapResponseObj = {
 const steamCollectionIds: {"gameMode": GameMode, "id": string}[] = [
   { gameMode: "5v5", id: '2753947063'},
   { gameMode: "wingman", id: '2747675401'},
-  { gameMode: "3v3", id: "2752973478"}
+  { gameMode: "3v3", id: "2752973478"},
+  { gameMode: "1v1", id: "3517834095"} // Use 3529142840 when approved
 ]
 
 // Function to get parameter from SSM Parameter Store
@@ -187,8 +188,8 @@ export async function handler(event: any): Promise<any> {
   }
 
   // Ensure queryparams.gameModes is an array of strings and it is passed to getMapsFromSteamAPI properly
-  // If no gameModes are passed, default to ["5v5", "wingman", "3v3"]
-  const selectedGameModes: GameMode[] = queryParams.gameModes ? queryParams.gameModes.split(',') as GameMode[] : ["5v5", "wingman", "3v3"];
+  // If no gameModes are passed, default to ["5v5", "wingman", "3v3", "1v1"]
+  const selectedGameModes: GameMode[] = queryParams.gameModes ? queryParams.gameModes.split(',') as GameMode[] : ["5v5", "wingman", "3v3", "1v1"];
 
   try {
     const maps: MapResponseObj[] = await getMapsFromSteamAPI(steamApiKey, selectedGameModes);

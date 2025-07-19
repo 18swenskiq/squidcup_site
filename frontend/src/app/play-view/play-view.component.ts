@@ -276,6 +276,7 @@ export class PlayViewComponent implements OnInit, OnDestroy {
     if (!this.userQueueStatus?.queue?.gameMode) return 0;
     
     switch (this.userQueueStatus.queue.gameMode) {
+      case '1v1': return 2;
       case 'wingman': return 4;
       case '3v3': return 6;
       case '5v5': return 10;

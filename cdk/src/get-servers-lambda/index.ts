@@ -106,6 +106,8 @@ async function handleGetServers(event?: any): Promise<any> {
     // Determine minimum players required based on gamemode
     const getMinPlayersForGamemode = (gamemode: string): number => {
       switch (gamemode) {
+        case '1v1':
+          return 2; // 1v1
         case 'wingman':
           return 4; // 2v2
         case '3v3':
