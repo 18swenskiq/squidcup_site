@@ -193,6 +193,18 @@ export class ApiStack extends cdk.Stack {
       }
     });
 
+    const getActiveQueuesFunction = new lambda.Function(this, "get-active-queues-function", {
+      runtime: this.RUNTIME,
+      memorySize: this.MEMORY_SIZE,
+      timeout: this.TIMEOUT,
+      handler: 'index.handler',
+      code: lambda.Code.fromAsset(path.join(__dirname, '/../src/get-active-queues-lambda')),
+      environment: {
+        REGION: this.REGION,
+        TABLE_NAME: table.tableName,
+      }
+    });
+
     const queueCleanupFunction = new lambda.Function(this, "queue-cleanup-function", {
       runtime: this.RUNTIME,
       memorySize: this.MEMORY_SIZE,
@@ -225,6 +237,7 @@ export class ApiStack extends cdk.Stack {
     leaveQueueFunction.addToRolePolicy(ssmPolicy);
     joinQueueFunction.addToRolePolicy(ssmPolicy);
     getQueueHistoryFunction.addToRolePolicy(ssmPolicy);
+    getActiveQueuesFunction.addToRolePolicy(ssmPolicy);
     queueCleanupFunction.addToRolePolicy(ssmPolicy);
 
     // Grant DynamoDB permissions to Lambda functions
@@ -240,6 +253,7 @@ export class ApiStack extends cdk.Stack {
     table.grantReadWriteData(leaveQueueFunction);
     table.grantReadWriteData(joinQueueFunction);
     table.grantReadWriteData(getQueueHistoryFunction);
+    table.grantReadWriteData(getActiveQueuesFunction);
     table.grantReadWriteData(queueCleanupFunction);
 
     // Create CloudWatch log group for API Gateway
@@ -920,6 +934,48 @@ export class ApiStack extends cdk.Stack {
     
     // Add OPTIONS method for queueHistory endpoint
     queueHistoryResource.addMethod('OPTIONS', new apigw.MockIntegration({
+      integrationResponses: [{
+        statusCode: '200',
+        responseParameters: {
+          'method.response.header.Access-Control-Allow-Origin': "'*'",
+          'method.response.header.Access-Control-Allow-Headers': "'Content-Type,Authorization'",
+          'method.response.header.Access-Control-Allow-Methods': "'GET,OPTIONS'",
+        },
+      }],
+      requestTemplates: {
+        'application/json': '{"statusCode": 200}'
+      }
+    }), {
+      methodResponses: [{
+        statusCode: '200',
+        responseParameters: {
+          'method.response.header.Access-Control-Allow-Origin': true,
+          'method.response.header.Access-Control-Allow-Headers': true,
+          'method.response.header.Access-Control-Allow-Methods': true,
+        },
+      }]
+    });
+
+    // Add a resource for /activeQueues endpoint
+    const activeQueuesResource = api.root.addResource('activeQueues');
+    activeQueuesResource.addMethod('GET', new apigw.LambdaIntegration(getActiveQueuesFunction), {
+      methodResponses: [{
+        statusCode: '200',
+        responseParameters: {
+          'method.response.header.Access-Control-Allow-Origin': true,
+          'method.response.header.Access-Control-Allow-Headers': true,
+          'method.response.header.Access-Control-Allow-Methods': true,
+        },
+      }, {
+        statusCode: '500',
+        responseParameters: {
+          'method.response.header.Access-Control-Allow-Origin': true,
+        },
+      }]
+    });
+    
+    // Add OPTIONS method for activeQueues endpoint
+    activeQueuesResource.addMethod('OPTIONS', new apigw.MockIntegration({
       integrationResponses: [{
         statusCode: '200',
         responseParameters: {

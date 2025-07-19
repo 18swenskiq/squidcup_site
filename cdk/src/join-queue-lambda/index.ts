@@ -130,7 +130,7 @@ export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayPr
     console.log('User Steam ID:', userSteamId);
 
     // Parse request body
-    const { queueId } = JSON.parse(event.body || '{}');
+    const { queueId, password } = JSON.parse(event.body || '{}');
     
     if (!queueId) {
       return {
@@ -159,6 +159,25 @@ export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayPr
 
     const queueData = queueResult.Item;
     console.log('Found queue:', queueData);
+
+    // Check if queue has a password and validate it
+    if (queueData.password) {
+      if (!password) {
+        return {
+          statusCode: 400,
+          headers: corsHeaders,
+          body: JSON.stringify({ error: 'Password is required for this queue' }),
+        };
+      }
+      
+      if (queueData.password !== password) {
+        return {
+          statusCode: 403,
+          headers: corsHeaders,
+          body: JSON.stringify({ error: 'Incorrect password' }),
+        };
+      }
+    }
 
     // Check if user is already the host
     if (queueData.hostSteamId === userSteamId) {
