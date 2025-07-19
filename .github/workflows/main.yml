@@ -74,7 +74,7 @@ jobs:
         working-directory: ./frontend
         run: |
           npm install
-          npm run ng build -- --configuration production
+          npx ng build --configuration ci
           
       - name: Copy Frontend Build to CDK Assets
         run: |

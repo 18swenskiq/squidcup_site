@@ -65,6 +65,29 @@
               "optimization": false,
               "extractLicenses": false,
               "sourceMap": true
+            },
+            "ci": {
+              "budgets": [
+                {
+                  "type": "initial",
+                  "maximumWarning": "500kb",
+                  "maximumError": "1mb"
+                },
+                {
+                  "type": "anyComponentStyle",
+                  "maximumWarning": "2kb",
+                  "maximumError": "5kb"
+                }
+              ],
+              "outputHashing": "all",
+              "fileReplacements": [
+                {
+                  "replace": "src/environments/environment.ts",
+                  "with": "src/environments/environment.prod.ts"
+                }
+              ],
+              "prerender": false,
+              "ssr": false
             }
           },
           "defaultConfiguration": "production"
