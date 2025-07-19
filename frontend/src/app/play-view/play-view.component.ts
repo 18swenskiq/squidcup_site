@@ -6,7 +6,7 @@ import { interval, Subscription } from 'rxjs';
 import { switchMap } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
 import { AuthService } from '../services/auth.service';
-import { GameServer, UserQueueStatus, Queue, ViewState, ActiveQueue } from './play-view.interfaces';
+import { GameServer, UserQueueStatus, Queue, ViewState, ActiveQueue, UserActiveQueue } from './play-view.interfaces';
 import { QueueHistoryComponent } from '../components/queue-history/queue-history.component';
 
 @Component({
@@ -239,13 +239,23 @@ export class PlayViewComponent implements OnInit, OnDestroy {
   private startQueuePolling(): void {
     this.queueSubscription = interval(5000) // Poll every 5 seconds
       .pipe(
-        switchMap(() => this.http.get<Queue[]>(`${this.apiBaseUrl}/activeQueues`))
+        switchMap(() => this.http.get<{queues: ActiveQueue[]}>(`${this.apiBaseUrl}/activeQueues`))
       )
       .subscribe({
-        next: (queues) => {
-          this.activeQueues = queues;
+        next: (response) => {
+          // Map ActiveQueue to Queue format for the UI
+          this.activeQueues = response.queues.map(aq => ({
+            id: aq.queueId,
+            host: aq.host,
+            gameMode: aq.gameMode,
+            players: `${aq.players}/${aq.maxPlayers}`,
+            server: aq.server,
+            map: '', // Not provided by backend yet
+            hasPassword: aq.hasPassword,
+            ranked: aq.ranked
+          }));
           // If the selected queue is no longer in the list, deselect it
-          if (this.selectedQueue && !queues.some(q => q.id === this.selectedQueue?.id)) {
+          if (this.selectedQueue && !this.activeQueues.some(q => q.id === this.selectedQueue?.id)) {
             this.selectedQueue = null;
           }
         },

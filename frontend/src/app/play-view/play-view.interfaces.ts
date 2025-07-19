@@ -11,6 +11,19 @@ export interface GameServer {
 }
 
 export interface ActiveQueue {
+  queueId: string;
+  host: string;
+  gameMode: string;
+  players: number;
+  maxPlayers: number;
+  server: string;
+  ranked: boolean;
+  hasPassword: boolean;
+  createdAt: string;
+  lastActivity: string;
+}
+
+export interface UserActiveQueue {
   id: string;
   hostSteamId: string;
   gameMode: string;
@@ -30,7 +43,7 @@ export interface ActiveQueue {
 export interface UserQueueStatus {
   inQueue: boolean;
   isHost: boolean;
-  queue: ActiveQueue | null;
+  queue: UserActiveQueue | null;
 }
 
 export interface Queue {
