@@ -5,6 +5,8 @@ import * as apigw from "aws-cdk-lib/aws-apigateway";
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import * as logs from 'aws-cdk-lib/aws-logs';
+import * as events from 'aws-cdk-lib/aws-events';
+import * as targets from 'aws-cdk-lib/aws-events-targets';
 import * as path from 'path';
 
 export class ApiStack extends cdk.Stack {
@@ -191,6 +193,19 @@ export class ApiStack extends cdk.Stack {
       }
     });
 
+    const queueCleanupFunction = new lambda.Function(this, "queue-cleanup-function", {
+      runtime: this.RUNTIME,
+      memorySize: this.MEMORY_SIZE,
+      timeout: cdk.Duration.seconds(30), // Longer timeout for cleanup operations
+      handler: 'index.handler',
+      code: lambda.Code.fromAsset(path.join(__dirname, '/../src/queue-cleanup-lambda')),
+      environment: {
+        REGION: this.REGION,
+        TABLE_NAME: table.tableName,
+        QUEUE_TIMEOUT_MINUTES: '10', // 10 minutes of inactivity before cleanup
+      }
+    });
+
     // Create an SSM parameter access policy
     const ssmPolicy = new iam.PolicyStatement({
       actions: ['ssm:GetParameter'],
@@ -202,10 +217,15 @@ export class ApiStack extends cdk.Stack {
     getServersFunction.addToRolePolicy(ssmPolicy);
     steamLoginFunction.addToRolePolicy(ssmPolicy);
     getUserProfileFunction.addToRolePolicy(ssmPolicy);
+    addServerFunction.addToRolePolicy(ssmPolicy);
+    deleteServerFunction.addToRolePolicy(ssmPolicy);
+    startQueueFunction.addToRolePolicy(ssmPolicy);
     getUserQueueFunction.addToRolePolicy(ssmPolicy);
     getAllQueuesFunction.addToRolePolicy(ssmPolicy);
     leaveQueueFunction.addToRolePolicy(ssmPolicy);
+    joinQueueFunction.addToRolePolicy(ssmPolicy);
     getQueueHistoryFunction.addToRolePolicy(ssmPolicy);
+    queueCleanupFunction.addToRolePolicy(ssmPolicy);
 
     // Grant DynamoDB permissions to Lambda functions
     table.grantReadWriteData(getMapsFunction);
@@ -220,6 +240,7 @@ export class ApiStack extends cdk.Stack {
     table.grantReadWriteData(leaveQueueFunction);
     table.grantReadWriteData(joinQueueFunction);
     table.grantReadWriteData(getQueueHistoryFunction);
+    table.grantReadWriteData(queueCleanupFunction);
 
     // Create CloudWatch log group for API Gateway
     const apiLogGroup = new logs.LogGroup(this, 'ApiGatewayLogGroup', {
@@ -920,6 +941,15 @@ export class ApiStack extends cdk.Stack {
         },
       }]
     });
+
+    // Create EventBridge rule to run queue cleanup every 5 minutes
+    const cleanupRule = new events.Rule(this, 'queue-cleanup-rule', {
+      description: 'Triggers queue cleanup every 5 minutes to remove inactive queues',
+      schedule: events.Schedule.rate(cdk.Duration.minutes(5)), // Run every 5 minutes
+    });
+
+    // Add the queue cleanup lambda as a target for the rule
+    cleanupRule.addTarget(new targets.LambdaFunction(queueCleanupFunction));
 
     // Export the API URL as a stack output with a consistent name
     new cdk.CfnOutput(this, 'ApiUrl', {

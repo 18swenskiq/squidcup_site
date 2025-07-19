@@ -62,11 +62,11 @@ export async function handler(event: any): Promise<any> {
   console.log('Queue cleanup handler started');
   
   try {
-    // Queue timeout in minutes (configurable via environment variable)
-    const timeoutMinutes = parseInt(process.env.QUEUE_TIMEOUT_MINUTES || '30');
+    // Queue timeout in minutes (10 minutes as requested)
+    const timeoutMinutes = parseInt(process.env.QUEUE_TIMEOUT_MINUTES || '10');
     const cutoffTime = new Date(Date.now() - timeoutMinutes * 60 * 1000).toISOString();
     
-    console.log(`Checking for queues older than ${cutoffTime}`);
+    console.log(`Checking for queues with no activity since ${cutoffTime}`);
     
     // Get all active queues
     const scanCommand = new ScanCommand({
@@ -93,24 +93,44 @@ export async function handler(event: any): Promise<any> {
       const queueData = unmarshall(item) as ActiveQueueData;
       const queueId = queueData.pk.replace('ACTIVEQUEUE#', '');
       
-      // Check if queue has expired
-      if (queueData.startTime < cutoffTime) {
-        console.log(`Queue ${queueId} has expired (started ${queueData.startTime})`);
+      // Determine the last activity time
+      // This is either the queue start time or the most recent joiner time
+      let lastActivityTime = queueData.startTime;
+      
+      if (queueData.joiners && queueData.joiners.length > 0) {
+        // Find the most recent joiner time
+        const mostRecentJoinTime = queueData.joiners
+          .map(joiner => joiner.joinTime)
+          .sort()
+          .reverse()[0]; // Get the latest join time
         
-        // Store timeout events for host and all joiners
+        // Use the most recent activity (start or join)
+        lastActivityTime = mostRecentJoinTime > queueData.startTime ? mostRecentJoinTime : queueData.startTime;
+      }
+      
+      console.log(`Queue ${queueId}: last activity at ${lastActivityTime}, cutoff is ${cutoffTime}`);
+      
+      // Check if queue has been inactive for too long
+      if (lastActivityTime < cutoffTime) {
+        console.log(`Queue ${queueId} has been inactive for ${timeoutMinutes}+ minutes (last activity: ${lastActivityTime})`);
+        
+        // Store timeout events for host and all joiners (same as disband logic)
         await storeQueueHistoryEvent(queueId, queueData.hostSteamId, 'timeout', {
           gameMode: queueData.gameMode,
           mapSelectionMode: queueData.mapSelectionMode,
           joinerCount: queueData.joiners.length,
           queueDuration: Math.floor((new Date(now).getTime() - new Date(queueData.startTime).getTime()) / 60000), // Duration in minutes
+          reason: 'inactivity_timeout'
         });
 
+        // Store timeout events for all joiners
         for (const joiner of queueData.joiners) {
           await storeQueueHistoryEvent(queueId, joiner.steamId, 'timeout', {
             gameMode: queueData.gameMode,
             mapSelectionMode: queueData.mapSelectionMode,
             hostSteamId: queueData.hostSteamId,
             queueDuration: Math.floor((new Date(now).getTime() - new Date(queueData.startTime).getTime()) / 60000), // Duration in minutes
+            reason: 'inactivity_timeout'
           });
         }
         
@@ -124,9 +144,9 @@ export async function handler(event: any): Promise<any> {
         }));
         
         expiredCount++;
-        console.log(`Deleted expired queue ${queueId}`);
+        console.log(`Deleted inactive queue ${queueId} (${queueData.joiners.length + 1} players affected)`);
       } else {
-        console.log(`Queue ${queueId} is still active (started ${queueData.startTime})`);
+        console.log(`Queue ${queueId} is still active (last activity: ${lastActivityTime})`);
       }
     }
     
@@ -137,6 +157,7 @@ export async function handler(event: any): Promise<any> {
       totalQueues: result.Items.length,
       expiredQueues: expiredCount,
       activeQueues: result.Items.length - expiredCount,
+      timeoutMinutes: timeoutMinutes,
     };
     
   } catch (error) {
