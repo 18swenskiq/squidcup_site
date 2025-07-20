@@ -8,8 +8,8 @@
     </div>
   </div>
 
-  <!-- Teams Display (for games with more than 2 players) -->
-  <div class="teams-container" *ngIf="lobby.gameMode !== '1v1'">
+  <!-- Teams Display - Always show two columns -->
+  <div class="teams-container">
     <div class="team" *ngFor="let teamNum of [1, 2]">
       <h3>{{ getTeamName(teamNum) }}</h3>
       <div class="players-list">
@@ -20,20 +20,10 @@
             {{ player.hasSelectedMap ? '✓ Selected' : '⏳ Selecting...' }}
           </span>
         </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Players Display (for 1v1) -->
-  <div class="players-container" *ngIf="lobby.gameMode === '1v1'">
-    <h3>Players</h3>
-    <div class="players-list">
-      <div class="player" *ngFor="let player of getPlayersWithoutTeam()">
-        <span class="player-name">{{ getPlayerDisplayName(player.steamId) }}</span>
-        <span class="host-badge" *ngIf="player.steamId === lobby.hostSteamId">Host</span>
-        <span class="map-status" *ngIf="lobby.mapSelectionMode === 'All Pick'">
-          {{ player.hasSelectedMap ? '✓ Selected' : '⏳ Selecting...' }}
-        </span>
+        <!-- Show empty slots if team has no players -->
+        <div class="player empty-slot" *ngIf="getTeamPlayers(teamNum).length === 0">
+          <span class="player-name">Waiting for players...</span>
+        </div>
       </div>
     </div>
   </div>
@@ -41,6 +31,16 @@
   <!-- Map Selection Section -->
   <div class="map-selection" *ngIf="!lobby.mapSelectionComplete">
     <h3>Map Selection</h3>
+    
+    <!-- Debug info -->
+    <div style="background: #1a1a1a; padding: 10px; margin: 10px 0; border-radius: 4px; font-size: 12px;">
+      <p>Debug Info:</p>
+      <p>Game Mode: {{ lobby.gameMode }}</p>
+      <p>Map Selection Mode: {{ lobby.mapSelectionMode }}</p>
+      <p>Available Maps Count: {{ availableMaps.length }}</p>
+      <p>Is Host: {{ isHost }}</p>
+      <p>Can Select Map: {{ canSelectMap() }}</p>
+    </div>
     
     <!-- Random Map Mode -->
     <div *ngIf="lobby.mapSelectionMode === 'Random Map'" class="map-info">

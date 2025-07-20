@@ -67,6 +67,8 @@ export class LobbyComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
+    console.log('Lobby component initialized with lobby data:', this.lobby);
+    console.log('Available maps on init:', this.availableMaps);
     this.initMapSelectionForm();
     this.loadAvailableMaps();
     this.loadPlayerProfiles();
@@ -91,14 +93,20 @@ export class LobbyComponent implements OnInit, OnDestroy {
       return;
     }
     
-    this.http.get<{data: GameMap[]}>(`${this.apiBaseUrl}/maps?gameModes=${this.lobby.gameMode}`)
+    console.log('Loading maps for gamemode:', this.lobby.gameMode);
+    const url = `${this.apiBaseUrl}/maps?gameModes=${this.lobby.gameMode}`;
+    console.log('Maps API URL:', url);
+    
+    this.http.get<{data: GameMap[]}>(url)
       .subscribe({
         next: (response) => {
+          console.log('Maps API response:', response);
           this.availableMaps = response.data || [];
           console.log('Loaded maps for gamemode:', this.lobby.gameMode, this.availableMaps);
         },
         error: (error) => {
           console.error('Error loading maps:', error);
+          this.availableMaps = []; // Ensure it's empty array on error
         }
       });
   }
@@ -162,15 +170,53 @@ export class LobbyComponent implements OnInit, OnDestroy {
   }
 
   getTeamPlayers(teamNumber: number): LobbyPlayer[] {
-    return this.lobby?.players?.filter(player => player.team === teamNumber) || [];
+    // First try to get players assigned to this team
+    const assignedTeamPlayers = this.lobby?.players?.filter(player => player.team === teamNumber) || [];
+    
+    // If we have assigned players, return them
+    if (assignedTeamPlayers.length > 0) {
+      console.log(`Team ${teamNumber} players (assigned):`, assignedTeamPlayers);
+      return assignedTeamPlayers;
+    }
+    
+    // If no assigned players, distribute unassigned players across teams for display
+    const unassignedPlayers = this.lobby?.players?.filter(player => !player.team) || [];
+    
+    if (unassignedPlayers.length > 0) {
+      // For team 1, take the first half (rounded up)
+      // For team 2, take the second half
+      const playersPerTeam = Math.ceil(unassignedPlayers.length / 2);
+      
+      if (teamNumber === 1) {
+        const team1Players = unassignedPlayers.slice(0, playersPerTeam);
+        console.log(`Team ${teamNumber} players (distributed):`, team1Players);
+        return team1Players;
+      } else {
+        const team2Players = unassignedPlayers.slice(playersPerTeam);
+        console.log(`Team ${teamNumber} players (distributed):`, team2Players);
+        return team2Players;
+      }
+    }
+    
+    console.log(`Team ${teamNumber} players: empty`);
+    return [];
   }
 
   getPlayersWithoutTeam(): LobbyPlayer[] {
-    return this.lobby?.players?.filter(player => !player.team) || [];
+    const unassignedPlayers = this.lobby?.players?.filter(player => !player.team) || [];
+    console.log('Players without team:', unassignedPlayers);
+    return unassignedPlayers;
   }
 
   getTeamName(teamNumber: number): string {
     const teamPlayers = this.getTeamPlayers(teamNumber);
+    
+    // For 1v1, use simple "Player 1" and "Player 2" naming
+    if (this.lobby?.gameMode === '1v1') {
+      return `Player ${teamNumber}`;
+    }
+    
+    // For other game modes, use the first player's name
     if (teamPlayers.length === 0) return `Team ${teamNumber}`;
     
     const firstPlayer = teamPlayers[0];

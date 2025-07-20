@@ -128,6 +128,16 @@
   margin-bottom: 8px;
 }
 
+.player.empty-slot {
+  opacity: 0.6;
+  border-left-color: #7f8c8d;
+}
+
+.player.empty-slot .player-name {
+  font-style: italic;
+  color: #95a5a6;
+}
+
 // Team-specific player styling
 .team:nth-child(1) .player {
   border-left-color: #3498db; // Blue for team 1
