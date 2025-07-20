@@ -252,11 +252,16 @@ export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayPr
     
     if (currentPlayers >= maxPlayers) {
       console.log('Queue is full, creating lobby...');
+      console.log('CREATE_LOBBY_FUNCTION_NAME environment variable:', process.env.CREATE_LOBBY_FUNCTION_NAME);
+      console.log('All environment variables:', JSON.stringify(process.env, null, 2));
+      
       try {
         // Invoke create-lobby lambda
         const createLobbyPayload = {
           body: JSON.stringify({ queueId })
         };
+        
+        console.log('Invoking create-lobby lambda with function name:', process.env.CREATE_LOBBY_FUNCTION_NAME);
         
         await lambdaClient.send(new InvokeCommand({
           FunctionName: process.env.CREATE_LOBBY_FUNCTION_NAME,
@@ -267,6 +272,7 @@ export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayPr
         console.log('Lobby creation triggered successfully');
       } catch (error) {
         console.error('Error triggering lobby creation:', error);
+        console.error('Error details:', JSON.stringify(error, null, 2));
         // Don't fail the join operation if lobby creation fails
       }
     }
