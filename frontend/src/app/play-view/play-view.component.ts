@@ -159,6 +159,17 @@ export class PlayViewComponent implements OnInit, OnDestroy {
   joinQueue(): void {
     if (!this.selectedQueue) return;
     
+    const currentUser = this.authService.getCurrentUser();
+    if (!currentUser) {
+      alert('You must be logged in to join a queue.');
+      return;
+    }
+    
+    const headers = {
+      'Authorization': `Bearer ${currentUser.sessionToken}`,
+      'Content-Type': 'application/json'
+    };
+    
     // Logic to join a queue
     console.log('Joining queue:', this.selectedQueue);
     
@@ -170,23 +181,45 @@ export class PlayViewComponent implements OnInit, OnDestroy {
       }
       
       // Join the queue with the provided password
-      this.http.post(`${this.apiBaseUrl}/joinQueue/${this.selectedQueue.id}`, { password }).subscribe({
+      this.http.post(`${this.apiBaseUrl}/joinQueue`, { 
+        queueId: this.selectedQueue.id, 
+        password 
+      }, { headers }).subscribe({
         next: (response) => {
           console.log('Joined queue successfully', response);
+          alert('Successfully joined the queue!');
+          this.selectedQueue = null; // Clear selection
         },
         error: (error) => {
           console.error('Error joining queue', error);
-          alert('Failed to join queue. Incorrect password.');
+          let errorMessage = 'Failed to join queue.';
+          if (error.status === 403 && error.error?.error) {
+            errorMessage = error.error.error;
+          } else if (error.status === 400 && error.error?.error) {
+            errorMessage = error.error.error;
+          }
+          alert(errorMessage);
         }
       });
     } else {
       // Join the queue without password
-      this.http.post(`${this.apiBaseUrl}/joinQueue/${this.selectedQueue.id}`, {}).subscribe({
+      this.http.post(`${this.apiBaseUrl}/joinQueue`, { 
+        queueId: this.selectedQueue.id 
+      }, { headers }).subscribe({
         next: (response) => {
           console.log('Joined queue successfully', response);
+          alert('Successfully joined the queue!');
+          this.selectedQueue = null; // Clear selection
         },
         error: (error) => {
           console.error('Error joining queue', error);
+          let errorMessage = 'Failed to join queue.';
+          if (error.status === 403 && error.error?.error) {
+            errorMessage = error.error.error;
+          } else if (error.status === 400 && error.error?.error) {
+            errorMessage = error.error.error;
+          }
+          alert(errorMessage);
         }
       });
     }
