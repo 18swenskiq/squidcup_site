@@ -265,7 +265,7 @@
 
 .map-name {
   font-weight: bold;
-  font-size: 1em;
+  font-size: 1.2em;
   color: white;
   text-shadow: 
     -1px -1px 0 #000,
@@ -331,7 +331,7 @@
   margin-bottom: 15px;
 }
 
-.map-name {
+.selected-map .map-name {
   display: inline-block;
   background: #27ae60;
   color: white;
