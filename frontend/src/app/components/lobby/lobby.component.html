@@ -32,22 +32,6 @@
   <div class="map-selection" *ngIf="!lobby.mapSelectionComplete">
     <h3>Map Selection</h3>
     
-    <!-- Debug info -->
-    <div style="background: #1a1a1a; padding: 10px; margin: 10px 0; border-radius: 4px; font-size: 12px;">
-      <p>Debug Info:</p>
-      <p>Game Mode: {{ lobby.gameMode }}</p>
-      <p>Map Selection Mode: "{{ lobby.mapSelectionMode }}"</p>
-      <p>Available Maps Count: {{ availableMaps.length }}</p>
-      <p>Is Host: {{ isHost }}</p>
-      <p>Can Select Map: {{ canSelectMap() }}</p>
-      <p>Map Selection Complete: {{ lobby.mapSelectionComplete }}</p>
-      <p>Map Selection Modes Check:</p>
-      <p>- Random Map: {{ lobby.mapSelectionMode === 'Random Map' }}</p>
-      <p>- Host Pick: {{ lobby.mapSelectionMode === 'Host Pick' }}</p>
-      <p>- All Pick: {{ lobby.mapSelectionMode === 'All Pick' }}</p>
-      <p>- all-pick: {{ lobby.mapSelectionMode === 'all-pick' }}</p>
-    </div>
-    
     <!-- Random Map Mode -->
     <div *ngIf="lobby.mapSelectionMode === 'Random Map'" class="map-info">
       <p>🎲 A random map will be selected automatically</p>
@@ -63,6 +47,7 @@
               *ngFor="let map of availableMaps" 
               class="map-tile"
               [class.selected]="mapSelectionForm.get('selectedMap')?.value === map.id"
+              [style.background-image]="'url(' + map.thumbnailUrl + ')'"
               (click)="selectMapTile(map.id)">
               <div class="map-name">{{ map.name }}</div>
             </div>
@@ -87,6 +72,7 @@
               *ngFor="let map of availableMaps" 
               class="map-tile"
               [class.selected]="mapSelectionForm.get('selectedMap')?.value === map.id"
+              [style.background-image]="'url(' + map.thumbnailUrl + ')'"
               (click)="selectMapTile(map.id)">
               <div class="map-name">{{ map.name }}</div>
             </div>
@@ -117,6 +103,7 @@
             *ngFor="let map of availableMaps" 
             class="map-tile"
             [class.selected]="mapSelectionForm.get('selectedMap')?.value === map.id"
+            [style.background-image]="'url(' + map.thumbnailUrl + ')'"
             (click)="selectMapTile(map.id)">
             <div class="map-name">{{ map.name }}</div>
           </div>

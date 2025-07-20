@@ -67,8 +67,6 @@ export class LobbyComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
-    console.log('Lobby component initialized with lobby data:', this.lobby);
-    console.log('Available maps on init:', this.availableMaps);
     this.initMapSelectionForm();
     this.loadAvailableMaps();
     this.loadPlayerProfiles();
@@ -93,16 +91,12 @@ export class LobbyComponent implements OnInit, OnDestroy {
       return;
     }
     
-    console.log('Loading maps for gamemode:', this.lobby.gameMode);
     const url = `${this.apiBaseUrl}/maps?gameModes=${this.lobby.gameMode}`;
-    console.log('Maps API URL:', url);
     
     this.http.get<{data: GameMap[]}>(url)
       .subscribe({
         next: (response) => {
-          console.log('Maps API response:', response);
           this.availableMaps = response.data || [];
-          console.log('Loaded maps for gamemode:', this.lobby.gameMode, this.availableMaps);
         },
         error: (error) => {
           console.error('Error loading maps:', error);
@@ -175,7 +169,6 @@ export class LobbyComponent implements OnInit, OnDestroy {
     
     // If we have assigned players, return them
     if (assignedTeamPlayers.length > 0) {
-      console.log(`Team ${teamNumber} players (assigned):`, assignedTeamPlayers);
       return assignedTeamPlayers;
     }
     
@@ -188,24 +181,17 @@ export class LobbyComponent implements OnInit, OnDestroy {
       const playersPerTeam = Math.ceil(unassignedPlayers.length / 2);
       
       if (teamNumber === 1) {
-        const team1Players = unassignedPlayers.slice(0, playersPerTeam);
-        console.log(`Team ${teamNumber} players (distributed):`, team1Players);
-        return team1Players;
+        return unassignedPlayers.slice(0, playersPerTeam);
       } else {
-        const team2Players = unassignedPlayers.slice(playersPerTeam);
-        console.log(`Team ${teamNumber} players (distributed):`, team2Players);
-        return team2Players;
+        return unassignedPlayers.slice(playersPerTeam);
       }
     }
     
-    console.log(`Team ${teamNumber} players: empty`);
     return [];
   }
 
   getPlayersWithoutTeam(): LobbyPlayer[] {
-    const unassignedPlayers = this.lobby?.players?.filter(player => !player.team) || [];
-    console.log('Players without team:', unassignedPlayers);
-    return unassignedPlayers;
+    return this.lobby?.players?.filter(player => !player.team) || [];
   }
 
   getTeamName(teamNumber: number): string {
