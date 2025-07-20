@@ -36,10 +36,16 @@
     <div style="background: #1a1a1a; padding: 10px; margin: 10px 0; border-radius: 4px; font-size: 12px;">
       <p>Debug Info:</p>
       <p>Game Mode: {{ lobby.gameMode }}</p>
-      <p>Map Selection Mode: {{ lobby.mapSelectionMode }}</p>
+      <p>Map Selection Mode: "{{ lobby.mapSelectionMode }}"</p>
       <p>Available Maps Count: {{ availableMaps.length }}</p>
       <p>Is Host: {{ isHost }}</p>
       <p>Can Select Map: {{ canSelectMap() }}</p>
+      <p>Map Selection Complete: {{ lobby.mapSelectionComplete }}</p>
+      <p>Map Selection Modes Check:</p>
+      <p>- Random Map: {{ lobby.mapSelectionMode === 'Random Map' }}</p>
+      <p>- Host Pick: {{ lobby.mapSelectionMode === 'Host Pick' }}</p>
+      <p>- All Pick: {{ lobby.mapSelectionMode === 'All Pick' }}</p>
+      <p>- all-pick: {{ lobby.mapSelectionMode === 'all-pick' }}</p>
     </div>
     
     <!-- Random Map Mode -->
@@ -72,7 +78,7 @@
     </div>
 
     <!-- All Pick Mode -->
-    <div *ngIf="lobby.mapSelectionMode === 'All Pick'" class="map-picker">
+    <div *ngIf="lobby.mapSelectionMode === 'All Pick' || lobby.mapSelectionMode === 'all-pick'" class="map-picker">
       <div *ngIf="canSelectMap()">
         <p>Please select your preferred map:</p>
         <form [formGroup]="mapSelectionForm" (ngSubmit)="selectMap()">
@@ -96,6 +102,29 @@
           <span>{{ playersWithMapSelection }} / {{ totalPlayers }} players selected</span>
         </div>
       </div>
+    </div>
+
+    <!-- Fallback: Show map tiles if we have maps but no mode matched -->
+    <div *ngIf="availableMaps.length > 0 && 
+                lobby.mapSelectionMode !== 'Random Map' && 
+                lobby.mapSelectionMode !== 'Host Pick' && 
+                lobby.mapSelectionMode !== 'All Pick' && 
+                lobby.mapSelectionMode !== 'all-pick'" class="map-picker">
+      <p>Select a map ({{ lobby.mapSelectionMode }}):</p>
+      <form [formGroup]="mapSelectionForm" (ngSubmit)="selectMap()">
+        <div class="map-tiles">
+          <div 
+            *ngFor="let map of availableMaps" 
+            class="map-tile"
+            [class.selected]="mapSelectionForm.get('selectedMap')?.value === map.id"
+            (click)="selectMapTile(map.id)">
+            <div class="map-name">{{ map.name }}</div>
+          </div>
+        </div>
+        <button type="submit" [disabled]="!mapSelectionForm.get('selectedMap')?.value" class="select-btn">
+          Select Map
+        </button>
+      </form>
     </div>
   </div>
 
