@@ -2,20 +2,21 @@
   max-width: 800px;
   margin: 0 auto;
   padding: 20px;
-  background: #f8f9fa;
+  background: #2c3e50; // Dark grey background
   border-radius: 8px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+  color: #ecf0f1; // Light text color for contrast
 }
 
 .lobby-header {
   text-align: center;
   margin-bottom: 30px;
   padding-bottom: 20px;
-  border-bottom: 2px solid #e9ecef;
+  border-bottom: 2px solid #34495e;
 }
 
 .lobby-header h2 {
-  color: #2c3e50;
+  color: #ecf0f1;
   margin-bottom: 10px;
 }
 
@@ -56,34 +57,58 @@
 }
 
 .team {
-  background: white;
+  background: #34495e; // Darker grey for team containers
   padding: 20px;
   border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
 .team h3 {
-  color: #2c3e50;
+  color: #ecf0f1;
   margin-bottom: 15px;
   text-align: center;
   padding-bottom: 10px;
-  border-bottom: 1px solid #e9ecef;
+  border-bottom: 1px solid #2c3e50;
+  position: relative;
+}
+
+// Team-specific header styling
+.team:nth-child(1) h3::before {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 60px;
+  height: 2px;
+  background: #3498db; // Blue accent for team 1
+}
+
+.team:nth-child(2) h3::before {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 60px;
+  height: 2px;
+  background: #e74c3c; // Red accent for team 2
 }
 
 .players-container {
-  background: white;
+  background: #34495e;
   padding: 20px;
   border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
   margin-bottom: 30px;
 }
 
 .players-container h3 {
-  color: #2c3e50;
+  color: #ecf0f1;
   margin-bottom: 15px;
   text-align: center;
   padding-bottom: 10px;
-  border-bottom: 1px solid #e9ecef;
+  border-bottom: 1px solid #2c3e50;
 }
 
 .players-list {
@@ -97,14 +122,24 @@
   align-items: center;
   justify-content: space-between;
   padding: 12px;
-  background: #f8f9fa;
+  background: #2c3e50;
   border-radius: 6px;
   border-left: 4px solid #3498db;
+  margin-bottom: 8px;
+}
+
+// Team-specific player styling
+.team:nth-child(1) .player {
+  border-left-color: #3498db; // Blue for team 1
+}
+
+.team:nth-child(2) .player {
+  border-left-color: #e74c3c; // Red for team 2
 }
 
 .player-name {
   font-weight: 500;
-  color: #2c3e50;
+  color: #ecf0f1;
 }
 
 .host-badge {
@@ -123,15 +158,15 @@
 }
 
 .map-selection {
-  background: white;
+  background: #34495e;
   padding: 20px;
   border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
   margin-bottom: 20px;
 }
 
 .map-selection h3 {
-  color: #2c3e50;
+  color: #ecf0f1;
   margin-bottom: 15px;
   text-align: center;
 }
@@ -151,7 +186,7 @@
 
 .map-picker p {
   margin-bottom: 15px;
-  color: #5a6c7d;
+  color: #bdc3c7;
 }
 
 .map-picker form {
@@ -161,20 +196,53 @@
   gap: 15px;
 }
 
-.map-dropdown {
-  padding: 10px 15px;
-  border: 2px solid #e9ecef;
-  border-radius: 6px;
-  font-size: 1em;
-  background: white;
-  min-width: 250px;
-  transition: border-color 0.3s ease;
+.map-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 15px;
+  width: 100%;
+  max-width: 600px;
+  margin-bottom: 20px;
 }
 
-.map-dropdown:focus {
-  outline: none;
-  border-color: #3498db;
+.map-tile {
+  background: #2c3e50;
+  border: 2px solid #34495e;
+  border-radius: 8px;
+  padding: 20px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-align: center;
+  min-height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
+
+.map-tile:hover {
+  border-color: #3498db;
+  background: #34495e;
+  transform: translateY(-2px);
+}
+
+.map-tile.selected {
+  border-color: #27ae60;
+  background: #27ae60;
+  color: white;
+}
+
+.map-name {
+  font-weight: 500;
+  font-size: 0.9em;
+  color: #ecf0f1;
+  word-wrap: break-word;
+}
+
+.map-tile.selected .map-name {
+  color: white;
+}
+
+
 
 .select-btn {
   background: #27ae60;
@@ -199,23 +267,24 @@
 .selection-progress {
   margin-top: 10px;
   padding: 10px;
-  background: #e8f4f8;
+  background: #34495e;
   border-radius: 6px;
-  color: #2980b9;
+  color: #3498db;
   font-weight: 500;
+  border: 1px solid #2c3e50;
 }
 
 .selected-map {
-  background: white;
+  background: #34495e;
   padding: 20px;
   border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
   margin-bottom: 20px;
   text-align: center;
 }
 
 .selected-map h3 {
-  color: #2c3e50;
+  color: #ecf0f1;
   margin-bottom: 15px;
 }
 
@@ -295,7 +364,17 @@
     gap: 8px;
   }
   
-  .map-dropdown {
-    min-width: 200px;
+  .map-tiles {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 10px;
+  }
+  
+  .map-tile {
+    padding: 15px;
+    min-height: 60px;
+  }
+  
+  .map-name {
+    font-size: 0.8em;
   }
 }

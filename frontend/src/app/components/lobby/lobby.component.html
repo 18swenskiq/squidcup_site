@@ -11,7 +11,7 @@
   <!-- Teams Display (for games with more than 2 players) -->
   <div class="teams-container" *ngIf="lobby.gameMode !== '1v1'">
     <div class="team" *ngFor="let teamNum of [1, 2]">
-      <h3>Team {{ teamNum }}</h3>
+      <h3>{{ getTeamName(teamNum) }}</h3>
       <div class="players-list">
         <div class="player" *ngFor="let player of getTeamPlayers(teamNum)">
           <span class="player-name">{{ getPlayerDisplayName(player.steamId) }}</span>
@@ -52,12 +52,15 @@
       <div *ngIf="isHost">
         <p>As the host, please select a map:</p>
         <form [formGroup]="mapSelectionForm" (ngSubmit)="selectMap()">
-          <select formControlName="selectedMap" class="map-dropdown">
-            <option value="">Select a map...</option>
-            <option *ngFor="let map of availableMaps" [value]="map.id">
-              {{ map.name }} ({{ map.location }})
-            </option>
-          </select>
+          <div class="map-tiles">
+            <div 
+              *ngFor="let map of availableMaps" 
+              class="map-tile"
+              [class.selected]="mapSelectionForm.get('selectedMap')?.value === map.id"
+              (click)="selectMapTile(map.id)">
+              <div class="map-name">{{ map.name }}</div>
+            </div>
+          </div>
           <button type="submit" [disabled]="!mapSelectionForm.get('selectedMap')?.value" class="select-btn">
             Select Map
           </button>
@@ -73,12 +76,15 @@
       <div *ngIf="canSelectMap()">
         <p>Please select your preferred map:</p>
         <form [formGroup]="mapSelectionForm" (ngSubmit)="selectMap()">
-          <select formControlName="selectedMap" class="map-dropdown">
-            <option value="">Select a map...</option>
-            <option *ngFor="let map of availableMaps" [value]="map.id">
-              {{ map.name }} ({{ map.location }})
-            </option>
-          </select>
+          <div class="map-tiles">
+            <div 
+              *ngFor="let map of availableMaps" 
+              class="map-tile"
+              [class.selected]="mapSelectionForm.get('selectedMap')?.value === map.id"
+              (click)="selectMapTile(map.id)">
+              <div class="map-name">{{ map.name }}</div>
+            </div>
+          </div>
           <button type="submit" [disabled]="!mapSelectionForm.get('selectedMap')?.value" class="select-btn">
             Select Map
           </button>

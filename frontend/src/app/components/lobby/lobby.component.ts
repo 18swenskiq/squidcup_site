@@ -32,10 +32,14 @@ export interface LobbyData {
 export interface GameMap {
   id: string;
   name: string;
-  gamemode: string;
-  location: string;
-  createdAt: string;
-  updatedAt: string;
+  thumbnailUrl: string;
+  gameModes: string[];
+}
+
+export interface PlayerProfile {
+  steamId: string;
+  name: string;
+  avatar?: string;
 }
 
 @Component({
@@ -52,6 +56,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
 
   mapSelectionForm!: FormGroup;
   availableMaps: GameMap[] = [];
+  playerProfiles: Map<string, PlayerProfile> = new Map();
   private apiBaseUrl: string = environment.apiUrl;
   private mapRefreshSubscription?: Subscription;
 
@@ -64,6 +69,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.initMapSelectionForm();
     this.loadAvailableMaps();
+    this.loadPlayerProfiles();
     this.startMapRefresh();
   }
 
@@ -85,16 +91,43 @@ export class LobbyComponent implements OnInit, OnDestroy {
       return;
     }
     
-    this.http.get<GameMap[]>(`${this.apiBaseUrl}/maps?gamemode=${this.lobby.gameMode}`)
+    this.http.get<{data: GameMap[]}>(`${this.apiBaseUrl}/maps?gameModes=${this.lobby.gameMode}`)
       .subscribe({
-        next: (maps) => {
-          this.availableMaps = maps;
-          console.log('Loaded maps for gamemode:', this.lobby.gameMode, maps);
+        next: (response) => {
+          this.availableMaps = response.data || [];
+          console.log('Loaded maps for gamemode:', this.lobby.gameMode, this.availableMaps);
         },
         error: (error) => {
           console.error('Error loading maps:', error);
         }
       });
+  }
+
+  private loadPlayerProfiles(): void {
+    if (!this.lobby?.players) return;
+
+    // Get unique steam IDs
+    const steamIds = this.lobby.players.map(p => p.steamId);
+    
+    // Load profiles for each player
+    steamIds.forEach(steamId => {
+      this.loadPlayerProfile(steamId);
+    });
+  }
+
+  private loadPlayerProfile(steamId: string): void {
+    // If we already have this profile, don't fetch again
+    if (this.playerProfiles.has(steamId)) return;
+
+    const headers = this.getAuthHeaders();
+    
+    // For now, we'll use a placeholder since there's no public profile endpoint
+    // TODO: Implement when profile endpoint supports looking up other users
+    this.playerProfiles.set(steamId, {
+      steamId: steamId,
+      name: `Player ${steamId.slice(-4)}`,
+      avatar: undefined
+    });
   }
 
   private startMapRefresh(): void {
@@ -109,7 +142,14 @@ export class LobbyComponent implements OnInit, OnDestroy {
         next: (response: any) => {
           if (response.lobby && response.lobby.id === this.lobby.id) {
             // Update lobby data
+            const oldPlayerCount = this.lobby.players?.length || 0;
             this.lobby = response.lobby;
+            
+            // If new players joined, load their profiles
+            const newPlayerCount = this.lobby.players?.length || 0;
+            if (newPlayerCount > oldPlayerCount) {
+              this.loadPlayerProfiles();
+            }
           } else if (!response.inLobby) {
             // Lobby was disbanded
             this.lobbyLeft.emit();
@@ -127,6 +167,19 @@ export class LobbyComponent implements OnInit, OnDestroy {
 
   getPlayersWithoutTeam(): LobbyPlayer[] {
     return this.lobby?.players?.filter(player => !player.team) || [];
+  }
+
+  getTeamName(teamNumber: number): string {
+    const teamPlayers = this.getTeamPlayers(teamNumber);
+    if (teamPlayers.length === 0) return `Team ${teamNumber}`;
+    
+    const firstPlayer = teamPlayers[0];
+    const playerName = this.getPlayerDisplayName(firstPlayer.steamId);
+    return `Team ${playerName}`;
+  }
+
+  selectMapTile(mapId: string): void {
+    this.mapSelectionForm.patchValue({ selectedMap: mapId });
   }
 
   canSelectMap(): boolean {
@@ -208,8 +261,8 @@ export class LobbyComponent implements OnInit, OnDestroy {
   }
 
   getPlayerDisplayName(steamId: string): string {
-    // TODO: Implement player name lookup
-    return `Player ${steamId.slice(-4)}`;
+    const profile = this.playerProfiles.get(steamId);
+    return profile ? profile.name : `Player ${steamId.slice(-4)}`;
   }
 
   // Safe getter methods for template
