@@ -87,22 +87,22 @@
       <div *ngIf="!canSelectMap()">
         <p>⏳ Waiting for all players to make their map selections...</p>
         <div class="selection-progress">
-          <span>{{ lobby.players.filter(p => p.hasSelectedMap).length }} / {{ lobby.players.length }} players selected</span>
+          <span>{{ playersWithMapSelection }} / {{ totalPlayers }} players selected</span>
         </div>
       </div>
     </div>
   </div>
 
   <!-- Selected Map Display -->
-  <div class="selected-map" *ngIf="lobby.mapSelectionComplete && lobby.selectedMap">
+  <div class="selected-map" *ngIf="isMapSelectionComplete && lobby.selectedMap">
     <h3>Selected Map</h3>
     <div class="map-info">
-      <span class="map-name">{{ getMapName(lobby.selectedMap) }}</span>
+      <span class="map-name">{{ selectedMapName }}</span>
     </div>
   </div>
 
   <!-- Game Ready Status -->
-  <div class="game-status" *ngIf="lobby.mapSelectionComplete">
+  <div class="game-status" *ngIf="isMapSelectionComplete">
     <div class="status-message">
       <h3>🎮 Game Ready!</h3>
       <p>All players are ready and the map has been selected. The game can now begin!</p>

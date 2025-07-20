@@ -49,8 +49,8 @@
 
     <!-- Actual Lobby View - Show the lobby component for full lobbies -->
     <app-lobby *ngIf="userQueueStatus?.inLobby && userQueueStatus?.lobby" 
-               [lobbyData]="userQueueStatus.lobby" 
-               [isHost]="userQueueStatus.isHost">
+               [lobby]="userQueueStatus!.lobby!" 
+               [isHost]="userQueueStatus!.isHost!">
     </app-lobby>
   </div>
 

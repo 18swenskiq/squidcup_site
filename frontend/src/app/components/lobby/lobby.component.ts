@@ -80,6 +80,11 @@ export class LobbyComponent implements OnInit, OnDestroy {
   }
 
   private loadAvailableMaps(): void {
+    if (!this.lobby?.gameMode) {
+      console.warn('Cannot load maps: lobby or gameMode not available');
+      return;
+    }
+    
     this.http.get<GameMap[]>(`${this.apiBaseUrl}/maps?gamemode=${this.lobby.gameMode}`)
       .subscribe({
         next: (maps) => {
@@ -117,23 +122,23 @@ export class LobbyComponent implements OnInit, OnDestroy {
   }
 
   getTeamPlayers(teamNumber: number): LobbyPlayer[] {
-    return this.lobby.players.filter(player => player.team === teamNumber);
+    return this.lobby?.players?.filter(player => player.team === teamNumber) || [];
   }
 
   getPlayersWithoutTeam(): LobbyPlayer[] {
-    return this.lobby.players.filter(player => !player.team);
+    return this.lobby?.players?.filter(player => !player.team) || [];
   }
 
   canSelectMap(): boolean {
     const currentUser = this.authService.getCurrentUser();
-    if (!currentUser) return false;
+    if (!currentUser || !this.lobby) return false;
 
     const userSteamId = this.extractSteamId(currentUser.steamId);
     
     if (this.lobby.mapSelectionMode === 'Host Pick') {
       return this.isHost;
     } else if (this.lobby.mapSelectionMode === 'All Pick') {
-      const currentPlayer = this.lobby.players.find(p => p.steamId === userSteamId);
+      const currentPlayer = this.lobby.players?.find(p => p.steamId === userSteamId);
       return currentPlayer ? !currentPlayer.hasSelectedMap : false;
     }
     
@@ -205,6 +210,23 @@ export class LobbyComponent implements OnInit, OnDestroy {
   getPlayerDisplayName(steamId: string): string {
     // TODO: Implement player name lookup
     return `Player ${steamId.slice(-4)}`;
+  }
+
+  // Safe getter methods for template
+  get playersWithMapSelection(): number {
+    return this.lobby?.players?.filter(p => p.hasSelectedMap)?.length || 0;
+  }
+
+  get totalPlayers(): number {
+    return this.lobby?.players?.length || 0;
+  }
+
+  get isMapSelectionComplete(): boolean {
+    return this.lobby?.mapSelectionComplete || false;
+  }
+
+  get selectedMapName(): string {
+    return this.lobby?.selectedMap ? this.getMapName(this.lobby.selectedMap) : '';
   }
 
   private getAuthHeaders(): any {
