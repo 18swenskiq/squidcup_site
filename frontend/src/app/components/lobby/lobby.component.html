@@ -1,0 +1,118 @@
+<div class="lobby-container">
+  <div class="lobby-header">
+    <h2>Game Lobby</h2>
+    <div class="lobby-info">
+      <span class="gamemode">{{ lobby.gameMode }}</span>
+      <span class="ranked" *ngIf="lobby.ranked">Ranked</span>
+      <span class="map-mode">{{ lobby.mapSelectionMode }}</span>
+    </div>
+  </div>
+
+  <!-- Teams Display (for games with more than 2 players) -->
+  <div class="teams-container" *ngIf="lobby.gameMode !== '1v1'">
+    <div class="team" *ngFor="let teamNum of [1, 2]">
+      <h3>Team {{ teamNum }}</h3>
+      <div class="players-list">
+        <div class="player" *ngFor="let player of getTeamPlayers(teamNum)">
+          <span class="player-name">{{ getPlayerDisplayName(player.steamId) }}</span>
+          <span class="host-badge" *ngIf="player.steamId === lobby.hostSteamId">Host</span>
+          <span class="map-status" *ngIf="lobby.mapSelectionMode === 'All Pick'">
+            {{ player.hasSelectedMap ? '✓ Selected' : '⏳ Selecting...' }}
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Players Display (for 1v1) -->
+  <div class="players-container" *ngIf="lobby.gameMode === '1v1'">
+    <h3>Players</h3>
+    <div class="players-list">
+      <div class="player" *ngFor="let player of getPlayersWithoutTeam()">
+        <span class="player-name">{{ getPlayerDisplayName(player.steamId) }}</span>
+        <span class="host-badge" *ngIf="player.steamId === lobby.hostSteamId">Host</span>
+        <span class="map-status" *ngIf="lobby.mapSelectionMode === 'All Pick'">
+          {{ player.hasSelectedMap ? '✓ Selected' : '⏳ Selecting...' }}
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Map Selection Section -->
+  <div class="map-selection" *ngIf="!lobby.mapSelectionComplete">
+    <h3>Map Selection</h3>
+    
+    <!-- Random Map Mode -->
+    <div *ngIf="lobby.mapSelectionMode === 'Random Map'" class="map-info">
+      <p>🎲 A random map will be selected automatically</p>
+    </div>
+
+    <!-- Host Pick Mode -->
+    <div *ngIf="lobby.mapSelectionMode === 'Host Pick'" class="map-picker">
+      <div *ngIf="isHost">
+        <p>As the host, please select a map:</p>
+        <form [formGroup]="mapSelectionForm" (ngSubmit)="selectMap()">
+          <select formControlName="selectedMap" class="map-dropdown">
+            <option value="">Select a map...</option>
+            <option *ngFor="let map of availableMaps" [value]="map.id">
+              {{ map.name }} ({{ map.location }})
+            </option>
+          </select>
+          <button type="submit" [disabled]="!mapSelectionForm.get('selectedMap')?.value" class="select-btn">
+            Select Map
+          </button>
+        </form>
+      </div>
+      <div *ngIf="!isHost">
+        <p>⏳ Waiting for host to select a map...</p>
+      </div>
+    </div>
+
+    <!-- All Pick Mode -->
+    <div *ngIf="lobby.mapSelectionMode === 'All Pick'" class="map-picker">
+      <div *ngIf="canSelectMap()">
+        <p>Please select your preferred map:</p>
+        <form [formGroup]="mapSelectionForm" (ngSubmit)="selectMap()">
+          <select formControlName="selectedMap" class="map-dropdown">
+            <option value="">Select a map...</option>
+            <option *ngFor="let map of availableMaps" [value]="map.id">
+              {{ map.name }} ({{ map.location }})
+            </option>
+          </select>
+          <button type="submit" [disabled]="!mapSelectionForm.get('selectedMap')?.value" class="select-btn">
+            Select Map
+          </button>
+        </form>
+      </div>
+      <div *ngIf="!canSelectMap()">
+        <p>⏳ Waiting for all players to make their map selections...</p>
+        <div class="selection-progress">
+          <span>{{ lobby.players.filter(p => p.hasSelectedMap).length }} / {{ lobby.players.length }} players selected</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Selected Map Display -->
+  <div class="selected-map" *ngIf="lobby.mapSelectionComplete && lobby.selectedMap">
+    <h3>Selected Map</h3>
+    <div class="map-info">
+      <span class="map-name">{{ getMapName(lobby.selectedMap) }}</span>
+    </div>
+  </div>
+
+  <!-- Game Ready Status -->
+  <div class="game-status" *ngIf="lobby.mapSelectionComplete">
+    <div class="status-message">
+      <h3>🎮 Game Ready!</h3>
+      <p>All players are ready and the map has been selected. The game can now begin!</p>
+    </div>
+  </div>
+
+  <!-- Action Buttons -->
+  <div class="lobby-actions">
+    <button class="leave-btn danger" (click)="leaveLobby()">
+      Leave Lobby
+    </button>
+  </div>
+</div>

@@ -1,10 +1,12 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, GetCommand, PutCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
+import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda';
 import * as crypto from 'crypto';
 
 const dynamoClient = new DynamoDBClient({ region: process.env.REGION });
 const docClient = DynamoDBDocumentClient.from(dynamoClient);
+const lambdaClient = new LambdaClient({ region: process.env.REGION });
 
 // Function to get user session from DynamoDB
 async function getUserSession(sessionToken: string): Promise<{ userId: string; expiresAt: string } | null> {
@@ -53,6 +55,22 @@ function extractSteamIdFromOpenId(steamId: string): string {
   // If no match found, return the original value
   console.warn('Could not extract Steam ID from:', steamId);
   return steamId;
+}
+
+// Function to get the maximum players for a gamemode
+function getMaxPlayersForGamemode(gameMode: string): number {
+  switch (gameMode) {
+    case '5v5':
+      return 10;
+    case 'wingman':
+      return 4;
+    case '3v3':
+      return 6;
+    case '1v1':
+      return 2;
+    default:
+      return 10;
+  }
 }
 
 // Function to store queue history event
@@ -227,6 +245,31 @@ export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayPr
       mapSelectionMode: queueData.mapSelectionMode,
       hostSteamId: queueData.hostSteamId,
     });
+
+    // Check if queue is now full and should be converted to lobby
+    const maxPlayers = getMaxPlayersForGamemode(queueData.gameMode);
+    const currentPlayers = 1 + updatedJoiners.length; // host + joiners
+    
+    if (currentPlayers >= maxPlayers) {
+      console.log('Queue is full, creating lobby...');
+      try {
+        // Invoke create-lobby lambda
+        const createLobbyPayload = {
+          body: JSON.stringify({ queueId })
+        };
+        
+        await lambdaClient.send(new InvokeCommand({
+          FunctionName: process.env.CREATE_LOBBY_FUNCTION_NAME,
+          Payload: JSON.stringify(createLobbyPayload),
+          InvocationType: 'Event' // Async invocation
+        }));
+        
+        console.log('Lobby creation triggered successfully');
+      } catch (error) {
+        console.error('Error triggering lobby creation:', error);
+        // Don't fail the join operation if lobby creation fails
+      }
+    }
 
     console.log('User joined queue successfully');
 

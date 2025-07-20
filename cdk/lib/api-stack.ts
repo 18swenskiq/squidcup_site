@@ -218,6 +218,42 @@ export class ApiStack extends cdk.Stack {
       }
     });
 
+    const createLobbyFunction = new lambda.Function(this, "create-lobby-function", {
+      runtime: this.RUNTIME,
+      memorySize: this.MEMORY_SIZE,
+      timeout: cdk.Duration.seconds(10), // Longer timeout for lobby operations
+      handler: 'index.handler',
+      code: lambda.Code.fromAsset(path.join(__dirname, '/../src/create-lobby-lambda')),
+      environment: {
+        REGION: this.REGION,
+        TABLE_NAME: table.tableName,
+      }
+    });
+
+    const leaveLobbyFunction = new lambda.Function(this, "leave-lobby-function", {
+      runtime: this.RUNTIME,
+      memorySize: this.MEMORY_SIZE,
+      timeout: this.TIMEOUT,
+      handler: 'index.handler',
+      code: lambda.Code.fromAsset(path.join(__dirname, '/../src/leave-lobby-lambda')),
+      environment: {
+        REGION: this.REGION,
+        TABLE_NAME: table.tableName,
+      }
+    });
+
+    const selectMapFunction = new lambda.Function(this, "select-map-function", {
+      runtime: this.RUNTIME,
+      memorySize: this.MEMORY_SIZE,
+      timeout: this.TIMEOUT,
+      handler: 'index.handler',
+      code: lambda.Code.fromAsset(path.join(__dirname, '/../src/select-map-lambda')),
+      environment: {
+        REGION: this.REGION,
+        TABLE_NAME: table.tableName,
+      }
+    });
+
     // Create an SSM parameter access policy
     const ssmPolicy = new iam.PolicyStatement({
       actions: ['ssm:GetParameter'],
@@ -239,6 +275,9 @@ export class ApiStack extends cdk.Stack {
     getQueueHistoryFunction.addToRolePolicy(ssmPolicy);
     getActiveQueuesFunction.addToRolePolicy(ssmPolicy);
     queueCleanupFunction.addToRolePolicy(ssmPolicy);
+    createLobbyFunction.addToRolePolicy(ssmPolicy);
+    leaveLobbyFunction.addToRolePolicy(ssmPolicy);
+    selectMapFunction.addToRolePolicy(ssmPolicy);
 
     // Grant DynamoDB permissions to Lambda functions
     table.grantReadWriteData(getMapsFunction);
@@ -255,6 +294,12 @@ export class ApiStack extends cdk.Stack {
     table.grantReadWriteData(getQueueHistoryFunction);
     table.grantReadWriteData(getActiveQueuesFunction);
     table.grantReadWriteData(queueCleanupFunction);
+    table.grantReadWriteData(createLobbyFunction);
+    table.grantReadWriteData(leaveLobbyFunction);
+    table.grantReadWriteData(selectMapFunction);
+
+    // Grant Lambda invoke permissions for lobby system
+    createLobbyFunction.grantInvoke(joinQueueFunction); // Allow join-queue to invoke create-lobby
 
     // Create CloudWatch log group for API Gateway
     const apiLogGroup = new logs.LogGroup(this, 'ApiGatewayLogGroup', {
@@ -982,6 +1027,117 @@ export class ApiStack extends cdk.Stack {
           'method.response.header.Access-Control-Allow-Origin': "'*'",
           'method.response.header.Access-Control-Allow-Headers': "'Content-Type,Authorization'",
           'method.response.header.Access-Control-Allow-Methods': "'GET,OPTIONS'",
+        },
+      }],
+      requestTemplates: {
+        'application/json': '{"statusCode": 200}'
+      }
+    }), {
+      methodResponses: [{
+        statusCode: '200',
+        responseParameters: {
+          'method.response.header.Access-Control-Allow-Origin': true,
+          'method.response.header.Access-Control-Allow-Headers': true,
+          'method.response.header.Access-Control-Allow-Methods': true,
+        },
+      }]
+    });
+
+    // ==================== LOBBY ENDPOINTS ====================
+    
+    // Add /leaveLobby endpoint
+    const leaveLobbyResource = api.root.addResource('leaveLobby');
+    leaveLobbyResource.addMethod('DELETE', new apigw.LambdaIntegration(leaveLobbyFunction), {
+      methodResponses: [{
+        statusCode: '200',
+        responseParameters: {
+          'method.response.header.Access-Control-Allow-Origin': true,
+          'method.response.header.Access-Control-Allow-Headers': true,
+          'method.response.header.Access-Control-Allow-Methods': true,
+        },
+      }, {
+        statusCode: '403',
+        responseParameters: {
+          'method.response.header.Access-Control-Allow-Origin': true,
+        },
+      }, {
+        statusCode: '404',
+        responseParameters: {
+          'method.response.header.Access-Control-Allow-Origin': true,
+        },
+      }, {
+        statusCode: '500',
+        responseParameters: {
+          'method.response.header.Access-Control-Allow-Origin': true,
+        },
+      }]
+    });
+
+    // Add OPTIONS method for leaveLobby endpoint
+    leaveLobbyResource.addMethod('OPTIONS', new apigw.MockIntegration({
+      integrationResponses: [{
+        statusCode: '200',
+        responseParameters: {
+          'method.response.header.Access-Control-Allow-Origin': "'*'",
+          'method.response.header.Access-Control-Allow-Headers': "'Content-Type,Authorization'",
+          'method.response.header.Access-Control-Allow-Methods': "'DELETE,OPTIONS'",
+        },
+      }],
+      requestTemplates: {
+        'application/json': '{"statusCode": 200}'
+      }
+    }), {
+      methodResponses: [{
+        statusCode: '200',
+        responseParameters: {
+          'method.response.header.Access-Control-Allow-Origin': true,
+          'method.response.header.Access-Control-Allow-Headers': true,
+          'method.response.header.Access-Control-Allow-Methods': true,
+        },
+      }]
+    });
+
+    // Add /selectMap endpoint
+    const selectMapResource = api.root.addResource('selectMap');
+    selectMapResource.addMethod('POST', new apigw.LambdaIntegration(selectMapFunction), {
+      methodResponses: [{
+        statusCode: '200',
+        responseParameters: {
+          'method.response.header.Access-Control-Allow-Origin': true,
+          'method.response.header.Access-Control-Allow-Headers': true,
+          'method.response.header.Access-Control-Allow-Methods': true,
+        },
+      }, {
+        statusCode: '400',
+        responseParameters: {
+          'method.response.header.Access-Control-Allow-Origin': true,
+        },
+      }, {
+        statusCode: '403',
+        responseParameters: {
+          'method.response.header.Access-Control-Allow-Origin': true,
+        },
+      }, {
+        statusCode: '404',
+        responseParameters: {
+          'method.response.header.Access-Control-Allow-Origin': true,
+        },
+      }, {
+        statusCode: '500',
+        responseParameters: {
+          'method.response.header.Access-Control-Allow-Origin': true,
+        },
+      }]
+    });
+
+    // Add OPTIONS method for selectMap endpoint
+    selectMapResource.addMethod('OPTIONS', new apigw.MockIntegration({
+      integrationResponses: [{
+        statusCode: '200',
+        responseParameters: {
+          'method.response.header.Access-Control-Allow-Origin': "'*'",
+          'method.response.header.Access-Control-Allow-Headers': "'Content-Type,Authorization'",
+          'method.response.header.Access-Control-Allow-Methods': "'POST,OPTIONS'",
         },
       }],
       requestTemplates: {

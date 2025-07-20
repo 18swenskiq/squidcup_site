@@ -5,44 +5,53 @@
     <p>Checking queue status...</p>
   </div>
 
-  <!-- Lobby View - Show if user is in a queue -->
-  <div *ngIf="!isLoadingUserQueue && viewState.showLobby && userQueueStatus?.queue" class="lobby-view">
-    <h2>Queue Lobby</h2>
-    <div class="lobby-info">
-      <div class="queue-details">
-        <h3>{{ userQueueStatus?.queue?.gameMode?.toUpperCase() }} - {{ userQueueStatus?.queue?.ranked ? 'Ranked' : 'Unranked' }}</h3>
-        <p><strong>Map Selection:</strong> {{ userQueueStatus?.queue?.mapSelectionMode }}</p>
-        <p><strong>Host:</strong> {{ userQueueStatus?.isHost ? 'You' : userQueueStatus?.queue?.hostSteamId }}</p>
-        <p><strong>Queue Duration:</strong> {{ getQueueDuration() }}</p>
-        <p><strong>Players:</strong> {{ getJoinersCount() + 1 }} / {{ getMaxPlayers() }}</p>
-      </div>
-      
-      <div class="player-slots">
-        <h4>Players in Queue:</h4>
-        <div class="player-list">
-          <!-- Host slot -->
-          <div class="player-slot filled">
-            <span class="player-name">{{ userQueueStatus?.isHost ? 'You (Host)' : (userQueueStatus?.queue?.hostSteamId || 'Host') + ' (Host)' }}</span>
-          </div>
-          
-          <!-- Joiner slots -->
-          <div *ngFor="let joiner of userQueueStatus?.queue?.joiners || []" class="player-slot filled">
-            <span class="player-name">{{ joiner.steamId === authService.getCurrentUser()?.steamId ? 'You' : joiner.steamId }}</span>
-          </div>
-          
-          <!-- Empty slots -->
-          <div *ngFor="let i of [].constructor(getMaxPlayers() - getJoinersCount() - 1)" class="player-slot empty">
-            <span class="player-name">Waiting for player...</span>
+  <!-- Lobby View - Show if user is in a queue or lobby -->
+  <div *ngIf="!isLoadingUserQueue && viewState.showLobby && (userQueueStatus?.queue || userQueueStatus?.lobby)">
+    <!-- Queue View - Simple waiting lobby for queue -->
+    <div *ngIf="userQueueStatus?.inQueue && !userQueueStatus?.inLobby" class="queue-view">
+      <h2>Queue Lobby</h2>
+      <div class="lobby-info">
+        <div class="queue-details">
+          <h3>{{ userQueueStatus?.queue?.gameMode?.toUpperCase() }} - {{ userQueueStatus?.queue?.ranked ? 'Ranked' : 'Unranked' }}</h3>
+          <p><strong>Map Selection:</strong> {{ userQueueStatus?.queue?.mapSelectionMode }}</p>
+          <p><strong>Host:</strong> {{ userQueueStatus?.isHost ? 'You' : userQueueStatus?.queue?.hostSteamId }}</p>
+          <p><strong>Queue Duration:</strong> {{ getQueueDuration() }}</p>
+          <p><strong>Players:</strong> {{ getJoinersCount() + 1 }} / {{ getMaxPlayers() }}</p>
+        </div>
+        
+        <div class="player-slots">
+          <h4>Players in Queue:</h4>
+          <div class="player-list">
+            <!-- Host slot -->
+            <div class="player-slot filled">
+              <span class="player-name">{{ userQueueStatus?.isHost ? 'You (Host)' : (userQueueStatus?.queue?.hostSteamId || 'Host') + ' (Host)' }}</span>
+            </div>
+            
+            <!-- Joiner slots -->
+            <div *ngFor="let joiner of userQueueStatus?.queue?.joiners || []" class="player-slot filled">
+              <span class="player-name">{{ joiner.steamId === authService.getCurrentUser()?.steamId ? 'You' : joiner.steamId }}</span>
+            </div>
+            
+            <!-- Empty slots -->
+            <div *ngFor="let i of [].constructor(getMaxPlayers() - getJoinersCount() - 1)" class="player-slot empty">
+              <span class="player-name">Waiting for player...</span>
+            </div>
           </div>
         </div>
-      </div>
-      
-      <div class="lobby-actions">
-        <button class="leave-queue-btn" (click)="leaveQueue()">
-          {{ userQueueStatus?.isHost ? 'Disband Queue' : 'Leave Queue' }}
-        </button>
+        
+        <div class="lobby-actions">
+          <button class="leave-queue-btn" (click)="leaveQueue()">
+            {{ userQueueStatus?.isHost ? 'Disband Queue' : 'Leave Queue' }}
+          </button>
+        </div>
       </div>
     </div>
+
+    <!-- Actual Lobby View - Show the lobby component for full lobbies -->
+    <app-lobby *ngIf="userQueueStatus?.inLobby && userQueueStatus?.lobby" 
+               [lobbyData]="userQueueStatus.lobby" 
+               [isHost]="userQueueStatus.isHost">
+    </app-lobby>
   </div>
 
   <!-- Start Queue and Join Queue Views - Show if user is not in a queue -->

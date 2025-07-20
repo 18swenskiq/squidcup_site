@@ -6,13 +6,14 @@ import { interval, Subscription } from 'rxjs';
 import { switchMap } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
 import { AuthService } from '../services/auth.service';
-import { GameServer, UserQueueStatus, Queue, ViewState, ActiveQueue, UserActiveQueue } from './play-view.interfaces';
+import { GameServer, UserQueueStatus, Queue, ViewState, ActiveQueue, UserActiveQueue, LobbyData } from './play-view.interfaces';
 import { QueueHistoryComponent } from '../components/queue-history/queue-history.component';
+import { LobbyComponent } from '../components/lobby/lobby.component';
 
 @Component({
   selector: 'app-play-view',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, HttpClientModule, QueueHistoryComponent],
+  imports: [CommonModule, ReactiveFormsModule, HttpClientModule, QueueHistoryComponent, LobbyComponent],
   templateUrl: './play-view.component.html',
   styleUrl: './play-view.component.scss'
 })
@@ -106,7 +107,7 @@ export class PlayViewComponent implements OnInit, OnDestroy {
   }
 
   private updateViewState(): void {
-    if (this.userQueueStatus?.inQueue) {
+    if (this.userQueueStatus?.inQueue || this.userQueueStatus?.inLobby) {
       this.viewState = {
         showStartQueue: false,
         showJoinQueue: false,

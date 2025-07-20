@@ -42,8 +42,32 @@ export interface UserActiveQueue {
 
 export interface UserQueueStatus {
   inQueue: boolean;
+  inLobby: boolean;
   isHost: boolean;
   queue: UserActiveQueue | null;
+  lobby: LobbyData | null;
+}
+
+export interface LobbyData {
+  id: string;
+  hostSteamId: string;
+  gameMode: string;
+  mapSelectionMode: string;
+  serverId: string;
+  hasPassword: boolean;
+  ranked: boolean;
+  players: LobbyPlayer[];
+  mapSelectionComplete: boolean;
+  selectedMap?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface LobbyPlayer {
+  steamId: string;
+  team?: number;
+  mapSelection?: string;
+  hasSelectedMap?: boolean;
 }
 
 export interface Queue {

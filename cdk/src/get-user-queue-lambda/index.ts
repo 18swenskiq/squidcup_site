@@ -52,6 +52,30 @@ interface ActiveQueueData {
   updatedAt: string;
 }
 
+interface LobbyPlayer {
+  steamId: string;
+  team?: number;
+  mapSelection?: string;
+  hasSelectedMap?: boolean;
+}
+
+interface LobbyData {
+  pk: string;
+  sk: string;
+  id: string;
+  hostSteamId: string;
+  gameMode: string;
+  mapSelectionMode: string;
+  serverId: string;
+  password?: string;
+  ranked: boolean;
+  players: LobbyPlayer[];
+  mapSelectionComplete: boolean;
+  selectedMap?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   console.log('Get user queue handler started');
   console.log('Event:', JSON.stringify(event, null, 2));
@@ -117,6 +141,52 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
 
     const userSteamId = extractSteamIdFromOpenId(sessionData.userId);
     console.log('User Steam ID:', userSteamId);
+
+    // First check if user is in a lobby
+    const lobbyScanCommand = new ScanCommand({
+      TableName: process.env.TABLE_NAME,
+      FilterExpression: 'begins_with(pk, :pkPrefix)',
+      ExpressionAttributeValues: {
+        ':pkPrefix': { S: 'LOBBY#' },
+      },
+    });
+
+    const lobbyResult = await dynamoClient.send(lobbyScanCommand);
+    
+    if (lobbyResult.Items && lobbyResult.Items.length > 0) {
+      for (const item of lobbyResult.Items) {
+        const lobbyData = unmarshall(item) as LobbyData;
+        const isInLobby = lobbyData.players.some(player => player.steamId === userSteamId);
+        
+        if (isInLobby) {
+          console.log('User found in lobby:', lobbyData.pk);
+          const isHost = lobbyData.hostSteamId === userSteamId;
+          
+          return {
+            statusCode: 200,
+            headers: corsHeaders,
+            body: JSON.stringify({
+              inLobby: true,
+              isHost: isHost,
+              lobby: {
+                id: lobbyData.id,
+                hostSteamId: lobbyData.hostSteamId,
+                gameMode: lobbyData.gameMode,
+                mapSelectionMode: lobbyData.mapSelectionMode,
+                serverId: lobbyData.serverId,
+                hasPassword: !!lobbyData.password,
+                ranked: lobbyData.ranked,
+                players: lobbyData.players,
+                mapSelectionComplete: lobbyData.mapSelectionComplete,
+                selectedMap: lobbyData.selectedMap,
+                createdAt: lobbyData.createdAt,
+                updatedAt: lobbyData.updatedAt,
+              }
+            }),
+          };
+        }
+      }
+    }
 
     // Query for active queues where the user is the host
     const hostScanCommand = new ScanCommand({
@@ -230,14 +300,16 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
       }
     }
 
-    // User is not in any queue
+    // User is not in any queue or lobby
     return {
       statusCode: 200,
       headers: corsHeaders,
       body: JSON.stringify({
         inQueue: false,
+        inLobby: false,
         isHost: false,
         queue: null,
+        lobby: null,
       }),
     };
 
