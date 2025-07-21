@@ -56,6 +56,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
 
   mapSelectionForm!: FormGroup;
   availableMaps: GameMap[] = [];
+  mapsLoading: boolean = false;
   playerProfiles: Map<string, PlayerProfile> = new Map();
   private apiBaseUrl: string = environment.apiUrl;
   private mapRefreshSubscription?: Subscription;
@@ -91,16 +92,19 @@ export class LobbyComponent implements OnInit, OnDestroy {
       return;
     }
     
+    this.mapsLoading = true;
     const url = `${this.apiBaseUrl}/maps?gameModes=${this.lobby.gameMode}`;
     
     this.http.get<{data: GameMap[]}>(url)
       .subscribe({
         next: (response) => {
           this.availableMaps = response.data || [];
+          this.mapsLoading = false;
         },
         error: (error) => {
           console.error('Error loading maps:', error);
           this.availableMaps = []; // Ensure it's empty array on error
+          this.mapsLoading = false;
         }
       });
   }

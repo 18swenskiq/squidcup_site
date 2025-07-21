@@ -13,6 +13,7 @@ import { AuthService, User } from '../services/auth.service';
 })
 export class NavbarComponent implements OnInit, OnDestroy {
   currentUser: User | null = null;
+  authLoading: boolean = true;
   private subscriptions: Subscription[] = [];
 
   constructor(
@@ -26,6 +27,13 @@ export class NavbarComponent implements OnInit, OnDestroy {
     this.subscriptions.push(
       this.authService.currentUser$.subscribe(user => {
         this.currentUser = user;
+      })
+    );
+
+    // Subscribe to auth loading state
+    this.subscriptions.push(
+      this.authService.authLoading$.subscribe(loading => {
+        this.authLoading = loading;
       })
     );
 

@@ -55,6 +55,27 @@ h3 {
   align-items: center;
 }
 
+.auth-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+}
+
+.auth-spinner {
+  width: 24px;
+  height: 24px;
+  border: 3px solid rgba(255, 255, 255, 0.3);
+  border-top: 3px solid #ffffff;
+  border-radius: 50%;
+  animation: auth-spin 1s linear infinite;
+}
+
+@keyframes auth-spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
 .login-button {
   display: flex;
   align-items: center;

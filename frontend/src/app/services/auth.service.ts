@@ -24,6 +24,9 @@ export interface User {
 export class AuthService {
   private currentUserSubject = new BehaviorSubject<User | null>(null);
   public currentUser$ = this.currentUserSubject.asObservable();
+  
+  private authLoadingSubject = new BehaviorSubject<boolean>(true);
+  public authLoading$ = this.authLoadingSubject.asObservable();
 
   constructor(
     private http: HttpClient,
@@ -58,6 +61,7 @@ export class AuthService {
             };
             this.currentUserSubject.next(updatedUser);
             console.log('Existing user profile loaded:', profile);
+            this.authLoadingSubject.next(false); // Profile loaded, stop loading
           },
           error: (error) => {
             console.error('Failed to load existing user profile:', error);
@@ -67,9 +71,16 @@ export class AuthService {
               this.clearSession();
             }
             // For other errors, keep them logged in but without profile data
+            this.authLoadingSubject.next(false); // Profile failed, stop loading
           }
         });
+      } else {
+        // No existing session, stop loading immediately
+        this.authLoadingSubject.next(false);
       }
+    } else {
+      // Not in browser, stop loading
+      this.authLoadingSubject.next(false);
     }
   }
 
@@ -123,6 +134,7 @@ export class AuthService {
     this.currentUserSubject.next(user);
     
     // Fetch user profile after login
+    this.authLoadingSubject.next(true); // Start loading for profile fetch
     this.fetchUserProfile(token).subscribe({
       next: (profile) => {
         const updatedUser: User = {
@@ -131,6 +143,7 @@ export class AuthService {
         };
         this.currentUserSubject.next(updatedUser);
         console.log('User profile loaded:', profile);
+        this.authLoadingSubject.next(false); // Profile loaded, stop loading
       },
       error: (error) => {
         console.error('Failed to load user profile:', error);
@@ -140,6 +153,7 @@ export class AuthService {
           this.clearSession();
         }
         // For other errors, keep them logged in but without profile data
+        this.authLoadingSubject.next(false); // Profile failed, stop loading
       }
     });
     
@@ -192,6 +206,7 @@ export class AuthService {
       localStorage.removeItem('steamId');
     }
     this.currentUserSubject.next(null);
+    this.authLoadingSubject.next(false); // Clear loading state when session is cleared
   }
 
   isLoggedIn(): boolean {

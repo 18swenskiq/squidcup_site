@@ -38,7 +38,13 @@
         
         <!-- Steam Login/Logout Section -->
         <div class="auth-section right-side-item">
-          <div *ngIf="!currentUser" class="login-button">
+          <!-- Loading spinner while checking auth status -->
+          <div *ngIf="authLoading" class="auth-loading">
+            <div class="auth-spinner"></div>
+          </div>
+          
+          <!-- Login button when not authenticated -->
+          <div *ngIf="!authLoading && !currentUser" class="login-button">
             <img 
               src="assets/sits_large_border.png"
               alt="Login with Steam"
@@ -47,7 +53,8 @@
               title="Login with Steam">
           </div>
           
-          <div *ngIf="currentUser" class="user-info">
+          <!-- User info when authenticated -->
+          <div *ngIf="!authLoading && currentUser" class="user-info">
             <img 
               *ngIf="currentUser.profile?.avatar" 
               [src]="currentUser.profile?.avatar" 

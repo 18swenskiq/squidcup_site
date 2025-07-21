@@ -41,7 +41,15 @@
     <div *ngIf="lobby.mapSelectionMode === 'Host Pick'" class="map-picker">
       <div *ngIf="isHost">
         <p>As the host, please select a map:</p>
-        <form [formGroup]="mapSelectionForm" (ngSubmit)="selectMap()">
+        
+        <!-- Loading spinner -->
+        <div *ngIf="mapsLoading" class="maps-loading">
+          <div class="spinner"></div>
+          <p>Loading available maps...</p>
+        </div>
+        
+        <!-- Map selection form -->
+        <form *ngIf="!mapsLoading" [formGroup]="mapSelectionForm" (ngSubmit)="selectMap()">
           <div class="map-tiles">
             <div 
               *ngFor="let map of availableMaps" 
@@ -66,7 +74,15 @@
     <div *ngIf="lobby.mapSelectionMode === 'All Pick' || lobby.mapSelectionMode === 'all-pick'" class="map-picker">
       <div *ngIf="canSelectMap()">
         <p>Please select your preferred map:</p>
-        <form [formGroup]="mapSelectionForm" (ngSubmit)="selectMap()">
+        
+        <!-- Loading spinner -->
+        <div *ngIf="mapsLoading" class="maps-loading">
+          <div class="spinner"></div>
+          <p>Loading available maps...</p>
+        </div>
+        
+        <!-- Map selection form -->
+        <form *ngIf="!mapsLoading" [formGroup]="mapSelectionForm" (ngSubmit)="selectMap()">
           <div class="map-tiles">
             <div 
               *ngFor="let map of availableMaps" 
@@ -97,7 +113,15 @@
                 lobby.mapSelectionMode !== 'All Pick' && 
                 lobby.mapSelectionMode !== 'all-pick'" class="map-picker">
       <p>Select a map ({{ lobby.mapSelectionMode }}):</p>
-      <form [formGroup]="mapSelectionForm" (ngSubmit)="selectMap()">
+      
+      <!-- Loading spinner -->
+      <div *ngIf="mapsLoading" class="maps-loading">
+        <div class="spinner"></div>
+        <p>Loading available maps...</p>
+      </div>
+      
+      <!-- Map selection form -->
+      <form *ngIf="!mapsLoading" [formGroup]="mapSelectionForm" (ngSubmit)="selectMap()">
         <div class="map-tiles">
           <div 
             *ngFor="let map of availableMaps" 
