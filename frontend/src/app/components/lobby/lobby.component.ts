@@ -275,9 +275,12 @@ export class LobbyComponent implements OnInit, OnDestroy {
 
     const headers = this.getAuthHeaders();
     
-    this.http.post(`${this.apiBaseUrl}/leaveLobby`, {
-      lobbyId: this.lobby.id
-    }, { headers }).subscribe({
+    this.http.delete(`${this.apiBaseUrl}/leaveLobby`, {
+      headers,
+      body: JSON.stringify({
+        lobbyId: this.lobby.id
+      })
+    }).subscribe({
       next: (response: any) => {
         console.log('Left lobby successfully', response);
         alert('Lobby has been disbanded.');
