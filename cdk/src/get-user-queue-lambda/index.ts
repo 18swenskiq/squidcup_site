@@ -1,5 +1,5 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
-import { DynamoDBClient, QueryCommand, ScanCommand } from '@aws-sdk/client-dynamodb';
+import { DynamoDBClient, QueryCommand, ScanCommand, BatchGetItemCommand } from '@aws-sdk/client-dynamodb';
 import { unmarshall } from '@aws-sdk/util-dynamodb';
 
 const dynamoClient = new DynamoDBClient({ region: process.env.REGION });
@@ -34,6 +34,78 @@ function extractSteamIdFromOpenId(steamId: string): string {
   return steamId;
 }
 
+// Function to get player names by Steam IDs
+async function getPlayerNames(steamIds: string[]): Promise<Map<string, string>> {
+  const playerNames = new Map<string, string>();
+  
+  if (steamIds.length === 0) {
+    return playerNames;
+  }
+
+  const tableName = process.env.TABLE_NAME;
+  if (!tableName) {
+    console.error('TABLE_NAME environment variable not set');
+    // Fallback: create names for all Steam IDs
+    for (const steamId of steamIds) {
+      playerNames.set(steamId, `Player ${steamId.slice(-4)}`);
+    }
+    return playerNames;
+  }
+
+  try {
+    // Create batch get request for all unique Steam IDs
+    const uniqueSteamIds = [...new Set(steamIds)];
+    
+    // DynamoDB BatchGetItem has a limit of 100 items
+    const batchSize = 100;
+    
+    for (let i = 0; i < uniqueSteamIds.length; i += batchSize) {
+      const batch = uniqueSteamIds.slice(i, i + batchSize);
+      
+      const requestItems: any = {};
+      requestItems[tableName] = {
+        Keys: batch.map(steamId => ({
+          pk: { S: `PLAYER#${steamId}` },
+          sk: { S: 'PROFILE' }
+        }))
+      };
+
+      const batchGetCommand = new BatchGetItemCommand({
+        RequestItems: requestItems
+      });
+
+      const result = await dynamoClient.send(batchGetCommand);
+      
+      if (result.Responses && result.Responses[tableName]) {
+        for (const item of result.Responses[tableName]) {
+          const player = unmarshall(item);
+          playerNames.set(player.steamId, player.name || `Player ${player.steamId.slice(-4)}`);
+        }
+      }
+    }
+
+    // For any Steam IDs that weren't found in the database, use a fallback name
+    for (const steamId of uniqueSteamIds) {
+      if (!playerNames.has(steamId)) {
+        playerNames.set(steamId, `Player ${steamId.slice(-4)}`);
+      }
+    }
+
+    console.log('Retrieved player names:', Object.fromEntries(playerNames));
+    return playerNames;
+    
+  } catch (error) {
+    console.error('Error getting player names:', error);
+    
+    // Fallback: create names for all Steam IDs
+    for (const steamId of steamIds) {
+      playerNames.set(steamId, `Player ${steamId.slice(-4)}`);
+    }
+    
+    return playerNames;
+  }
+}
+
 interface ActiveQueueData {
   pk: string;
   sk: string;
@@ -47,6 +119,7 @@ interface ActiveQueueData {
   joiners: Array<{
     steamId: string;
     joinTime: string;
+    name?: string; // Add optional name field
   }>;
   createdAt: string;
   updatedAt: string;
@@ -57,6 +130,7 @@ interface LobbyPlayer {
   team?: number;
   mapSelection?: string;
   hasSelectedMap?: boolean;
+  name?: string; // Add optional name field
 }
 
 interface LobbyData {
@@ -162,6 +236,16 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
           console.log('User found in lobby:', lobbyData.pk);
           const isHost = lobbyData.hostSteamId === userSteamId;
           
+          // Get player names for all players in the lobby
+          const allSteamIds = [lobbyData.hostSteamId, ...lobbyData.players.map(p => p.steamId)];
+          const playerNames = await getPlayerNames(allSteamIds);
+          
+          // Enrich players with names
+          const enrichedPlayers = lobbyData.players.map(player => ({
+            ...player,
+            name: playerNames.get(player.steamId) || `Player ${player.steamId.slice(-4)}`
+          }));
+          
           return {
             statusCode: 200,
             headers: corsHeaders,
@@ -171,12 +255,13 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
               lobby: {
                 id: lobbyData.id,
                 hostSteamId: lobbyData.hostSteamId,
+                hostName: playerNames.get(lobbyData.hostSteamId) || `Player ${lobbyData.hostSteamId.slice(-4)}`,
                 gameMode: lobbyData.gameMode,
                 mapSelectionMode: lobbyData.mapSelectionMode,
                 serverId: lobbyData.serverId,
                 hasPassword: !!lobbyData.password,
                 ranked: lobbyData.ranked,
-                players: lobbyData.players,
+                players: enrichedPlayers,
                 mapSelectionComplete: lobbyData.mapSelectionComplete,
                 selectedMap: lobbyData.selectedMap,
                 createdAt: lobbyData.createdAt,
@@ -205,6 +290,17 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
     if (hostResult.Items && hostResult.Items.length > 0) {
       const queueData = unmarshall(hostResult.Items[0]) as ActiveQueueData;
       console.log('User is hosting queue:', queueData.pk);
+      
+      // Get player names for host and all joiners
+      const allSteamIds = [queueData.hostSteamId, ...queueData.joiners.map(j => j.steamId)];
+      const playerNames = await getPlayerNames(allSteamIds);
+      
+      // Enrich joiners with names
+      const enrichedJoiners = queueData.joiners.map(joiner => ({
+        ...joiner,
+        name: playerNames.get(joiner.steamId) || `Player ${joiner.steamId.slice(-4)}`
+      }));
+      
       return {
         statusCode: 200,
         headers: corsHeaders,
@@ -214,13 +310,14 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
           queue: {
             id: queueData.pk.replace('ACTIVEQUEUE#', ''),
             hostSteamId: queueData.hostSteamId,
+            hostName: playerNames.get(queueData.hostSteamId) || `Player ${queueData.hostSteamId.slice(-4)}`,
             gameMode: queueData.gameMode,
             mapSelectionMode: queueData.mapSelectionMode,
             serverId: queueData.serverId,
             hasPassword: !!queueData.password,
             ranked: queueData.ranked,
             startTime: queueData.startTime,
-            joiners: queueData.joiners,
+            joiners: enrichedJoiners,
             createdAt: queueData.createdAt,
             updatedAt: queueData.updatedAt,
           }
@@ -275,6 +372,17 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
         
         if (isJoiner) {
           console.log('User found as joiner in queue:', queueData.pk);
+          
+          // Get player names for host and all joiners
+          const allSteamIds = [queueData.hostSteamId, ...queueData.joiners.map(j => j.steamId)];
+          const playerNames = await getPlayerNames(allSteamIds);
+          
+          // Enrich joiners with names
+          const enrichedJoiners = queueData.joiners.map(joiner => ({
+            ...joiner,
+            name: playerNames.get(joiner.steamId) || `Player ${joiner.steamId.slice(-4)}`
+          }));
+          
           return {
             statusCode: 200,
             headers: corsHeaders,
@@ -284,13 +392,14 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
               queue: {
                 id: queueData.pk.replace('ACTIVEQUEUE#', ''),
                 hostSteamId: queueData.hostSteamId,
+                hostName: playerNames.get(queueData.hostSteamId) || `Player ${queueData.hostSteamId.slice(-4)}`,
                 gameMode: queueData.gameMode,
                 mapSelectionMode: queueData.mapSelectionMode,
                 serverId: queueData.serverId,
                 hasPassword: !!queueData.password,
                 ranked: queueData.ranked,
                 startTime: queueData.startTime,
-                joiners: queueData.joiners,
+                joiners: enrichedJoiners,
                 createdAt: queueData.createdAt,
                 updatedAt: queueData.updatedAt,
               }

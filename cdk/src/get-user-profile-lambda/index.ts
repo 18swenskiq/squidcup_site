@@ -1,6 +1,6 @@
 import { SSMClient, GetParameterCommand } from "@aws-sdk/client-ssm";
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { DynamoDBDocumentClient, GetCommand } from '@aws-sdk/lib-dynamodb';
+import { DynamoDBDocumentClient, GetCommand, PutCommand } from '@aws-sdk/lib-dynamodb';
 import fetch from 'node-fetch';
 
 // Initialize clients
@@ -128,6 +128,58 @@ async function getSteamUserProfile(steamApiKey: string, steamId: string): Promis
   }
 }
 
+// Function to store/update player profile in database
+async function storePlayerProfile(steamId: string, steamProfile: SteamPlayer): Promise<void> {
+  try {
+    const now = new Date().toISOString();
+    
+    await docClient.send(new PutCommand({
+      TableName: process.env.TABLE_NAME,
+      Item: {
+        pk: `PLAYER#${steamId}`,
+        sk: 'PROFILE',
+        steamId: steamId,
+        name: steamProfile.personaname,
+        avatar: steamProfile.avatar,
+        avatarMedium: steamProfile.avatarmedium,
+        avatarFull: steamProfile.avatarfull,
+        loccountrycode: steamProfile.loccountrycode,
+        locstatecode: steamProfile.locstatecode,
+        updatedAt: now,
+        createdAt: now, // Will be overwritten if item already exists
+      },
+      // Only update createdAt if this is a new record
+      ConditionExpression: 'attribute_not_exists(pk)',
+    }));
+    
+    console.log('Player profile stored successfully for Steam ID:', steamId);
+  } catch (error: any) {
+    // If the condition fails, the player already exists, so update it
+    if (error.name === 'ConditionalCheckFailedException') {
+      await docClient.send(new PutCommand({
+        TableName: process.env.TABLE_NAME,
+        Item: {
+          pk: `PLAYER#${steamId}`,
+          sk: 'PROFILE',
+          steamId: steamId,
+          name: steamProfile.personaname,
+          avatar: steamProfile.avatar,
+          avatarMedium: steamProfile.avatarmedium,
+          avatarFull: steamProfile.avatarfull,
+          loccountrycode: steamProfile.loccountrycode,
+          locstatecode: steamProfile.locstatecode,
+          updatedAt: new Date().toISOString(),
+        },
+      }));
+      
+      console.log('Player profile updated successfully for Steam ID:', steamId);
+    } else {
+      console.error('Error storing player profile:', error);
+      throw error;
+    }
+  }
+}
+
 export async function handler(event: any): Promise<any> {
   console.log('Get user profile event received');
   console.log('Headers:', JSON.stringify(event.headers, null, 2));
@@ -183,6 +235,13 @@ export async function handler(event: any): Promise<any> {
         },
         body: JSON.stringify({ error: 'Failed to fetch Steam profile' }),
       };
+    }
+
+    // Store/update the player profile in the database
+    try {
+      await storePlayerProfile(numericSteamId, steamProfile);
+    } catch (error) {
+      console.error('Failed to store player profile, but continuing with response:', error);
     }
 
     return {

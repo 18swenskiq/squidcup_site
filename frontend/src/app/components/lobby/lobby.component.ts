@@ -12,11 +12,13 @@ export interface LobbyPlayer {
   team?: number;
   mapSelection?: string;
   hasSelectedMap?: boolean;
+  name?: string; // Add name field
 }
 
 export interface LobbyData {
   id: string;
   hostSteamId: string;
+  hostName?: string; // Add host name field
   gameMode: string;
   mapSelectionMode: string;
   serverId: string;
@@ -210,7 +212,8 @@ export class LobbyComponent implements OnInit, OnDestroy {
     if (teamPlayers.length === 0) return `Team ${teamNumber}`;
     
     const firstPlayer = teamPlayers[0];
-    const playerName = this.getPlayerDisplayName(firstPlayer.steamId);
+    // Use the name from lobby data if available, otherwise use profile or fallback
+    const playerName = firstPlayer.name || this.getPlayerDisplayName(firstPlayer.steamId);
     return `Team ${playerName}`;
   }
 
@@ -297,6 +300,13 @@ export class LobbyComponent implements OnInit, OnDestroy {
   }
 
   getPlayerDisplayName(steamId: string): string {
+    // First check if we have the name from the lobby data
+    const lobbyPlayer = this.lobby?.players?.find(p => p.steamId === steamId);
+    if (lobbyPlayer?.name) {
+      return lobbyPlayer.name;
+    }
+    
+    // Fallback to profile map
     const profile = this.playerProfiles.get(steamId);
     return profile ? profile.name : `Player ${steamId.slice(-4)}`;
   }
