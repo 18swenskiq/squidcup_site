@@ -1,32 +1,42 @@
-import { DynamoDBClient, DeleteItemCommand } from "@aws-sdk/client-dynamodb";
-import { DynamoDBDocumentClient, GetCommand, PutCommand } from "@aws-sdk/lib-dynamodb";
+import { LambdaClient, InvokeCommand } from "@aws-sdk/client-lambda";
 import * as crypto from 'crypto';
 
-const dynamoClient = new DynamoDBClient({ region: process.env.REGION });
-const docClient = DynamoDBDocumentClient.from(dynamoClient);
+// Initialize Lambda client
+const lambdaClient = new LambdaClient({ region: process.env.REGION });
 
 type GameMode = "5v5" | "wingman" | "3v3" | "1v1";
 type MapSelectionMode = "All Pick" | "Host Pick" | "Random Map";
 
+export interface DatabaseRequest {
+  operation: string;
+  data?: any;
+  params?: any[];
+  query?: string;
+}
+
+export interface DatabaseResponse {
+  success: boolean;
+  data?: any;
+  error?: string;
+}
+
 interface QueueData {
-  pk: string;
-  sk: string;
-  GSI1PK: string;
-  GSI1SK: string;
   id: string;
-  hostSteamId: string;
-  gameMode: GameMode;
-  mapSelectionMode: MapSelectionMode;
-  serverId: string;
-  password?: string;
-  ranked: boolean;
-  startTime: string;
-  joiners: Array<{
-    steamId: string;
-    joinTime: string;
-  }>;
-  createdAt: string;
-  updatedAt: string;
+  game_mode: string;
+  map: string;
+  host_steam_id: string;
+  max_players: number;
+  current_players: number;
+  status: string;
+  created_at: string;
+  updated_at: string;
+}
+
+interface QueuePlayer {
+  queue_id: string;
+  player_steam_id: string;
+  team: number;
+  joined_at: string;
 }
 
 interface LobbyPlayer {
@@ -37,11 +47,8 @@ interface LobbyPlayer {
 }
 
 interface LobbyData {
-  pk: string; // LOBBY#${lobbyId}
-  sk: string; // METADATA
-  GSI1PK: string; // ACTIVELOBBY
-  GSI1SK: string; // ${lobbyId}
   id: string;
+  queueId: string;
   hostSteamId: string;
   gameMode: GameMode;
   mapSelectionMode: MapSelectionMode;
@@ -53,6 +60,28 @@ interface LobbyData {
   selectedMap?: string; // Final selected map
   createdAt: string;
   updatedAt: string;
+}
+
+// Function to call database service
+async function callDatabaseService(request: DatabaseRequest): Promise<DatabaseResponse> {
+  try {
+    const command = new InvokeCommand({
+      FunctionName: process.env.DATABASE_SERVICE_FUNCTION_NAME,
+      Payload: JSON.stringify(request)
+    });
+
+    const response = await lambdaClient.send(command);
+    
+    if (!response.Payload) {
+      throw new Error('No response from database service');
+    }
+
+    const responseData = JSON.parse(Buffer.from(response.Payload).toString());
+    return responseData;
+  } catch (error) {
+    console.error('Error calling database service:', error);
+    throw error;
+  }
 }
 
 // Function to get the maximum players for a gamemode
@@ -94,23 +123,17 @@ async function storeLobbyHistoryEvent(
 ): Promise<void> {
   try {
     const eventId = crypto.randomUUID();
-    const now = new Date().toISOString();
 
-    await docClient.send(new PutCommand({
-      TableName: process.env.TABLE_NAME,
-      Item: {
-        pk: `LOBBYHISTORY#${userSteamId}`,
-        sk: `${now}#${eventId}`,
-        GSI1PK: `LOBBYEVENT#${lobbyId}`,
-        GSI1SK: `${now}#${eventType}`,
+    await callDatabaseService({
+      operation: 'storeLobbyHistoryEvent',
+      data: {
+        id: eventId,
         lobbyId,
-        userSteamId,
+        playerSteamId: userSteamId,
         eventType,
-        eventData: eventData || {},
-        timestamp: now,
-        createdAt: now,
+        eventData: eventData || {}
       }
-    }));
+    });
 
     console.log(`Stored lobby history event: ${eventType} for user ${userSteamId} in lobby ${lobbyId}`);
   } catch (error) {
@@ -137,16 +160,13 @@ export const handler = async (event: any) => {
       };
     }
 
-    // Get the queue from DynamoDB
-    const queueResult = await docClient.send(new GetCommand({
-      TableName: process.env.TABLE_NAME,
-      Key: {
-        pk: `ACTIVEQUEUE#${queueId}`,
-        sk: 'METADATA',
-      },
-    }));
+    // Get the queue from database
+    const queueResponse = await callDatabaseService({
+      operation: 'getQueue',
+      params: [queueId]
+    });
 
-    if (!queueResult.Item) {
+    if (!queueResponse.success || !queueResponse.data) {
       return {
         statusCode: 404,
         headers: {
@@ -158,11 +178,23 @@ export const handler = async (event: any) => {
       };
     }
 
-    const queueData = queueResult.Item as QueueData;
+    const queueData: QueueData = queueResponse.data;
+    
+    // Get queue players
+    const playersResponse = await callDatabaseService({
+      operation: 'getQueuePlayers',
+      params: [queueId]
+    });
+
+    if (!playersResponse.success) {
+      throw new Error('Failed to get queue players');
+    }
+
+    const queuePlayers: QueuePlayer[] = playersResponse.data || [];
     
     // Check if queue is full
-    const maxPlayers = getMaxPlayersForGamemode(queueData.gameMode);
-    const currentPlayers = 1 + queueData.joiners.length; // host + joiners
+    const maxPlayers = getMaxPlayersForGamemode(queueData.game_mode as GameMode);
+    const currentPlayers = 1 + queuePlayers.length; // host + joiners
     
     if (currentPlayers < maxPlayers) {
       return {
@@ -182,76 +214,92 @@ export const handler = async (event: any) => {
 
     // Create players array from queue data
     const allPlayers: LobbyPlayer[] = [
-      { steamId: queueData.hostSteamId, hasSelectedMap: false },
-      ...queueData.joiners.map(joiner => ({
-        steamId: joiner.steamId,
+      { steamId: queueData.host_steam_id, hasSelectedMap: false },
+      ...queuePlayers.map(player => ({
+        steamId: player.player_steam_id,
         hasSelectedMap: false
       }))
     ];
 
     // Balance players into teams if gamemode has more than 2 players
     const playersWithTeams = maxPlayers > 2 
-      ? balancePlayersIntoTeams(allPlayers, queueData.gameMode)
+      ? balancePlayersIntoTeams(allPlayers, queueData.game_mode as GameMode)
       : allPlayers;
 
-    // Determine if map selection is needed
-    const needsMapSelection = queueData.mapSelectionMode === 'All Pick' || queueData.mapSelectionMode === 'Host Pick';
+    // For now, we'll use default map selection mode since it's not stored in queue yet
+    // TODO: Add mapSelectionMode to queue schema
+    let mapSelectionMode = 'Host Pick' as MapSelectionMode; 
+    const needsMapSelection = mapSelectionMode === 'All Pick' || mapSelectionMode === 'Host Pick';
     let selectedMap: string | undefined;
     let mapSelectionComplete = false;
 
     // Handle Random Map selection immediately
-    if (queueData.mapSelectionMode === 'Random Map') {
+    if (mapSelectionMode === 'Random Map') {
       // TODO: Get random map from maps table based on gameMode
       // For now, we'll leave it undefined and handle it later
       mapSelectionComplete = true;
     }
 
     // Create lobby data
-    const lobbyData: LobbyData = {
-      pk: `LOBBY#${lobbyId}`,
-      sk: 'METADATA',
-      GSI1PK: 'ACTIVELOBBY',
-      GSI1SK: lobbyId,
+    const lobbyData = {
       id: lobbyId,
-      hostSteamId: queueData.hostSteamId,
-      gameMode: queueData.gameMode,
-      mapSelectionMode: queueData.mapSelectionMode,
-      serverId: queueData.serverId,
-      password: queueData.password,
-      ranked: queueData.ranked,
+      queueId: queueId,
+      gameMode: queueData.game_mode,
+      map: selectedMap,
+      hostSteamId: queueData.host_steam_id,
+      serverId: null, // Will be assigned later
+      status: 'waiting'
+    };
+
+    // Create the lobby in database
+    await callDatabaseService({
+      operation: 'createLobby',
+      data: lobbyData
+    });
+
+    // Add lobby players
+    await callDatabaseService({
+      operation: 'addLobbyPlayers',
+      params: [lobbyId],
+      data: playersWithTeams.map(player => ({
+        steamId: player.steamId,
+        team: player.team || 0
+      }))
+    });
+
+    // Delete the original queue
+    await callDatabaseService({
+      operation: 'deleteQueue',
+      params: [queueId]
+    });
+
+    // Store lobby creation events for all players
+    for (const player of playersWithTeams) {
+      await storeLobbyHistoryEvent(lobbyId, player.steamId, 'created', {
+        gameMode: queueData.game_mode,
+        mapSelectionMode: mapSelectionMode,
+        isHost: player.steamId === queueData.host_steam_id,
+        team: player.team
+      });
+    }
+
+    console.log('Lobby created successfully:', lobbyId);
+
+    // Create response data matching expected format
+    const responseData: LobbyData = {
+      id: lobbyId,
+      queueId: queueId,
+      hostSteamId: queueData.host_steam_id,
+      gameMode: queueData.game_mode as GameMode,
+      mapSelectionMode: mapSelectionMode,
+      serverId: '', // Will be assigned later
+      ranked: false, // Default for now
       players: playersWithTeams,
       mapSelectionComplete,
       selectedMap,
       createdAt: now,
       updatedAt: now,
     };
-
-    // Store the lobby in DynamoDB
-    await docClient.send(new PutCommand({
-      TableName: process.env.TABLE_NAME,
-      Item: lobbyData
-    }));
-
-    // Delete the original queue
-    await dynamoClient.send(new DeleteItemCommand({
-      TableName: process.env.TABLE_NAME,
-      Key: {
-        pk: { S: queueData.pk },
-        sk: { S: queueData.sk },
-      },
-    }));
-
-    // Store lobby creation events for all players
-    for (const player of playersWithTeams) {
-      await storeLobbyHistoryEvent(lobbyId, player.steamId, 'created', {
-        gameMode: queueData.gameMode,
-        mapSelectionMode: queueData.mapSelectionMode,
-        isHost: player.steamId === queueData.hostSteamId,
-        team: player.team
-      });
-    }
-
-    console.log('Lobby created successfully:', lobbyId);
 
     return {
       statusCode: 201,
@@ -262,7 +310,7 @@ export const handler = async (event: any) => {
       },
       body: JSON.stringify({
         message: 'Lobby created successfully',
-        lobby: lobbyData
+        lobby: responseData
       })
     };
 

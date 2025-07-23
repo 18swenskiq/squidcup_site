@@ -1,9 +1,8 @@
-import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { DynamoDBDocumentClient, PutCommand, GetCommand } from '@aws-sdk/lib-dynamodb';
+import { LambdaClient, InvokeCommand } from "@aws-sdk/client-lambda";
 import * as crypto from 'crypto';
 
-const dynamoClient = new DynamoDBClient({ region: process.env.REGION });
-const docClient = DynamoDBDocumentClient.from(dynamoClient);
+// Initialize Lambda client
+const lambdaClient = new LambdaClient({ region: process.env.REGION });
 
 export interface GameServer {
   id: string;
@@ -18,34 +17,37 @@ export interface GameServer {
   updatedAt: string;
 }
 
-// Function to get user session from DynamoDB
-async function getUserSession(sessionToken: string): Promise<{ userId: string; expiresAt: string } | null> {
+export interface DatabaseRequest {
+  operation: string;
+  data?: any;
+  params?: any[];
+}
+
+export interface DatabaseResponse {
+  success: boolean;
+  data?: any;
+  error?: string;
+}
+
+// Function to call database service
+async function callDatabaseService(request: DatabaseRequest): Promise<DatabaseResponse> {
   try {
-    const result = await docClient.send(new GetCommand({
-      TableName: process.env.TABLE_NAME,
-      Key: {
-        pk: `SESSION#${sessionToken}`,
-        sk: 'METADATA',
-      },
-    }));
+    const command = new InvokeCommand({
+      FunctionName: process.env.DATABASE_SERVICE_FUNCTION_NAME,
+      Payload: JSON.stringify(request)
+    });
 
-    if (!result.Item || result.Item.deleted) {
-      return null;
+    const response = await lambdaClient.send(command);
+    
+    if (!response.Payload) {
+      throw new Error('No response from database service');
     }
 
-    // Check if session is expired
-    const expiresAt = new Date(result.Item.expiresAt);
-    if (expiresAt < new Date()) {
-      return null;
-    }
-
-    return {
-      userId: result.Item.userId,
-      expiresAt: result.Item.expiresAt,
-    };
+    const responseData = JSON.parse(Buffer.from(response.Payload).toString());
+    return responseData;
   } catch (error) {
-    console.error('Error getting user session:', error);
-    return null;
+    console.error('Error calling database service:', error);
+    throw error;
   }
 }
 
@@ -68,9 +70,32 @@ function extractSteamIdFromOpenId(steamId: string): string {
 }
 
 // Function to check if user is admin
-function isAdmin(userId: string): boolean {
-  const numericSteamId = extractSteamIdFromOpenId(userId);
-  return numericSteamId === '76561198041569692';
+async function isAdmin(steamId: string): Promise<boolean> {
+  try {
+    const numericSteamId = extractSteamIdFromOpenId(steamId);
+    
+    const response = await callDatabaseService({
+      operation: 'getUser',
+      params: [numericSteamId]
+    });
+
+    if (!response.success) {
+      // Fallback to hardcoded admin check for initial setup
+      return numericSteamId === '76561198041569692';
+    }
+
+    if (!response.data) {
+      // User doesn't exist, fallback to hardcoded admin check
+      return numericSteamId === '76561198041569692';
+    }
+
+    return response.data.is_admin === 1;
+  } catch (error) {
+    console.error('Error checking admin status:', error);
+    // Fallback to hardcoded admin check
+    const numericSteamId = extractSteamIdFromOpenId(steamId);
+    return numericSteamId === '76561198041569692';
+  }
 }
 
 export async function handler(event: any): Promise<any> {
@@ -93,10 +118,27 @@ export async function handler(event: any): Promise<any> {
 
     const sessionToken = authHeader.substring(7);
     console.log('Extracted session token:', sessionToken);
-    const session = await getUserSession(sessionToken);
+    
+    // Get session from database service
+    const sessionResponse = await callDatabaseService({
+      operation: 'getSession',
+      params: [sessionToken]
+    });
+
+    if (!sessionResponse.success || !sessionResponse.data) {
+      return {
+        statusCode: 401,
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+        },
+        body: JSON.stringify({ error: 'Invalid or expired session' }),
+      };
+    }
+
+    const session = sessionResponse.data;
     console.log('Session result:', session);
     
-    if (!session || !isAdmin(session.userId)) {
+    if (!(await isAdmin(session.steamId))) {
       return {
         statusCode: 403,
         headers: {
@@ -128,21 +170,33 @@ export async function handler(event: any): Promise<any> {
       port: Number(port),
       location,
       rconPassword,
-      defaultPassword: defaultPassword || '', // Optional field, default to empty string
+      defaultPassword: defaultPassword || '',
       maxPlayers: Number(maxPlayers),
       nickname,
       createdAt: now,
       updatedAt: now
     };
 
-    await docClient.send(new PutCommand({
-      TableName: process.env.TABLE_NAME,
-      Item: {
-        pk: `SERVER#${serverId}`,
-        sk: 'METADATA',
-        ...server
+    // Add server using database service
+    const addServerResponse = await callDatabaseService({
+      operation: 'addServer',
+      data: server
+    });
+
+    if (!addServerResponse.success) {
+      // Check if it's a duplicate entry error
+      if (addServerResponse.error?.includes('Duplicate entry') || addServerResponse.error?.includes('unique_ip_port')) {
+        return {
+          statusCode: 409,
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+          },
+          body: JSON.stringify({ error: 'Server with this IP and port already exists' }),
+        };
       }
-    }));
+      
+      throw new Error(addServerResponse.error || 'Failed to add server');
+    }
 
     console.log('Server added successfully:', server);
 
@@ -157,6 +211,7 @@ export async function handler(event: any): Promise<any> {
     };
   } catch (error) {
     console.error('Error adding server:', error);
+    
     return {
       statusCode: 500,
       headers: {
