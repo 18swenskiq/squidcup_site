@@ -55,8 +55,7 @@ export class ApiStack extends cdk.Stack {
       handler: 'index.handler',
       code: lambda.Code.fromAsset(path.join(__dirname, '/../src/steam-login-lambda')),
       environment: {
-        REGION: this.REGION,
-        TABLE_NAME: table.tableName,
+        AWS_REGION: this.REGION,
         FRONTEND_URL: 'https://squidcup.spkymnr.xyz', // Your actual domain
       }
     });
@@ -273,7 +272,6 @@ export class ApiStack extends cdk.Stack {
     });
 
     // Add the SSM policy to all Lambda functions
-    steamLoginFunction.addToRolePolicy(ssmPolicy);
     databaseServiceFunction.addToRolePolicy(ssmPolicy);
     addServerFunction.addToRolePolicy(ssmPolicy);
     deleteServerFunction.addToRolePolicy(ssmPolicy);
@@ -281,7 +279,6 @@ export class ApiStack extends cdk.Stack {
     createLobbyFunction.addToRolePolicy(ssmPolicy);
 
     // Grant DynamoDB permissions to Lambda functions
-    table.grantReadWriteData(steamLoginFunction);
     databaseServiceFunction.grantInvoke(getUserProfileFunction);
     databaseServiceFunction.grantInvoke(getUserQueueFunction);
     databaseServiceFunction.grantInvoke(queueCleanupFunction);
@@ -303,10 +300,14 @@ export class ApiStack extends cdk.Stack {
     databaseServiceFunction.grantInvoke(leaveQueueFunction);
     databaseServiceFunction.grantInvoke(selectMapFunction);
     databaseServiceFunction.grantInvoke(startQueueFunction);
+    databaseServiceFunction.grantInvoke(steamLoginFunction);
     // Note: We'll add more functions here as we convert them
 
     // Add environment variable to join queue function for create lobby function name
     joinQueueFunction.addEnvironment('CREATE_LOBBY_FUNCTION_NAME', createLobbyFunction.functionName);
+    
+    // Add database service function name to steam login function
+    steamLoginFunction.addEnvironment('DATABASE_SERVICE_FUNCTION_NAME', databaseServiceFunction.functionName);
 
     // Create CloudWatch log group for API Gateway
     const apiLogGroup = new logs.LogGroup(this, 'ApiGatewayLogGroup', {
