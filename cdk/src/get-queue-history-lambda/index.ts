@@ -137,12 +137,24 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
     const userSteamId = extractSteamIdFromOpenId(sessionData.steamId);
     console.log('User Steam ID:', userSteamId);
 
+    // Validate Steam ID before proceeding
+    if (!userSteamId || userSteamId === '') {
+      console.error('Invalid Steam ID extracted:', userSteamId);
+      return {
+        statusCode: 400,
+        headers: corsHeaders,
+        body: JSON.stringify({ error: 'Invalid user Steam ID' }),
+      };
+    }
+
     // Get queue history from database service
     console.log('Getting queue history for user:', userSteamId);
+    console.log('Calling database service with params:', JSON.stringify({ steamId: userSteamId, limit: 20 }));
     const queueHistoryData = await callDatabaseService('getUserQueueHistory', undefined, { 
       steamId: userSteamId, 
       limit: 20 
     });
+    console.log('Received queue history data:', queueHistoryData ? queueHistoryData.length : 0, 'entries');
 
     // Transform the data to match the expected response format
     const queueHistory: QueueHistoryResponse[] = (queueHistoryData || []).map((item: any) => {

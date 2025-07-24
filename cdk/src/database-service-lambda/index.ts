@@ -781,6 +781,12 @@ async function storeQueueHistoryEvent(connection: mysql.Connection, eventData: a
 
 // Function to get queue history for a user
 async function getUserQueueHistory(connection: mysql.Connection, steamId: string, limit: number = 50): Promise<any[]> {
+  console.log('getUserQueueHistory called with steamId:', steamId, 'limit:', limit, 'limit type:', typeof limit);
+  
+  // Ensure limit is a positive integer
+  const sanitizedLimit = Math.max(1, Math.min(100, Math.floor(Number(limit) || 20)));
+  console.log('Sanitized limit:', sanitizedLimit);
+  
   return await executeQuery(
     connection,
     `SELECT qh.*, q.game_mode, q.map_selection_mode
@@ -789,7 +795,7 @@ async function getUserQueueHistory(connection: mysql.Connection, steamId: string
      WHERE qh.player_steam_id = ?
      ORDER BY qh.created_at DESC
      LIMIT ?`,
-    [steamId, limit]
+    [steamId, sanitizedLimit]
   );
 }
 

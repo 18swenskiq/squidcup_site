@@ -1,7 +1,10 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda';
 
-const lambdaClient = new LambdaClient({ region: process.env.REGION });
+const lambdaClient = new LambdaClient({ 
+  region: process.env.REGION,
+  maxAttempts: 3, // Retry failed requests
+});
 
 interface QueueData {
   id: string;
