@@ -636,6 +636,26 @@ async function getLobbyPlayers(connection: mysql.Connection, lobbyId: string): P
   );
 }
 
+// Function to update lobby
+async function updateLobby(connection: mysql.Connection, lobbyId: string, lobbyData: any): Promise<void> {
+  const fields = [];
+  const values = [];
+  
+  if (lobbyData.map !== undefined) { fields.push('map = ?'); values.push(lobbyData.map); }
+  if (lobbyData.status !== undefined) { fields.push('status = ?'); values.push(lobbyData.status); }
+  if (lobbyData.serverId !== undefined) { fields.push('server_id = ?'); values.push(lobbyData.serverId); }
+  if (lobbyData.gameMode !== undefined) { fields.push('game_mode = ?'); values.push(lobbyData.gameMode); }
+  
+  fields.push('updated_at = CURRENT_TIMESTAMP');
+  values.push(lobbyId);
+  
+  await executeQuery(
+    connection,
+    `UPDATE lobbies SET ${fields.join(', ')} WHERE id = ?`,
+    values
+  );
+}
+
 // Function to add lobby players
 async function addLobbyPlayers(connection: mysql.Connection, lobbyId: string, players: any[]): Promise<void> {
   if (players.length === 0) return;
@@ -916,6 +936,10 @@ export async function handler(event: DatabaseRequest): Promise<DatabaseResponse>
 
       case 'addLobbyPlayers':
         await addLobbyPlayers(connection, event.params![0], event.data);
+        return { success: true };
+
+      case 'updateLobby':
+        await updateLobby(connection, event.params![0], event.data);
         return { success: true };
 
       case 'deleteLobby':
