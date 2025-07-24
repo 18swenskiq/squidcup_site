@@ -9,7 +9,8 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {
-    "@squidcup/shared-lambda-utils": "file:../../../packages/shared-lambda-utils"
+    "@squidcup/shared-lambda-utils": "file:../../../packages/shared-lambda-utils",
+    "@squidcup/types-squidcup": "file:../../../packages/types-squidcup"
   },
   "devDependencies": {
     "@aws-sdk/client-lambda": "^3.0.0",

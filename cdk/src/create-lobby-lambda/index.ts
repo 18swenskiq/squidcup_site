@@ -9,48 +9,13 @@ import {
   GameMode,
   MapSelectionMode 
 } from '@squidcup/shared-lambda-utils';
+import { QueueData, QueuePlayer, LobbyPlayer, LobbyData } from '@squidcup/types-squidcup';
 import * as crypto from 'crypto';
 
-interface QueueData {
-  id: string;
-  game_mode: string;
-  map: string;
-  host_steam_id: string;
-  max_players: number;
-  current_players: number;
-  status: string;
-  created_at: string;
-  updated_at: string;
-}
-
-interface QueuePlayer {
-  queue_id: string;
-  player_steam_id: string;
-  team: number;
-  joined_at: string;
-}
-
-interface LobbyPlayer {
-  steamId: string;
-  team?: number; // 1 or 2 for team assignment
-  mapSelection?: string; // Selected map ID (for applicable modes)
-  hasSelectedMap?: boolean;
-}
-
-interface LobbyData {
-  id: string;
-  queueId: string;
-  hostSteamId: string;
-  gameMode: GameMode;
-  mapSelectionMode: MapSelectionMode;
-  serverId: string;
-  password?: string;
-  ranked: boolean;
-  players: LobbyPlayer[];
+// Extended response interface for API responses
+interface LobbyResponseData extends LobbyData {
   mapSelectionComplete: boolean;
-  selectedMap?: string; // Final selected map
-  createdAt: string;
-  updatedAt: string;
+  selectedMap?: string;
 }
 
 // Function to balance players into teams
@@ -63,7 +28,7 @@ function balancePlayersIntoTeams(players: LobbyPlayer[], gameMode: GameMode): Lo
   
   return shuffledPlayers.map((player, index) => ({
     ...player,
-    team: Math.floor(index / playersPerTeam) + 1
+    team: String(Math.floor(index / playersPerTeam) + 1) // Convert to string as required by LobbyPlayer
   }));
 }
 
@@ -125,10 +90,13 @@ export const handler = async (event: any) => {
 
     // Create players array from queue data
     const allPlayers: LobbyPlayer[] = [
-      { steamId: queueData.host_steam_id, hasSelectedMap: false },
+      { 
+        player_steam_id: queueData.host_steam_id, 
+        joined_at: new Date().toISOString() 
+      },
       ...queuePlayers.map(player => ({
-        steamId: player.player_steam_id,
-        hasSelectedMap: false
+        player_steam_id: player.player_steam_id,
+        joined_at: player.joined_at
       }))
     ];
 
@@ -167,8 +135,8 @@ export const handler = async (event: any) => {
 
     // Add lobby players
     await addLobbyPlayers(lobbyId, playersWithTeams.map(player => ({
-      steamId: player.steamId,
-      team: player.team || 0
+      player_steam_id: player.player_steam_id,
+      team: player.team || '0'
     })));
 
     // Delete the original queue
@@ -179,12 +147,12 @@ export const handler = async (event: any) => {
       await storeLobbyHistoryEvent({
         id: crypto.randomUUID(),
         lobbyId,
-        playerSteamId: player.steamId,
+        playerSteamId: player.player_steam_id,
         eventType: 'created',
         eventData: {
           gameMode: queueData.game_mode,
           mapSelectionMode: mapSelectionMode,
-          isHost: player.steamId === queueData.host_steam_id,
+          isHost: player.player_steam_id === queueData.host_steam_id,
           team: player.team
         }
       });
@@ -193,19 +161,19 @@ export const handler = async (event: any) => {
     console.log('Lobby created successfully:', lobbyId);
 
     // Create response data matching expected format
-    const responseData: LobbyData = {
+    const responseData: LobbyResponseData = {
       id: lobbyId,
-      queueId: queueId,
-      hostSteamId: queueData.host_steam_id,
-      gameMode: queueData.game_mode as GameMode,
-      mapSelectionMode: mapSelectionMode,
-      serverId: '', // Will be assigned later
+      host_steam_id: queueData.host_steam_id,
+      game_mode: queueData.game_mode as GameMode,
+      map_selection_mode: mapSelectionMode,
+      server_id: '', // Will be assigned later
       ranked: false, // Default for now
+      status: 'active' as any, // Temporary cast, should match LobbyStatus
       players: playersWithTeams,
       mapSelectionComplete,
       selectedMap,
-      createdAt: now,
-      updatedAt: now,
+      created_at: now,
+      updated_at: now,
     };
 
     return {
