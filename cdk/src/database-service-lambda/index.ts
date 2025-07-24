@@ -56,11 +56,11 @@ async function getDatabaseConfig(): Promise<DatabaseConfig> {
 
   try {
     const [host, port, user, password, database] = await Promise.all([
-      getParameterValue('/squidcup/mysql/host'),
-      getParameterValue('/squidcup/mysql/port'),
-      getParameterValue('/squidcup/mysql/user'),
-      getParameterValue('/squidcup/mysql/password'),
-      getParameterValue('/squidcup/mysql/database')
+      getParameterValue('/squidcup/sql/host'),
+      getParameterValue('/squidcup/sql/port'),
+      getParameterValue('/squidcup/sql/user'),
+      getParameterValue('/squidcup/sql/password'),
+      getParameterValue('/squidcup/sql/database')
     ]);
 
     cachedConfig = {
