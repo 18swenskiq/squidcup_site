@@ -117,7 +117,7 @@ export class ApiStack extends cdk.Stack {
     const getUserQueueFunction = new lambda.Function(this, "get-user-queue-function", {
       runtime: this.RUNTIME,
       memorySize: this.MEMORY_SIZE,
-      timeout: this.TIMEOUT,
+      timeout: cdk.Duration.seconds(10), // Extended timeout for comprehensive metrics collection
       handler: 'index.handler',
       code: lambda.Code.fromAsset(path.join(__dirname, '/../src/get-user-queue-lambda')),
       environment: {

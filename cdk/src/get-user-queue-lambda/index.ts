@@ -44,40 +44,78 @@ interface LobbyData {
   updated_at: string;
 }
 
-// Function to call database service
+// Function to call database service with timeout protection
 async function callDatabaseService(operation: string, params?: any[], data?: any): Promise<any> {
+  const startTime = Date.now();
+  console.log(`[DB Service] Starting ${operation} operation with params:`, params?.length || 0, 'data keys:', data ? Object.keys(data).length : 0);
+  
   const payload = {
     operation,
     params,
     data
   };
 
-  const command = new InvokeCommand({
-    FunctionName: process.env.DATABASE_SERVICE_FUNCTION_NAME,
-    Payload: new TextEncoder().encode(JSON.stringify(payload)),
-  });
+  try {
+    const command = new InvokeCommand({
+      FunctionName: process.env.DATABASE_SERVICE_FUNCTION_NAME,
+      Payload: new TextEncoder().encode(JSON.stringify(payload)),
+    });
 
-  const response = await lambdaClient.send(command);
-  const result = JSON.parse(new TextDecoder().decode(response.Payload));
+    // Add timeout protection (8 seconds to leave buffer for overall 10s lambda timeout)
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error(`Database operation ${operation} timed out after 8000ms`)), 8000);
+    });
 
-  if (!result.success) {
-    throw new Error(result.error || 'Database operation failed');
+    const lambdaInvokeStart = Date.now();
+    const response = await Promise.race([
+      lambdaClient.send(command),
+      timeoutPromise
+    ]) as any;
+    const lambdaInvokeTime = Date.now() - lambdaInvokeStart;
+    console.log(`[DB Service] Lambda invocation for ${operation} took ${lambdaInvokeTime}ms`);
+    
+    const parseStart = Date.now();
+    const result = JSON.parse(new TextDecoder().decode(response.Payload));
+    const parseTime = Date.now() - parseStart;
+    console.log(`[DB Service] Response parsing for ${operation} took ${parseTime}ms`);
+
+    if (!result.success) {
+      const totalTime = Date.now() - startTime;
+      console.error(`[DB Service] ${operation} failed after ${totalTime}ms:`, result.error);
+      throw new Error(result.error || 'Database operation failed');
+    }
+
+    const totalTime = Date.now() - startTime;
+    console.log(`[DB Service] ${operation} completed successfully in ${totalTime}ms, returned ${Array.isArray(result.data) ? result.data.length : typeof result.data} items`);
+    
+    return result.data;
+    
+  } catch (error) {
+    const totalTime = Date.now() - startTime;
+    console.error(`[DB Service] ${operation} failed after ${totalTime}ms:`, error);
+    throw error;
   }
-
-  return result.data;
 }
 
 // Function to get player names by Steam IDs
 async function getPlayerNames(steamIds: string[]): Promise<Map<string, string>> {
+  const startTime = Date.now();
+  console.log(`[Player Names] Starting lookup for ${steamIds.length} Steam IDs:`, steamIds);
+  
   const playerNames = new Map<string, string>();
   
   if (steamIds.length === 0) {
+    console.log('[Player Names] No Steam IDs provided, returning empty map');
     return playerNames;
   }
 
   try {
+    const dbCallStart = Date.now();
     const users = await callDatabaseService('getUsersBySteamIds', [steamIds]);
+    const dbCallTime = Date.now() - dbCallStart;
+    console.log(`[Player Names] Database call completed in ${dbCallTime}ms, found ${users.length} users`);
     
+    const processingStart = Date.now();
     for (const user of users) {
       playerNames.set(user.steam_id, user.username || `Player ${user.steam_id.slice(-4)}`);
     }
@@ -88,24 +126,31 @@ async function getPlayerNames(steamIds: string[]): Promise<Map<string, string>> 
         playerNames.set(steamId, `Player ${steamId.slice(-4)}`);
       }
     }
+    const processingTime = Date.now() - processingStart;
+    console.log(`[Player Names] Name processing completed in ${processingTime}ms`);
 
-    console.log('Retrieved player names:', Object.fromEntries(playerNames));
+    const totalTime = Date.now() - startTime;
+    console.log(`[Player Names] Total lookup completed in ${totalTime}ms, resolved ${playerNames.size} names`);
+    console.log('[Player Names] Retrieved player names:', Object.fromEntries(playerNames));
     return playerNames;
     
   } catch (error) {
-    console.error('Error getting player names:', error);
+    const totalTime = Date.now() - startTime;
+    console.error(`[Player Names] Error after ${totalTime}ms:`, error);
     
     // Fallback: create names for all Steam IDs
     for (const steamId of steamIds) {
       playerNames.set(steamId, `Player ${steamId.slice(-4)}`);
     }
     
+    console.log(`[Player Names] Using fallback names for ${playerNames.size} Steam IDs`);
     return playerNames;
   }
 }
 
 export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
-  console.log('Get user queue handler started');
+  const startTime = Date.now();
+  console.log('Get user queue handler started at:', new Date().toISOString());
   console.log('Event:', JSON.stringify(event, null, 2));
   
   const corsHeaders = {
@@ -117,6 +162,8 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
   try {
     // Handle preflight OPTIONS request
     if (event.httpMethod === 'OPTIONS') {
+      const optionsTime = Date.now() - startTime;
+      console.log(`OPTIONS request handled in ${optionsTime}ms`);
       return {
         statusCode: 200,
         headers: corsHeaders,
@@ -125,8 +172,11 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
     }
 
     // Get session token from headers
+    const authCheckStart = Date.now();
     const authHeader = event.headers.Authorization || event.headers.authorization;
     if (!authHeader) {
+      const authTime = Date.now() - authCheckStart;
+      console.log(`Auth check failed in ${authTime}ms - no header`);
       return {
         statusCode: 401,
         headers: corsHeaders,
@@ -136,10 +186,19 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
 
     // Extract token from Bearer format
     const sessionToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : authHeader;
+    const authTime = Date.now() - authCheckStart;
+    console.log(`Auth header processed in ${authTime}ms`);
 
     // Validate session using database service
+    const sessionValidationStart = Date.now();
+    console.log(`Starting session validation for token: ${sessionToken.substring(0, 8)}...`);
     const session = await callDatabaseService('getSession', [sessionToken]);
+    const sessionValidationTime = Date.now() - sessionValidationStart;
+    console.log(`Session validation completed in ${sessionValidationTime}ms`);
+    
     if (!session) {
+      const totalTime = Date.now() - startTime;
+      console.log(`Invalid session - total time: ${totalTime}ms`);
       return {
         statusCode: 401,
         headers: corsHeaders,
@@ -151,15 +210,23 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
     console.log('User Steam ID:', userSteamId);
 
     // First check if user is in a lobby
+    const lobbyCheckStart = Date.now();
+    console.log('Starting lobby check for user:', userSteamId);
     const userLobby: LobbyData = await callDatabaseService('getUserActiveLobby', [userSteamId]);
+    const lobbyCheckTime = Date.now() - lobbyCheckStart;
+    console.log(`Lobby check completed in ${lobbyCheckTime}ms, found lobby:`, !!userLobby);
     
     if (userLobby) {
       console.log('User found in lobby:', userLobby.id);
       const isHost = userLobby.isHost || userLobby.host_steam_id === userSteamId;
       
       // Get player names for all players in the lobby
+      const playerNamesStart = Date.now();
       const allSteamIds = [userLobby.host_steam_id, ...userLobby.players.map(p => p.player_steam_id)];
+      console.log(`Getting player names for ${allSteamIds.length} users in lobby`);
       const playerNames = await getPlayerNames(allSteamIds);
+      const playerNamesTime = Date.now() - playerNamesStart;
+      console.log(`Player names retrieved in ${playerNamesTime}ms`);
       
       // Enrich players with names
       const enrichedPlayers = userLobby.players.map(player => ({
@@ -168,6 +235,10 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
         joinedAt: player.joined_at,
         name: playerNames.get(player.player_steam_id) || `Player ${player.player_steam_id.slice(-4)}`
       }));
+      
+      const totalTime = Date.now() - startTime;
+      console.log(`Lobby response completed in total ${totalTime}ms`);
+      console.log(`[TIMING SUMMARY] Auth: ${authTime}ms, Session: ${sessionValidationTime}ms, Lobby: ${lobbyCheckTime}ms, PlayerNames: ${playerNamesTime}ms, Total: ${totalTime}ms`);
       
       return {
         statusCode: 200,
@@ -193,15 +264,23 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
     }
 
     // Check if user is in a queue
+    const queueCheckStart = Date.now();
+    console.log('Starting queue check for user:', userSteamId);
     const userQueue: QueueData = await callDatabaseService('getUserActiveQueue', [userSteamId]);
+    const queueCheckTime = Date.now() - queueCheckStart;
+    console.log(`Queue check completed in ${queueCheckTime}ms, found queue:`, !!userQueue);
     
     if (userQueue) {
       console.log('User found in queue:', userQueue.id);
       const isHost = userQueue.isHost || userQueue.host_steam_id === userSteamId;
       
       // Get player names for host and all players
+      const playerNamesStart = Date.now();
       const allSteamIds = [userQueue.host_steam_id, ...userQueue.players.map(p => p.player_steam_id)];
+      console.log(`Getting player names for ${allSteamIds.length} users in queue`);
       const playerNames = await getPlayerNames(allSteamIds);
+      const playerNamesTime = Date.now() - playerNamesStart;
+      console.log(`Player names retrieved in ${playerNamesTime}ms`);
       
       // Enrich players with names (converting from queue players to joiners format)
       const enrichedJoiners = userQueue.players
@@ -211,6 +290,10 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
           joinTime: player.joined_at,
           name: playerNames.get(player.player_steam_id) || `Player ${player.player_steam_id.slice(-4)}`
         }));
+      
+      const totalTime = Date.now() - startTime;
+      console.log(`Queue response completed in total ${totalTime}ms`);
+      console.log(`[TIMING SUMMARY] Auth: ${authTime}ms, Session: ${sessionValidationTime}ms, Lobby: ${lobbyCheckTime}ms, Queue: ${queueCheckTime}ms, PlayerNames: ${playerNamesTime}ms, Total: ${totalTime}ms`);
       
       return {
         statusCode: 200,
@@ -237,6 +320,10 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
     }
 
     // User is not in any queue or lobby
+    const totalTime = Date.now() - startTime;
+    console.log(`No queue/lobby found - total time: ${totalTime}ms`);
+    console.log(`[TIMING SUMMARY] Auth: ${authTime}ms, Session: ${sessionValidationTime}ms, Lobby: ${lobbyCheckTime}ms, Queue: ${queueCheckTime}ms, Total: ${totalTime}ms`);
+    
     return {
       statusCode: 200,
       headers: corsHeaders,
@@ -250,13 +337,23 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
     };
 
   } catch (error) {
-    console.error('Error checking user queue status:', error);
+    const totalTime = Date.now() - startTime;
+    console.error(`Error checking user queue status after ${totalTime}ms:`, error);
+    
+    // Log detailed error information
+    if (error instanceof Error) {
+      console.error('Error name:', error.name);
+      console.error('Error message:', error.message);
+      console.error('Error stack:', error.stack);
+    }
+    
     return {
       statusCode: 500,
       headers: corsHeaders,
       body: JSON.stringify({ 
         error: 'Internal server error',
-        details: error instanceof Error ? error.message : String(error)
+        details: error instanceof Error ? error.message : String(error),
+        executionTimeMs: totalTime
       }),
     };
   }
