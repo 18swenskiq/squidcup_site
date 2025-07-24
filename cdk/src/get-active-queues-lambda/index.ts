@@ -95,7 +95,7 @@ export const handler = async (event: any) => {
         gameMode: gameMode,
         players: queue.players,
         maxPlayers: maxPlayers,
-        server: 'Unknown Server', // TODO: Add server lookup when server field is added to queues
+        server: queue.serverName || 'Unknown Server',
         ranked: queue.ranked || false,
         hasPassword: queue.hasPassword || false,
         createdAt: queue.createdAt || '',

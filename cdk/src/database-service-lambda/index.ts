@@ -151,15 +151,23 @@ async function ensureTablesExist(connection: mysql.Connection): Promise<void> {
         id VARCHAR(36) PRIMARY KEY,
         game_mode VARCHAR(20) NOT NULL,
         map VARCHAR(100),
+        map_selection_mode ENUM('All Pick', 'Host Pick', 'Random Map') NOT NULL,
         host_steam_id VARCHAR(20) NOT NULL,
+        server_id VARCHAR(36),
+        password VARCHAR(255),
+        ranked BOOLEAN DEFAULT FALSE,
+        start_time TIMESTAMP NOT NULL,
         max_players INT NOT NULL,
         current_players INT DEFAULT 0,
         status ENUM('waiting', 'ready', 'in_progress', 'completed', 'cancelled') DEFAULT 'waiting',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         FOREIGN KEY (host_steam_id) REFERENCES users(steam_id),
+        FOREIGN KEY (server_id) REFERENCES servers(id),
         INDEX idx_status (status),
-        INDEX idx_game_mode (game_mode)
+        INDEX idx_game_mode (game_mode),
+        INDEX idx_server_id (server_id),
+        INDEX idx_start_time (start_time)
       )
     `);
 
@@ -400,12 +408,130 @@ async function getQueue(connection: mysql.Connection, queueId: string): Promise<
   return rows.length > 0 ? rows[0] : null;
 }
 
+// Function to get queue with players by ID
+async function getQueueWithPlayers(connection: mysql.Connection, queueId: string): Promise<any> {
+  const queue = await getQueue(connection, queueId);
+  if (!queue) return null;
+  
+  const players = await getQueuePlayers(connection, queueId);
+  return {
+    ...queue,
+    players
+  };
+}
+
+// Function to get user's active queue (where they are host or player)
+async function getUserActiveQueue(connection: mysql.Connection, steamId: string): Promise<any> {
+  // First check if user is hosting a queue
+  const hostQueue = await executeQuery(
+    connection,
+    'SELECT * FROM queues WHERE host_steam_id = ? AND status = "waiting"',
+    [steamId]
+  );
+  
+  if (hostQueue.length > 0) {
+    const players = await getQueuePlayers(connection, hostQueue[0].id);
+    return {
+      ...hostQueue[0],
+      players,
+      isHost: true
+    };
+  }
+  
+  // Check if user is a player in any queue
+  const playerQueue = await executeQuery(
+    connection,
+    `SELECT q.*, qp.joined_at, qp.team
+     FROM queues q
+     INNER JOIN queue_players qp ON q.id = qp.queue_id
+     WHERE qp.player_steam_id = ? AND q.status = "waiting"`,
+    [steamId]
+  );
+  
+  if (playerQueue.length > 0) {
+    const players = await getQueuePlayers(connection, playerQueue[0].id);
+    return {
+      ...playerQueue[0],
+      players,
+      isHost: false,
+      userJoinedAt: playerQueue[0].joined_at,
+      userTeam: playerQueue[0].team
+    };
+  }
+  
+  return null;
+}
+
 // Function to get queue players
 async function getQueuePlayers(connection: mysql.Connection, queueId: string): Promise<any[]> {
   return await executeQuery(
     connection,
     'SELECT * FROM queue_players WHERE queue_id = ? ORDER BY joined_at',
     [queueId]
+  );
+}
+
+// Function to create queue
+async function createQueue(connection: mysql.Connection, queueData: any): Promise<void> {
+  await executeQuery(
+    connection,
+    `INSERT INTO queues (id, game_mode, map, map_selection_mode, host_steam_id, server_id, password, ranked, start_time, max_players)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      queueData.id,
+      queueData.gameMode,
+      queueData.map,
+      queueData.mapSelectionMode,
+      queueData.hostSteamId,
+      queueData.serverId,
+      queueData.password || null,
+      queueData.ranked || false,
+      queueData.startTime,
+      queueData.maxPlayers
+    ]
+  );
+}
+
+// Function to update queue
+async function updateQueue(connection: mysql.Connection, queueId: string, queueData: any): Promise<void> {
+  const fields = [];
+  const values = [];
+  
+  if (queueData.currentPlayers !== undefined) { fields.push('current_players = ?'); values.push(queueData.currentPlayers); }
+  if (queueData.status !== undefined) { fields.push('status = ?'); values.push(queueData.status); }
+  if (queueData.map !== undefined) { fields.push('map = ?'); values.push(queueData.map); }
+  
+  fields.push('updated_at = CURRENT_TIMESTAMP');
+  values.push(queueId);
+  
+  await executeQuery(
+    connection,
+    `UPDATE queues SET ${fields.join(', ')} WHERE id = ?`,
+    values
+  );
+}
+
+// Function to add player to queue
+async function addPlayerToQueue(connection: mysql.Connection, queueId: string, playerData: any): Promise<void> {
+  await executeQuery(
+    connection,
+    `INSERT INTO queue_players (queue_id, player_steam_id, team, joined_at)
+     VALUES (?, ?, ?, ?)`,
+    [
+      queueId,
+      playerData.steamId,
+      playerData.team || 0,
+      playerData.joinTime || new Date().toISOString()
+    ]
+  );
+}
+
+// Function to remove player from queue
+async function removePlayerFromQueue(connection: mysql.Connection, queueId: string, steamId: string): Promise<void> {
+  await executeQuery(
+    connection,
+    'DELETE FROM queue_players WHERE queue_id = ? AND player_steam_id = ?',
+    [queueId, steamId]
   );
 }
 
@@ -465,29 +591,66 @@ async function storeLobbyHistoryEvent(connection: mysql.Connection, eventData: a
   );
 }
 
+// Function to store queue history event
+async function storeQueueHistoryEvent(connection: mysql.Connection, eventData: any): Promise<void> {
+  await executeQuery(
+    connection,
+    `INSERT INTO queue_history (id, queue_id, player_steam_id, event_type, event_data)
+     VALUES (?, ?, ?, ?, ?)`,
+    [
+      eventData.id,
+      eventData.queueId,
+      eventData.playerSteamId,
+      eventData.eventType,
+      JSON.stringify(eventData.eventData || {})
+    ]
+  );
+}
+
+// Function to get queue history for a user
+async function getUserQueueHistory(connection: mysql.Connection, steamId: string, limit: number = 50): Promise<any[]> {
+  return await executeQuery(
+    connection,
+    `SELECT qh.*, q.game_mode, q.map_selection_mode
+     FROM queue_history qh
+     LEFT JOIN queues q ON qh.queue_id = q.id
+     WHERE qh.player_steam_id = ?
+     ORDER BY qh.created_at DESC
+     LIMIT ?`,
+    [steamId, limit]
+  );
+}
+
 // Function to get active queues with user and server details
 async function getActiveQueuesWithDetails(connection: mysql.Connection): Promise<any[]> {
-  // Get all active queues with host information
+  // Get all active queues with host information and server details
   const queues = await executeQuery(
     connection,
     `SELECT 
       q.id,
       q.game_mode,
       q.map,
+      q.map_selection_mode,
       q.host_steam_id,
+      q.server_id,
+      q.password,
+      q.ranked,
+      q.start_time,
       q.max_players,
       q.current_players,
       q.status,
       q.created_at,
       q.updated_at,
-      u.personaname as host_name
+      u.personaname as host_name,
+      s.nickname as server_name
      FROM queues q
      LEFT JOIN users u ON q.host_steam_id = u.steam_id
+     LEFT JOIN servers s ON q.server_id = s.id
      WHERE q.status = 'waiting'
      ORDER BY q.created_at DESC`
   );
 
-  // For each queue, get the players and server details
+  // For each queue, get the players
   const result = [];
   for (const queue of queues) {
     // Get queue players
@@ -517,11 +680,15 @@ async function getActiveQueuesWithDetails(connection: mysql.Connection): Promise
       hostSteamId: queue.host_steam_id,
       hostName: queue.host_name || 'Unknown',
       gameMode: queue.game_mode,
+      mapSelectionMode: queue.map_selection_mode,
+      serverId: queue.server_id,
+      serverName: queue.server_name || 'Unknown Server',
+      startTime: queue.start_time,
       players: 1 + joiners.length, // host + joiners
       maxPlayers: queue.max_players,
       joiners: joiners,
-      ranked: false, // TODO: Add ranked field to queues table when needed
-      hasPassword: false, // TODO: Add password field to queues table when needed  
+      ranked: !!queue.ranked,
+      hasPassword: !!queue.password,
       createdAt: queue.created_at,
       lastActivity: queue.updated_at || queue.created_at
     });
@@ -589,6 +756,14 @@ export async function handler(event: DatabaseRequest): Promise<DatabaseResponse>
         const queue = await getQueue(connection, event.params![0]);
         return { success: true, data: queue };
 
+      case 'getQueueWithPlayers':
+        const queueWithPlayers = await getQueueWithPlayers(connection, event.params![0]);
+        return { success: true, data: queueWithPlayers };
+
+      case 'getUserActiveQueue':
+        const userQueue = await getUserActiveQueue(connection, event.params![0]);
+        return { success: true, data: userQueue };
+
       case 'getQueuePlayers':
         const queuePlayers = await getQueuePlayers(connection, event.params![0]);
         return { success: true, data: queuePlayers };
@@ -609,9 +784,33 @@ export async function handler(event: DatabaseRequest): Promise<DatabaseResponse>
         await storeLobbyHistoryEvent(connection, event.data);
         return { success: true };
 
+      case 'storeQueueHistoryEvent':
+        await storeQueueHistoryEvent(connection, event.data);
+        return { success: true };
+
+      case 'getUserQueueHistory':
+        const queueHistory = await getUserQueueHistory(connection, event.data.steamId, event.data.limit);
+        return { success: true, data: queueHistory };
+
       case 'getActiveQueuesWithDetails':
         const activeQueues = await getActiveQueuesWithDetails(connection);
         return { success: true, data: activeQueues };
+
+      case 'createQueue':
+        await createQueue(connection, event.data);
+        return { success: true };
+
+      case 'updateQueue':
+        await updateQueue(connection, event.params![0], event.data);
+        return { success: true };
+
+      case 'addPlayerToQueue':
+        await addPlayerToQueue(connection, event.params![0], event.data);
+        return { success: true };
+
+      case 'removePlayerFromQueue':
+        await removePlayerFromQueue(connection, event.params![0], event.params![1]);
+        return { success: true };
 
       case 'rawQuery':
         const result = await executeQuery(connection, event.query!, event.params || []);
