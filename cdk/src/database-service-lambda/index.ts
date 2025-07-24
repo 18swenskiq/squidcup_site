@@ -30,7 +30,9 @@ export interface DatabaseResponse {
 }
 
 // Cache for database configuration to avoid repeated SSM calls
+// Uses Promise-based caching to prevent race conditions in concurrent Lambda executions
 let cachedConfig: DatabaseConfig | null = null;
+let configPromise: Promise<DatabaseConfig> | null = null;
 
 // Function to get parameter from SSM Parameter Store
 async function getParameterValue(parameterName: string): Promise<string> {
@@ -50,32 +52,47 @@ async function getParameterValue(parameterName: string): Promise<string> {
 
 // Function to get database configuration from Parameter Store
 async function getDatabaseConfig(): Promise<DatabaseConfig> {
+  // If we already have a cached config, return it immediately
   if (cachedConfig) {
     return cachedConfig;
   }
 
-  try {
-    const [host, port, user, password, database] = await Promise.all([
-      getParameterValue('/squidcup/sql/host'),
-      getParameterValue('/squidcup/sql/port'),
-      getParameterValue('/squidcup/sql/user'),
-      getParameterValue('/squidcup/sql/password'),
-      getParameterValue('/squidcup/sql/database')
-    ]);
-
-    cachedConfig = {
-      host,
-      port: parseInt(port, 10),
-      user,
-      password,
-      database
-    };
-
-    return cachedConfig;
-  } catch (error) {
-    console.error('Error getting database configuration:', error);
-    throw error;
+  // If there's already a config loading operation in progress, wait for it
+  if (configPromise) {
+    return configPromise;
   }
+
+  // Start the configuration loading process
+  configPromise = (async (): Promise<DatabaseConfig> => {
+    try {
+      const [host, port, user, password, database] = await Promise.all([
+        getParameterValue('/squidcup/sql/host'),
+        getParameterValue('/squidcup/sql/port'),
+        getParameterValue('/squidcup/sql/user'),
+        getParameterValue('/squidcup/sql/password'),
+        getParameterValue('/squidcup/sql/database')
+      ]);
+
+      const config: DatabaseConfig = {
+        host,
+        port: parseInt(port, 10),
+        user,
+        password,
+        database
+      };
+
+      // Cache the config for future use
+      cachedConfig = config;
+      return config;
+    } catch (error) {
+      // Clear the promise on error so retry is possible
+      configPromise = null;
+      console.error('Error getting database configuration:', error);
+      throw error;
+    }
+  })();
+
+  return configPromise!; // Non-null assertion is safe here since we just assigned it
 }
 
 // Function to create database connection
