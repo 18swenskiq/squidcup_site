@@ -1,42 +1,29 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
-import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { DynamoDBDocumentClient, GetCommand, PutCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
 import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda';
-import * as crypto from 'crypto';
 
-const dynamoClient = new DynamoDBClient({ region: process.env.REGION });
-const docClient = DynamoDBDocumentClient.from(dynamoClient);
 const lambdaClient = new LambdaClient({ region: process.env.REGION });
 
-// Function to get user session from DynamoDB
-async function getUserSession(sessionToken: string): Promise<{ userId: string; expiresAt: string } | null> {
-  try {
-    const result = await docClient.send(new GetCommand({
-      TableName: process.env.TABLE_NAME,
-      Key: {
-        pk: `SESSION#${sessionToken}`,
-        sk: 'METADATA',
-      },
-    }));
+// Function to call the database service
+async function callDatabaseService(operation: string, params?: any[], data?: any): Promise<any> {
+  const payload = {
+    operation,
+    params,
+    data
+  };
 
-    if (!result.Item || result.Item.deleted) {
-      return null;
-    }
+  const command = new InvokeCommand({
+    FunctionName: process.env.DATABASE_SERVICE_FUNCTION_NAME!,
+    Payload: JSON.stringify(payload),
+  });
 
-    // Check if session is expired
-    const expiresAt = new Date(result.Item.expiresAt);
-    if (expiresAt < new Date()) {
-      return null;
-    }
-
-    return {
-      userId: result.Item.userId,
-      expiresAt: result.Item.expiresAt,
-    };
-  } catch (error) {
-    console.error('Error getting user session:', error);
-    return null;
+  const response = await lambdaClient.send(command);
+  const result = JSON.parse(new TextDecoder().decode(response.Payload));
+  
+  if (!result.success) {
+    throw new Error(result.error || 'Database service call failed');
   }
+  
+  return result.data;
 }
 
 // Function to extract numeric Steam ID from OpenID URL
@@ -73,40 +60,6 @@ function getMaxPlayersForGamemode(gameMode: string): number {
   }
 }
 
-// Function to store queue history event
-async function storeQueueHistoryEvent(
-  queueId: string,
-  userSteamId: string,
-  eventType: 'join' | 'leave' | 'disband' | 'timeout' | 'complete',
-  eventData?: any
-): Promise<void> {
-  try {
-    const eventId = crypto.randomUUID();
-    const now = new Date().toISOString();
-
-    await docClient.send(new PutCommand({
-      TableName: process.env.TABLE_NAME,
-      Item: {
-        pk: `QUEUEHISTORY#${userSteamId}`,
-        sk: `${now}#${eventId}`,
-        GSI1PK: `QUEUEEVENT#${queueId}`,
-        GSI1SK: `${now}#${eventType}`,
-        queueId,
-        userSteamId,
-        eventType,
-        eventData: eventData || {},
-        timestamp: now,
-        createdAt: now,
-      }
-    }));
-
-    console.log(`Stored queue history event: ${eventType} for user ${userSteamId} in queue ${queueId}`);
-  } catch (error) {
-    console.error('Error storing queue history event:', error);
-    // Don't fail the main operation if history storage fails
-  }
-}
-
 export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
   console.log('Join queue event received');
   console.log('Headers:', JSON.stringify(event.headers, null, 2));
@@ -132,10 +85,10 @@ export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayPr
     const sessionToken = authHeader.substring(7);
     console.log('Extracted session token:', sessionToken);
     
-    const session = await getUserSession(sessionToken);
-    console.log('Session result:', session);
+    // Validate session using database service
+    const sessionData = await callDatabaseService('getSession', [sessionToken]);
     
-    if (!session) {
+    if (!sessionData) {
       return {
         statusCode: 401,
         headers: corsHeaders,
@@ -144,7 +97,7 @@ export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayPr
     }
 
     // Extract Steam ID from session
-    const userSteamId = extractSteamIdFromOpenId(session.userId);
+    const userSteamId = extractSteamIdFromOpenId(sessionData.steamId);
     console.log('User Steam ID:', userSteamId);
 
     // Parse request body
@@ -158,16 +111,10 @@ export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayPr
       };
     }
 
-    // Get the queue from DynamoDB
-    const queueResult = await docClient.send(new GetCommand({
-      TableName: process.env.TABLE_NAME,
-      Key: {
-        pk: `ACTIVEQUEUE#${queueId}`,
-        sk: 'METADATA',
-      },
-    }));
-
-    if (!queueResult.Item) {
+    // Get the queue with players from database service
+    const queueData = await callDatabaseService('getQueueWithPlayers', [queueId]);
+    
+    if (!queueData) {
       return {
         statusCode: 404,
         headers: corsHeaders,
@@ -175,7 +122,6 @@ export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayPr
       };
     }
 
-    const queueData = queueResult.Item;
     console.log('Found queue:', queueData);
 
     // Check if queue has a password and validate it
@@ -198,7 +144,7 @@ export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayPr
     }
 
     // Check if user is already the host
-    if (queueData.hostSteamId === userSteamId) {
+    if (queueData.host_steam_id === userSteamId) {
       return {
         statusCode: 400,
         headers: corsHeaders,
@@ -206,9 +152,9 @@ export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayPr
       };
     }
 
-    // Check if user is already a joiner
-    const isAlreadyJoiner = queueData.joiners.some((joiner: any) => joiner.steamId === userSteamId);
-    if (isAlreadyJoiner) {
+    // Check if user is already a player in the queue
+    const isAlreadyInQueue = queueData.players && queueData.players.some((player: any) => player.steam_id === userSteamId);
+    if (isAlreadyInQueue) {
       return {
         statusCode: 400,
         headers: corsHeaders,
@@ -216,44 +162,40 @@ export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayPr
       };
     }
 
-    // Add user to the joiners array
+    // Add user to the queue using database service
     const now = new Date().toISOString();
-    const newJoiner = {
+    const playerData = {
       steamId: userSteamId,
       joinTime: now,
+      isHost: false
     };
 
-    const updatedJoiners = [...queueData.joiners, newJoiner];
+    await callDatabaseService('addPlayerToQueue', [queueId], playerData);
 
-    // Update the queue in DynamoDB
-    await docClient.send(new UpdateCommand({
-      TableName: process.env.TABLE_NAME,
-      Key: {
-        pk: `ACTIVEQUEUE#${queueId}`,
-        sk: 'METADATA',
-      },
-      UpdateExpression: 'SET joiners = :joiners, updatedAt = :updatedAt',
-      ExpressionAttributeValues: {
-        ':joiners': updatedJoiners,
-        ':updatedAt': now,
-      },
-    }));
+    // Store queue history event using database service
+    const historyEventData = {
+      queueId,
+      userSteamId,
+      eventType: 'join',
+      eventData: {
+        gameMode: queueData.game_mode,
+        mapSelectionMode: queueData.map_selection_mode,
+        hostSteamId: queueData.host_steam_id,
+      }
+    };
 
-    // Store queue history event
-    await storeQueueHistoryEvent(queueId, userSteamId, 'join', {
-      gameMode: queueData.gameMode,
-      mapSelectionMode: queueData.mapSelectionMode,
-      hostSteamId: queueData.hostSteamId,
-    });
+    await callDatabaseService('storeQueueHistoryEvent', undefined, historyEventData);
 
+    // Get updated queue data to check if it's full
+    const updatedQueueData = await callDatabaseService('getQueueWithPlayers', [queueId]);
+    
     // Check if queue is now full and should be converted to lobby
-    const maxPlayers = getMaxPlayersForGamemode(queueData.gameMode);
-    const currentPlayers = 1 + updatedJoiners.length; // host + joiners
+    const maxPlayers = getMaxPlayersForGamemode(queueData.game_mode);
+    const currentPlayers = updatedQueueData.players ? updatedQueueData.players.length : 0;
     
     if (currentPlayers >= maxPlayers) {
       console.log('Queue is full, creating lobby...');
       console.log('CREATE_LOBBY_FUNCTION_NAME environment variable:', process.env.CREATE_LOBBY_FUNCTION_NAME);
-      console.log('All environment variables:', JSON.stringify(process.env, null, 2));
       
       try {
         // Invoke create-lobby lambda
@@ -279,6 +221,16 @@ export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayPr
 
     console.log('User joined queue successfully');
 
+    // Transform the data to match the expected response format
+    const joiners = updatedQueueData.players 
+      ? updatedQueueData.players
+          .filter((player: any) => !player.is_host)
+          .map((player: any) => ({
+            steamId: player.steam_id,
+            joinTime: player.join_time,
+          }))
+      : [];
+
     return {
       statusCode: 200,
       headers: corsHeaders,
@@ -286,16 +238,16 @@ export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayPr
         message: 'Successfully joined queue',
         queue: {
           id: queueId,
-          hostSteamId: queueData.hostSteamId,
-          gameMode: queueData.gameMode,
-          mapSelectionMode: queueData.mapSelectionMode,
-          serverId: queueData.serverId,
-          hasPassword: !!queueData.password,
-          ranked: queueData.ranked,
-          startTime: queueData.startTime,
-          joiners: updatedJoiners,
-          createdAt: queueData.createdAt,
-          updatedAt: now,
+          hostSteamId: updatedQueueData.host_steam_id,
+          gameMode: updatedQueueData.game_mode,
+          mapSelectionMode: updatedQueueData.map_selection_mode,
+          serverId: updatedQueueData.server_id,
+          hasPassword: !!updatedQueueData.password,
+          ranked: updatedQueueData.ranked,
+          startTime: updatedQueueData.start_time,
+          joiners: joiners,
+          createdAt: updatedQueueData.created_at,
+          updatedAt: updatedQueueData.updated_at,
         }
       }),
     };
