@@ -1,0 +1,34 @@
+{
+  "name": "squidcup-site",
+  "version": "1.0.0",
+  "description": "SquidCup gaming platform - monorepo",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "cdk/src/*-lambda"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "build:shared": "npm run build --workspace=packages/shared-lambda-utils",
+    "build:lambdas": "npm run build --workspace=cdk/src/get-user-queue-lambda && npm run build --workspace=cdk/src/start-queue-lambda",
+    "clean": "npm run clean --workspaces --if-present",
+    "install:all": "npm install && npm install --workspaces",
+    "dev:shared": "npm run build:watch --workspace=packages/shared-lambda-utils"
+  },
+  "keywords": [
+    "gaming",
+    "csgo",
+    "lambda",
+    "aws",
+    "monorepo"
+  ],
+  "author": "SquidCup Team",
+  "license": "MIT",
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  }
+}
