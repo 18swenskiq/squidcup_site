@@ -61,18 +61,6 @@ export class ApiStack extends cdk.Stack {
       }
     });
 
-    const getUserProfileFunction = new lambda.Function(this, "get-user-profile-function", {
-      runtime: this.RUNTIME,
-      memorySize: this.MEMORY_SIZE,
-      timeout: this.TIMEOUT,
-      handler: 'index.handler',
-      code: lambda.Code.fromAsset(path.join(__dirname, '/../src/get-user-profile-lambda')),
-      environment: {
-        REGION: this.REGION,
-        TABLE_NAME: table.tableName,
-      }
-    });
-
     // Database service lambda - centralized MySQL operations
     const databaseServiceFunction = new lambda.Function(this, "database-service-function", {
       runtime: this.RUNTIME,
@@ -82,6 +70,18 @@ export class ApiStack extends cdk.Stack {
       code: lambda.Code.fromAsset(path.join(__dirname, '/../src/database-service-lambda')),
       environment: {
         REGION: this.REGION,
+      }
+    });
+
+    const getUserProfileFunction = new lambda.Function(this, "get-user-profile-function", {
+      runtime: this.RUNTIME,
+      memorySize: this.MEMORY_SIZE,
+      timeout: this.TIMEOUT,
+      handler: 'index.handler',
+      code: lambda.Code.fromAsset(path.join(__dirname, '/../src/get-user-profile-lambda')),
+      environment: {
+        REGION: this.REGION,
+        DATABASE_SERVICE_FUNCTION_NAME: databaseServiceFunction.functionName,
       }
     });
 
@@ -274,7 +274,6 @@ export class ApiStack extends cdk.Stack {
 
     // Add the SSM policy to all Lambda functions
     steamLoginFunction.addToRolePolicy(ssmPolicy);
-    getUserProfileFunction.addToRolePolicy(ssmPolicy);
     databaseServiceFunction.addToRolePolicy(ssmPolicy);
     addServerFunction.addToRolePolicy(ssmPolicy);
     deleteServerFunction.addToRolePolicy(ssmPolicy);
@@ -285,7 +284,7 @@ export class ApiStack extends cdk.Stack {
 
     // Grant DynamoDB permissions to Lambda functions
     table.grantReadWriteData(steamLoginFunction);
-    table.grantReadWriteData(getUserProfileFunction);
+    databaseServiceFunction.grantInvoke(getUserProfileFunction);
     table.grantReadWriteData(startQueueFunction);
     databaseServiceFunction.grantInvoke(getUserQueueFunction);
     databaseServiceFunction.grantInvoke(queueCleanupFunction);
