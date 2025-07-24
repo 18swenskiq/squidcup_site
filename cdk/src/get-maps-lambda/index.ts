@@ -1,7 +1,7 @@
-import { SSMClient, GetParameterCommand } from "@aws-sdk/client-ssm";
+import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda';
 
-// Initialize the SSM client
-const ssmClient = new SSMClient({ region: 'us-east-1' });
+// Initialize the Lambda client for database service calls
+const lambdaClient = new LambdaClient({ region: process.env.REGION });
 
 type GameMode = "5v5" | "wingman" | "3v3" | "1v1";
 
@@ -19,16 +19,33 @@ const steamCollectionIds: {"gameMode": GameMode, "id": string}[] = [
   { gameMode: "1v1", id: "3517834095"} // Use 3529142840 when approved
 ]
 
-// Function to get parameter from SSM Parameter Store
+// Function to call the database service
+async function callDatabaseService(operation: string, params?: any[], data?: any): Promise<any> {
+  const payload = {
+    operation,
+    params,
+    data
+  };
+
+  const command = new InvokeCommand({
+    FunctionName: process.env.DATABASE_SERVICE_FUNCTION_NAME!,
+    Payload: JSON.stringify(payload),
+  });
+
+  const response = await lambdaClient.send(command);
+  const result = JSON.parse(new TextDecoder().decode(response.Payload));
+  
+  if (!result.success) {
+    throw new Error(result.error || 'Database service call failed');
+  }
+  
+  return result.data;
+}
+
+// Function to get parameter from SSM Parameter Store via database service
 async function getParameterValue(parameterName: string): Promise<string> {
   try {
-    const command = new GetParameterCommand({
-      Name: parameterName,
-      WithDecryption: true, // In case it's a SecureString
-    });
-    
-    const response = await ssmClient.send(command);
-    return response.Parameter?.Value || '';
+    return await callDatabaseService('getSsmParameter', undefined, { parameterName });
   } catch (error) {
     console.error(`Error getting parameter ${parameterName}:`, error);
     throw error;

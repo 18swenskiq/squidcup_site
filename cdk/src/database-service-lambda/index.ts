@@ -621,6 +621,22 @@ async function getUserQueueHistory(connection: mysql.Connection, steamId: string
   );
 }
 
+// Function to get SSM parameter value
+async function getSsmParameter(parameterName: string): Promise<string> {
+  try {
+    const command = new GetParameterCommand({
+      Name: parameterName,
+      WithDecryption: true,
+    });
+    
+    const response = await ssmClient.send(command);
+    return response.Parameter?.Value || '';
+  } catch (error) {
+    console.error(`Error getting parameter ${parameterName}:`, error);
+    throw error;
+  }
+}
+
 // Function to get active queues with user and server details
 async function getActiveQueuesWithDetails(connection: mysql.Connection): Promise<any[]> {
   // Get all active queues with host information and server details
@@ -791,6 +807,10 @@ export async function handler(event: DatabaseRequest): Promise<DatabaseResponse>
       case 'getUserQueueHistory':
         const queueHistory = await getUserQueueHistory(connection, event.data.steamId, event.data.limit);
         return { success: true, data: queueHistory };
+
+      case 'getSsmParameter':
+        const parameterValue = await getSsmParameter(event.data.parameterName);
+        return { success: true, data: parameterValue };
 
       case 'getActiveQueuesWithDetails':
         const activeQueues = await getActiveQueuesWithDetails(connection);
