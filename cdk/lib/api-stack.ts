@@ -129,7 +129,7 @@ export class ApiStack extends cdk.Stack {
       code: lambda.Code.fromAsset(path.join(__dirname, '/../src/delete-server-lambda')),
       environment: {
         REGION: this.REGION,
-        TABLE_NAME: table.tableName,
+        DATABASE_SERVICE_FUNCTION_NAME: databaseServiceFunction.functionName,
       }
     });
 
@@ -297,7 +297,6 @@ export class ApiStack extends cdk.Stack {
     table.grantReadWriteData(getServersFunction);
     table.grantReadWriteData(steamLoginFunction);
     table.grantReadWriteData(getUserProfileFunction);
-    table.grantReadWriteData(deleteServerFunction);
     table.grantReadWriteData(startQueueFunction);
     table.grantReadWriteData(getUserQueueFunction);
     table.grantReadWriteData(getAllQueuesFunction);
@@ -315,6 +314,7 @@ export class ApiStack extends cdk.Stack {
     // Grant database service invoke permissions to all lambdas that need it
     databaseServiceFunction.grantInvoke(addServerFunction);
     databaseServiceFunction.grantInvoke(createLobbyFunction);
+    databaseServiceFunction.grantInvoke(deleteServerFunction);
     // Note: We'll add more functions here as we convert them
 
     // Add environment variable to join queue function for create lobby function name
