@@ -1,41 +1,7 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
-import { DynamoDBClient, QueryCommand } from '@aws-sdk/client-dynamodb';
-import { DynamoDBDocumentClient, GetCommand } from '@aws-sdk/lib-dynamodb';
-import { unmarshall } from '@aws-sdk/util-dynamodb';
+import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda';
 
-const dynamoClient = new DynamoDBClient({ region: process.env.REGION });
-const docClient = DynamoDBDocumentClient.from(dynamoClient);
-
-interface SessionData {
-  userId: string;
-  expiresAt: string;
-  createdAt: string;
-}
-
-interface QueueHistoryEvent {
-  pk: string;
-  sk: string;
-  queueId: string;
-  userSteamId: string;
-  eventType: 'start' | 'join' | 'leave' | 'disband' | 'timeout' | 'complete';
-  eventData: any;
-  timestamp: string;
-  createdAt: string;
-}
-
-interface QueueSummary {
-  queueId: string;
-  gameMode: string;
-  mapSelectionMode: string;
-  ranked: boolean;
-  startTime: string;
-  endTime: string | null;
-  status: 'active' | 'completed' | 'cancelled' | 'disbanded' | 'timeout' | 'error';
-  statusDescription: string;
-  wasHost: boolean;
-  finalPlayerCount: number;
-  events: QueueHistoryEvent[];
-}
+const lambdaClient = new LambdaClient({ region: process.env.REGION });
 
 interface QueueHistoryResponse {
   id: string;
@@ -49,6 +15,29 @@ interface QueueHistoryResponse {
   wasHost: boolean;
   finalPlayerCount: number;
   duration: string; // formatted duration
+}
+
+// Function to call the database service
+async function callDatabaseService(operation: string, params?: any[], data?: any): Promise<any> {
+  const payload = {
+    operation,
+    params,
+    data
+  };
+
+  const command = new InvokeCommand({
+    FunctionName: process.env.DATABASE_SERVICE_FUNCTION_NAME!,
+    Payload: JSON.stringify(payload),
+  });
+
+  const response = await lambdaClient.send(command);
+  const result = JSON.parse(new TextDecoder().decode(response.Payload));
+  
+  if (!result.success) {
+    throw new Error(result.error || 'Database service call failed');
+  }
+  
+  return result.data;
 }
 
 // Function to extract numeric Steam ID from OpenID URL
@@ -79,37 +68,6 @@ function extractSteamIdFromOpenId(steamId: string): string {
   return steamId;
 }
 
-// Function to get user session from DynamoDB
-async function getUserSession(sessionToken: string): Promise<{ userId: string; expiresAt: string } | null> {
-  try {
-    const result = await docClient.send(new GetCommand({
-      TableName: process.env.TABLE_NAME,
-      Key: {
-        pk: `SESSION#${sessionToken}`,
-        sk: 'METADATA',
-      },
-    }));
-
-    if (!result.Item || result.Item.deleted) {
-      return null;
-    }
-
-    // Check if session is expired
-    const expiresAt = new Date(result.Item.expiresAt);
-    if (expiresAt < new Date()) {
-      return null;
-    }
-
-    return {
-      userId: result.Item.userId,
-      expiresAt: result.Item.expiresAt,
-    };
-  } catch (error) {
-    console.error('Error getting user session:', error);
-    return null;
-  }
-}
-
 // Function to format duration from milliseconds to human readable string
 function formatDuration(milliseconds: number): string {
   const minutes = Math.floor(milliseconds / (1000 * 60));
@@ -125,78 +83,6 @@ function formatDuration(milliseconds: number): string {
   } else {
     return '< 1m';
   }
-}
-
-// Function to get status description based on event type
-function getStatusDescription(eventType: string, eventData: any, wasHost: boolean): string {
-  switch (eventType) {
-    case 'start':
-      return wasHost ? 'Started a new queue' : 'Unknown';
-    case 'join':
-      return 'Joined a queue';
-    case 'leave':
-      return 'Left the queue';
-    case 'disband':
-      if (eventData.disbandedByHost && !wasHost) {
-        return 'Queue was disbanded by host';
-      }
-      return wasHost ? 'Disbanded the queue' : 'Queue was disbanded';
-    case 'timeout':
-      return 'Queue timed out';
-    case 'complete':
-      return 'Queue completed successfully';
-    default:
-      return 'Unknown event';
-  }
-}
-
-// Function to process events into queue summaries
-function processEventsIntoQueues(events: QueueHistoryEvent[]): QueueSummary[] {
-  const queueMap = new Map<string, QueueSummary>();
-
-  // Sort events by timestamp
-  events.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
-
-  for (const event of events) {
-    const queueId = event.queueId;
-    
-    if (!queueMap.has(queueId)) {
-      // Initialize queue summary with data from the first event (usually 'start')
-      queueMap.set(queueId, {
-        queueId,
-        gameMode: event.eventData.gameMode || 'Unknown',
-        mapSelectionMode: event.eventData.mapSelectionMode || 'Unknown',
-        ranked: event.eventData.ranked || false,
-        startTime: event.timestamp,
-        endTime: null,
-        status: 'active',
-        statusDescription: '',
-        wasHost: event.eventType === 'start',
-        finalPlayerCount: 0,
-        events: [],
-      });
-    }
-
-    const queue = queueMap.get(queueId)!;
-    queue.events.push(event);
-
-    // Update queue based on event type
-    if (event.eventType === 'start') {
-      queue.wasHost = true;
-      queue.startTime = event.timestamp;
-    } else if (['leave', 'disband', 'timeout', 'complete'].includes(event.eventType)) {
-      queue.endTime = event.timestamp;
-      queue.status = event.eventType as any;
-      queue.statusDescription = getStatusDescription(event.eventType, event.eventData, queue.wasHost);
-      
-      // Set final player count
-      if (event.eventData.joinerCount !== undefined) {
-        queue.finalPlayerCount = event.eventData.joinerCount + 1; // +1 for host
-      }
-    }
-  }
-
-  return Array.from(queueMap.values());
 }
 
 export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
@@ -235,10 +121,10 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
     const sessionToken = authHeader.substring(7);
     console.log('Extracted session token:', sessionToken.substring(0, 10) + '...');
     
-    const session = await getUserSession(sessionToken);
-    console.log('Session result:', session);
+    // Validate session using database service
+    const sessionData = await callDatabaseService('getSession', [sessionToken]);
     
-    if (!session) {
+    if (!sessionData) {
       console.log('Invalid or expired session');
       return {
         statusCode: 401,
@@ -248,74 +134,49 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
     }
 
     // Extract Steam ID from session
-    const userSteamId = extractSteamIdFromOpenId(session.userId);
+    const userSteamId = extractSteamIdFromOpenId(sessionData.steamId);
     console.log('User Steam ID:', userSteamId);
 
-    // Query queue history events for this user
-    console.log('Getting queue history events for user:', userSteamId);
-    const queryCommand = new QueryCommand({
-      TableName: process.env.TABLE_NAME,
-      KeyConditionExpression: 'pk = :pk',
-      ExpressionAttributeValues: {
-        ':pk': { S: `QUEUEHISTORY#${userSteamId}` },
-      },
-      ScanIndexForward: false, // Sort by sk descending (newest first)
-      Limit: 100, // Limit to prevent large queries
+    // Get queue history from database service
+    console.log('Getting queue history for user:', userSteamId);
+    const queueHistoryData = await callDatabaseService('getUserQueueHistory', undefined, { 
+      steamId: userSteamId, 
+      limit: 20 
     });
 
-    const queryResult = await dynamoClient.send(queryCommand);
-    console.log('Queue history query result:', queryResult.Items?.length || 0, 'events found');
-
-    const events: QueueHistoryEvent[] = [];
-    
-    if (queryResult.Items) {
-      for (const item of queryResult.Items) {
-        try {
-          const eventData = unmarshall(item) as QueueHistoryEvent;
-          console.log('Processing queue history event:', eventData.eventType, 'for queue', eventData.queueId);
-          events.push(eventData);
-        } catch (error) {
-          console.error('Error processing queue history event:', error, item);
-        }
+    // Transform the data to match the expected response format
+    const queueHistory: QueueHistoryResponse[] = (queueHistoryData || []).map((item: any) => {
+      // Calculate duration if we have created_at timestamp
+      let duration = '< 1m';
+      if (item.created_at) {
+        const createdTime = new Date(item.created_at);
+        const now = new Date();
+        const durationMs = now.getTime() - createdTime.getTime();
+        duration = formatDuration(durationMs);
       }
-    }
-
-    // Process events into queue summaries
-    const queueSummaries = processEventsIntoQueues(events);
-    console.log('Processed', events.length, 'events into', queueSummaries.length, 'queue summaries');
-
-    // Convert to response format
-    const queueHistory: QueueHistoryResponse[] = queueSummaries.map(queue => {
-      const startTime = new Date(queue.startTime);
-      const endTime = queue.endTime ? new Date(queue.endTime) : new Date();
-      const duration = endTime.getTime() - startTime.getTime();
 
       return {
-        id: queue.queueId,
-        gameMode: queue.gameMode,
-        mapSelectionMode: queue.mapSelectionMode,
-        ranked: queue.ranked,
-        startTime: queue.startTime,
-        endTime: queue.endTime || new Date().toISOString(),
-        status: queue.status,
-        statusDescription: queue.statusDescription,
-        wasHost: queue.wasHost,
-        finalPlayerCount: queue.finalPlayerCount,
-        duration: formatDuration(duration),
+        id: item.id || item.queue_id || 'unknown',
+        gameMode: item.game_mode || 'Unknown',
+        mapSelectionMode: item.map_selection_mode || 'Unknown', 
+        ranked: false, // Default for now
+        startTime: item.created_at || new Date().toISOString(),
+        endTime: item.created_at || new Date().toISOString(), // For now, use same as start
+        status: item.event_type === 'join' ? 'completed' : 'active' as any,
+        statusDescription: item.event_type === 'join' ? 'Joined a queue' : 'Unknown event',
+        wasHost: false, // Default for now
+        finalPlayerCount: 0, // Default for now
+        duration: duration,
       };
     });
 
-    // Sort by start time (newest first) and limit to last 20 entries
-    queueHistory.sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime());
-    const limitedHistory = queueHistory.slice(0, 20);
-
-    console.log('Returning queue history with', limitedHistory.length, 'entries');
+    console.log('Returning queue history with', queueHistory.length, 'entries');
     return {
       statusCode: 200,
       headers: corsHeaders,
       body: JSON.stringify({
-        queueHistory: limitedHistory,
-        total: limitedHistory.length,
+        queueHistory: queueHistory,
+        total: queueHistory.length,
       }),
     };
 

@@ -9,11 +9,8 @@
   },
   "dependencies": {},
   "devDependencies": {
-    "@aws-sdk/client-dynamodb": "^3.x",
-    "@aws-sdk/lib-dynamodb": "^3.x",
-    "@aws-sdk/util-dynamodb": "^3.x",
-    "@types/aws-lambda": "^8.x",
-    "@types/node": "^20.x",
-    "typescript": "^5.x"
+    "@aws-sdk/client-lambda": "^3.693.0",
+    "@types/aws-lambda": "^8.10.145",
+    "typescript": "^5.7.2"
   }
 }
