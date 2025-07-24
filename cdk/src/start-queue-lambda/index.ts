@@ -100,7 +100,7 @@ export async function handler(event: any): Promise<any> {
     const sessionResult = await callDatabaseService('getSession', [sessionToken]);
     console.log('Session result:', sessionResult);
     
-    if (!sessionResult.session || !sessionResult.session.userId) {
+    if (!sessionResult.session || !sessionResult.session.steamId) {
       return {
         statusCode: 401,
         headers: {
@@ -111,7 +111,7 @@ export async function handler(event: any): Promise<any> {
     }
 
     // Extract Steam ID from session
-    const hostSteamId = extractSteamIdFromOpenId(sessionResult.session.userId);
+    const hostSteamId = extractSteamIdFromOpenId(sessionResult.session.steamId);
     console.log('Host Steam ID:', hostSteamId);
 
     // Parse request body
@@ -166,7 +166,7 @@ export async function handler(event: any): Promise<any> {
       id: crypto.randomUUID(),
       queueId: queueId,
       playerSteamId: hostSteamId,
-      eventType: 'join',
+      eventType: 'start',
       eventData: {
         gameMode,
         mapSelectionMode,

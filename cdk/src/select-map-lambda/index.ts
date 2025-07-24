@@ -63,7 +63,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
     // Validate session via database service
     const sessionResult = await callDatabaseService('getSession', [sessionToken]);
 
-    if (!sessionResult.session || !sessionResult.session.userId) {
+    if (!sessionResult.session || !sessionResult.session.steamId) {
       return {
         statusCode: 401,
         headers: corsHeaders,
@@ -71,7 +71,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
       };
     }
 
-    const steamId = sessionResult.session.userId;
+    const steamId = sessionResult.session.steamId;
 
     // Parse request body
     let requestBody: SelectMapRequest;

@@ -153,7 +153,7 @@ export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayPr
     }
 
     // Check if user is already a player in the queue
-    const isAlreadyInQueue = queueData.players && queueData.players.some((player: any) => player.steam_id === userSteamId);
+    const isAlreadyInQueue = queueData.players && queueData.players.some((player: any) => player.player_steam_id === userSteamId);
     if (isAlreadyInQueue) {
       return {
         statusCode: 400,
