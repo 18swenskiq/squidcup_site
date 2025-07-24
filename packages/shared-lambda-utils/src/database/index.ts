@@ -1,5 +1,6 @@
 import * as mysql from 'mysql2/promise';
 import { SSMClient, GetParameterCommand } from '@aws-sdk/client-ssm';
+import { User, Session, GameServer } from '@squidcup/types';
 
 // Initialize SSM client
 const ssmClient = new SSMClient({ region: process.env.AWS_REGION || 'us-east-1' });
@@ -316,7 +317,7 @@ async function executeQuery(connection: mysql.Connection, query: string, params:
 }
 
 // Session management functions
-export async function getSession(sessionToken: string): Promise<any> {
+export async function getSession(sessionToken: string): Promise<Session | null> {
   const connection = await getDatabaseConnection();
   const rows = await executeQuery(
     connection,
@@ -388,7 +389,7 @@ export async function upsertUser(userData: any): Promise<void> {
   );
 }
 
-export async function getUser(steamId: string): Promise<any> {
+export async function getUser(steamId: string): Promise<User | null> {
   const connection = await getDatabaseConnection();
   const rows = await executeQuery(
     connection,
@@ -412,7 +413,7 @@ export async function getUsersBySteamIds(steamIds: string[]): Promise<any[]> {
 }
 
 // Server management functions
-export async function addServer(serverData: any): Promise<void> {
+export async function addServer(serverData: GameServer): Promise<void> {
   const connection = await getDatabaseConnection();
   await executeQuery(
     connection,
@@ -423,9 +424,9 @@ export async function addServer(serverData: any): Promise<void> {
       serverData.ip,
       serverData.port,
       serverData.location,
-      serverData.rconPassword,
-      serverData.defaultPassword || '',
-      serverData.maxPlayers,
+      serverData.rcon_password,
+      serverData.default_password || '',
+      serverData.max_players,
       serverData.nickname
     ]
   );

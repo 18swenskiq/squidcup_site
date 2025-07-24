@@ -16,8 +16,12 @@ export interface DatabaseConnection {
 export interface User {
   steam_id: string;
   username?: string;
-  profile_url?: string;
-  avatar_url?: string;
+  avatar?: string;
+  avatar_medium?: string;
+  avatar_full?: string;
+  country_code?: string;
+  state_code?: string;
+  is_admin: boolean | number; // MySQL BOOLEAN can return 0/1 or true/false
   created_at: string;
   updated_at: string;
 }
@@ -30,7 +34,7 @@ export interface Session {
 // ===== GAME TYPES =====
 
 export type GameMode = '5v5' | 'wingman' | '3v3' | '1v1';
-export type MapSelectionMode = 'random' | 'vote' | 'host_pick';
+export type MapSelectionMode = 'All Pick' | 'Host Pick' | 'Random Map';
 export type QueueStatus = 'waiting' | 'matched' | 'cancelled';
 export type LobbyStatus = 'active' | 'in_game' | 'completed' | 'cancelled';
 
@@ -102,6 +106,19 @@ export interface LobbyHistoryEvent {
 }
 
 // ===== SERVER TYPES =====
+
+export interface GameServer {
+  id: string;
+  ip: string;
+  port: number;
+  location: string;
+  rcon_password: string;
+  default_password: string;
+  max_players: number;
+  nickname: string;
+  created_at: string;
+  updated_at: string;
+}
 
 export interface Server {
   id: string;
