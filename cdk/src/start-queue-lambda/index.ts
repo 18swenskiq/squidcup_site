@@ -1,9 +1,29 @@
-import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { DynamoDBDocumentClient, PutCommand, GetCommand } from '@aws-sdk/lib-dynamodb';
+import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda';
 import * as crypto from 'crypto';
 
-const dynamoClient = new DynamoDBClient({ region: process.env.REGION });
-const docClient = DynamoDBDocumentClient.from(dynamoClient);
+const lambdaClient = new LambdaClient({ region: process.env.REGION });
+
+async function callDatabaseService(operation: string, params?: any[], data?: any): Promise<any> {
+  const payload = {
+    operation,
+    params,
+    data
+  };
+
+  const command = new InvokeCommand({
+    FunctionName: process.env.DATABASE_SERVICE_FUNCTION_NAME,
+    Payload: new TextEncoder().encode(JSON.stringify(payload)),
+  });
+
+  const response = await lambdaClient.send(command);
+  const result = JSON.parse(new TextDecoder().decode(response.Payload));
+  
+  if (result.errorMessage) {
+    throw new Error(result.errorMessage);
+  }
+  
+  return result;
+}
 
 export interface ActiveQueue {
   id: string;
@@ -22,34 +42,18 @@ export interface ActiveQueue {
   updatedAt: string;
 }
 
-// Function to get user session from DynamoDB
-async function getUserSession(sessionToken: string): Promise<{ userId: string; expiresAt: string } | null> {
-  try {
-    const result = await docClient.send(new GetCommand({
-      TableName: process.env.TABLE_NAME,
-      Key: {
-        pk: `SESSION#${sessionToken}`,
-        sk: 'METADATA',
-      },
-    }));
-
-    if (!result.Item || result.Item.deleted) {
-      return null;
-    }
-
-    // Check if session is expired
-    const expiresAt = new Date(result.Item.expiresAt);
-    if (expiresAt < new Date()) {
-      return null;
-    }
-
-    return {
-      userId: result.Item.userId,
-      expiresAt: result.Item.expiresAt,
-    };
-  } catch (error) {
-    console.error('Error getting user session:', error);
-    return null;
+function getMaxPlayersForGamemode(gameMode: string): number {
+  switch (gameMode) {
+    case '5v5':
+      return 10;
+    case 'wingman':
+      return 4;
+    case '3v3':
+      return 6;
+    case '1v1':
+      return 2;
+    default:
+      return 10;
   }
 }
 
@@ -71,40 +75,6 @@ function extractSteamIdFromOpenId(steamId: string): string {
   return steamId;
 }
 
-// Function to store queue history event
-async function storeQueueHistoryEvent(
-  queueId: string,
-  userSteamId: string,
-  eventType: 'start' | 'join' | 'leave' | 'disband' | 'timeout' | 'complete',
-  eventData?: any
-): Promise<void> {
-  try {
-    const eventId = crypto.randomUUID();
-    const now = new Date().toISOString();
-
-    await docClient.send(new PutCommand({
-      TableName: process.env.TABLE_NAME,
-      Item: {
-        pk: `QUEUEHISTORY#${userSteamId}`,
-        sk: `${now}#${eventId}`,
-        GSI1PK: `QUEUEEVENT#${queueId}`,
-        GSI1SK: `${now}#${eventType}`,
-        queueId,
-        userSteamId,
-        eventType,
-        eventData: eventData || {},
-        timestamp: now,
-        createdAt: now,
-      }
-    }));
-
-    console.log(`Stored queue history event: ${eventType} for user ${userSteamId} in queue ${queueId}`);
-  } catch (error) {
-    console.error('Error storing queue history event:', error);
-    // Don't fail the main operation if history storage fails
-  }
-}
-
 export async function handler(event: any): Promise<any> {
   console.log('Start queue event received');
   console.log('Headers:', JSON.stringify(event.headers, null, 2));
@@ -117,7 +87,7 @@ export async function handler(event: any): Promise<any> {
       return {
         statusCode: 401,
         headers: {
-          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Origin': 'https://squidcup.spkymnr.xyz',
         },
         body: JSON.stringify({ error: 'Missing or invalid authorization header' }),
       };
@@ -126,21 +96,22 @@ export async function handler(event: any): Promise<any> {
     const sessionToken = authHeader.substring(7);
     console.log('Extracted session token:', sessionToken);
     
-    const session = await getUserSession(sessionToken);
-    console.log('Session result:', session);
+    // Validate session via database service
+    const sessionResult = await callDatabaseService('getSession', [sessionToken]);
+    console.log('Session result:', sessionResult);
     
-    if (!session) {
+    if (!sessionResult.session || !sessionResult.session.steamId) {
       return {
         statusCode: 401,
         headers: {
-          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Origin': 'https://squidcup.spkymnr.xyz',
         },
         body: JSON.stringify({ error: 'Invalid or expired session' }),
       };
     }
 
     // Extract Steam ID from session
-    const hostSteamId = extractSteamIdFromOpenId(session.userId);
+    const hostSteamId = extractSteamIdFromOpenId(sessionResult.session.steamId);
     console.log('Host Steam ID:', hostSteamId);
 
     // Parse request body
@@ -152,7 +123,7 @@ export async function handler(event: any): Promise<any> {
       return {
         statusCode: 400,
         headers: {
-          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Origin': 'https://squidcup.spkymnr.xyz',
         },
         body: JSON.stringify({ error: 'Missing required fields: gameMode, mapSelectionMode, server' }),
       };
@@ -177,43 +148,50 @@ export async function handler(event: any): Promise<any> {
       updatedAt: now
     };
 
-    // Store in DynamoDB
-    await docClient.send(new PutCommand({
-      TableName: process.env.TABLE_NAME,
-      Item: {
-        pk: `ACTIVEQUEUE#${queueId}`,
-        sk: 'METADATA',
-        GSI1PK: 'ACTIVEQUEUE',
-        GSI1SK: queueId,
-        ...activeQueue
-      }
-    }));
-
-    // Store queue history event
-    await storeQueueHistoryEvent(queueId, hostSteamId, 'start', {
-      gameMode,
-      mapSelectionMode,
+    // Create queue via database service
+    const queueResult = await callDatabaseService('createQueue', undefined, {
+      id: queueId,
+      gameMode: gameMode,
+      mapSelectionMode: mapSelectionMode,
+      hostSteamId: hostSteamId,
       serverId: server,
-      ranked,
+      password: password || null,
+      ranked: ranked === true,
+      startTime: now,
+      maxPlayers: getMaxPlayersForGamemode(gameMode)
     });
 
-    console.log('Queue created successfully:', activeQueue);
+    // Store queue history event
+    await callDatabaseService('storeQueueHistoryEvent', undefined, {
+      id: crypto.randomUUID(),
+      queueId: queueId,
+      playerSteamId: hostSteamId,
+      eventType: 'start',
+      eventData: {
+        gameMode,
+        mapSelectionMode,
+        serverId: server,
+        ranked,
+      }
+    });
+
+    console.log('Queue created successfully:', queueResult);
 
     return {
       statusCode: 201,
       headers: {
-        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Origin': 'https://squidcup.spkymnr.xyz',
         'Access-Control-Allow-Headers': 'Content-Type,Authorization',
         'Access-Control-Allow-Methods': 'POST,OPTIONS',
       },
-      body: JSON.stringify(activeQueue),
+      body: JSON.stringify(queueResult.queue || activeQueue),
     };
   } catch (error) {
     console.error('Error starting queue:', error);
     return {
       statusCode: 500,
       headers: {
-        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Origin': 'https://squidcup.spkymnr.xyz',
       },
       body: JSON.stringify({ error: 'Failed to start queue' }),
     };

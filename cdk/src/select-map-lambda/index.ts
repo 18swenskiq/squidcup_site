@@ -1,11 +1,29 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
-import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { DynamoDBDocumentClient, UpdateCommand, GetCommand } from '@aws-sdk/lib-dynamodb';
-import { SSMClient, GetParameterCommand } from '@aws-sdk/client-ssm';
+import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda';
 
-const ddbClient = new DynamoDBClient({ region: process.env.REGION });
-const docClient = DynamoDBDocumentClient.from(ddbClient);
-const ssmClient = new SSMClient({ region: process.env.REGION });
+const lambdaClient = new LambdaClient({ region: process.env.REGION });
+
+async function callDatabaseService(operation: string, params?: any[], data?: any): Promise<any> {
+  const payload = {
+    operation,
+    params,
+    data
+  };
+
+  const command = new InvokeCommand({
+    FunctionName: process.env.DATABASE_SERVICE_FUNCTION_NAME,
+    Payload: new TextEncoder().encode(JSON.stringify(payload)),
+  });
+
+  const response = await lambdaClient.send(command);
+  const result = JSON.parse(new TextDecoder().decode(response.Payload));
+  
+  if (result.errorMessage) {
+    throw new Error(result.errorMessage);
+  }
+  
+  return result;
+}
 
 interface SelectMapRequest {
   lobbyId: string;
@@ -14,7 +32,7 @@ interface SelectMapRequest {
 
 export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   const corsHeaders = {
-    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Origin': 'https://squidcup.spkymnr.xyz',
     'Access-Control-Allow-Headers': 'Content-Type,Authorization',
     'Access-Control-Allow-Methods': 'POST,OPTIONS',
   };
@@ -42,50 +60,18 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
     // Extract session token
     const sessionToken = authHeader.substring(7);
 
-    // Get session secret from SSM
-    const ssmCommand = new GetParameterCommand({
-      Name: '/squidcup/session-secret',
-      WithDecryption: true,
-    });
-    const ssmResponse = await ssmClient.send(ssmCommand);
-    const sessionSecret = ssmResponse.Parameter?.Value;
+    // Validate session via database service
+    const sessionResult = await callDatabaseService('getSession', [sessionToken]);
 
-    if (!sessionSecret) {
-      console.error('Failed to retrieve session secret from SSM');
-      return {
-        statusCode: 500,
-        headers: corsHeaders,
-        body: JSON.stringify({ error: 'Internal server error' }),
-      };
-    }
-
-    // Simple session validation (you should implement proper JWT validation)
-    const sessionParts = sessionToken.split('.');
-    if (sessionParts.length !== 3) {
+    if (!sessionResult.session || !sessionResult.session.steamId) {
       return {
         statusCode: 401,
         headers: corsHeaders,
-        body: JSON.stringify({ error: 'Invalid session token format' }),
+        body: JSON.stringify({ error: 'Invalid or expired session' }),
       };
     }
 
-    // Decode the session to get user info
-    let steamId: string;
-    try {
-      const payload = JSON.parse(Buffer.from(sessionParts[1], 'base64').toString());
-      steamId = payload.steamId;
-      
-      if (!steamId) {
-        throw new Error('No steamId in token');
-      }
-    } catch (error) {
-      console.error('Failed to decode session token:', error);
-      return {
-        statusCode: 401,
-        headers: corsHeaders,
-        body: JSON.stringify({ error: 'Invalid session token' }),
-      };
-    }
+    const steamId = sessionResult.session.steamId;
 
     // Parse request body
     let requestBody: SelectMapRequest;
@@ -109,18 +95,10 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
       };
     }
 
-    // Get the lobby to verify user is the host
-    const getLobbyCommand = new GetCommand({
-      TableName: process.env.TABLE_NAME,
-      Key: {
-        pk: `LOBBY#${lobbyId}`,
-        sk: 'LOBBY'
-      }
-    });
-
-    const lobbyResult = await docClient.send(getLobbyCommand);
+    // Get the lobby to verify user is the host via database service
+    const lobbyResult = await callDatabaseService('getLobbyWithPlayers', [lobbyId]);
     
-    if (!lobbyResult.Item) {
+    if (!lobbyResult.lobby) {
       return {
         statusCode: 404,
         headers: corsHeaders,
@@ -129,7 +107,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
     }
 
     // Check if user is the host (only host can select map)
-    if (lobbyResult.Item.hostSteamId !== steamId) {
+    if (lobbyResult.lobby.hostSteamId !== steamId) {
       return {
         statusCode: 403,
         headers: corsHeaders,
@@ -138,7 +116,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
     }
 
     // Check if lobby allows host to pick maps
-    if (lobbyResult.Item.mapSelectionMode !== 'Host Pick') {
+    if (lobbyResult.lobby.mapSelectionMode !== 'Host Pick') {
       return {
         statusCode: 400,
         headers: corsHeaders,
@@ -146,29 +124,18 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
       };
     }
 
-    // Update the lobby with the selected map
-    const updateCommand = new UpdateCommand({
-      TableName: process.env.TABLE_NAME,
-      Key: {
-        pk: `LOBBY#${lobbyId}`,
-        sk: 'LOBBY'
-      },
-      UpdateExpression: 'SET selectedMap = :mapName, updatedAt = :updatedAt',
-      ExpressionAttributeValues: {
-        ':mapName': mapName,
-        ':updatedAt': new Date().toISOString()
-      },
-      ReturnValues: 'ALL_NEW'
+    // Update the lobby with the selected map via database service
+    const updateResult = await callDatabaseService('updateLobby', [lobbyId], {
+      map: mapName,
+      updatedAt: new Date().toISOString()
     });
-
-    const updateResult = await docClient.send(updateCommand);
 
     return {
       statusCode: 200,
       headers: corsHeaders,
       body: JSON.stringify({
         message: 'Map selected successfully',
-        lobby: updateResult.Attributes
+        lobby: updateResult.lobby
       }),
     };
 

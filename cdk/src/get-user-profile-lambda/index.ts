@@ -1,12 +1,7 @@
-import { SSMClient, GetParameterCommand } from "@aws-sdk/client-ssm";
-import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { DynamoDBDocumentClient, GetCommand, PutCommand } from '@aws-sdk/lib-dynamodb';
+import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda';
 import fetch from 'node-fetch';
 
-// Initialize clients
-const ssmClient = new SSMClient({ region: process.env.REGION });
-const dynamoClient = new DynamoDBClient({ region: process.env.REGION });
-const docClient = DynamoDBDocumentClient.from(dynamoClient);
+const lambdaClient = new LambdaClient({ region: process.env.REGION });
 
 type SteamPlayer = {
   steamid: string;
@@ -35,20 +30,27 @@ type SteamUserResponse = {
   };
 };
 
-// Function to get parameter from SSM Parameter Store
-async function getParameterValue(parameterName: string): Promise<string> {
-  try {
-    const command = new GetParameterCommand({
-      Name: parameterName,
-      WithDecryption: true, // In case it's a SecureString
-    });
-    
-    const response = await ssmClient.send(command);
-    return response.Parameter?.Value || '';
-  } catch (error) {
-    console.error(`Error getting parameter ${parameterName}:`, error);
-    throw error;
+// Function to call database service
+async function callDatabaseService(operation: string, params?: any[], data?: any): Promise<any> {
+  const payload = {
+    operation,
+    params,
+    data
+  };
+
+  const command = new InvokeCommand({
+    FunctionName: process.env.DATABASE_SERVICE_FUNCTION_NAME,
+    Payload: new TextEncoder().encode(JSON.stringify(payload)),
+  });
+
+  const response = await lambdaClient.send(command);
+  const result = JSON.parse(new TextDecoder().decode(response.Payload));
+
+  if (!result.success) {
+    throw new Error(result.error || 'Database operation failed');
   }
+
+  return result.data;
 }
 
 // Function to extract numeric Steam ID from OpenID URL
@@ -67,37 +69,6 @@ function extractSteamIdFromOpenId(steamId: string): string {
   // If no match found, return the original value
   console.warn('Could not extract Steam ID from:', steamId);
   return steamId;
-}
-
-// Function to get user session from DynamoDB
-async function getUserSession(sessionToken: string): Promise<{ userId: string; expiresAt: string } | null> {
-  try {
-    const result = await docClient.send(new GetCommand({
-      TableName: process.env.TABLE_NAME,
-      Key: {
-        pk: `SESSION#${sessionToken}`,
-        sk: 'METADATA',
-      },
-    }));
-
-    if (!result.Item || result.Item.deleted) {
-      return null;
-    }
-
-    // Check if session is expired
-    const expiresAt = new Date(result.Item.expiresAt);
-    if (expiresAt < new Date()) {
-      return null;
-    }
-
-    return {
-      userId: result.Item.userId,
-      expiresAt: result.Item.expiresAt,
-    };
-  } catch (error) {
-    console.error('Error getting user session:', error);
-    return null;
-  }
 }
 
 // Function to get Steam user profile
@@ -128,58 +99,6 @@ async function getSteamUserProfile(steamApiKey: string, steamId: string): Promis
   }
 }
 
-// Function to store/update player profile in database
-async function storePlayerProfile(steamId: string, steamProfile: SteamPlayer): Promise<void> {
-  try {
-    const now = new Date().toISOString();
-    
-    await docClient.send(new PutCommand({
-      TableName: process.env.TABLE_NAME,
-      Item: {
-        pk: `PLAYER#${steamId}`,
-        sk: 'PROFILE',
-        steamId: steamId,
-        name: steamProfile.personaname,
-        avatar: steamProfile.avatar,
-        avatarMedium: steamProfile.avatarmedium,
-        avatarFull: steamProfile.avatarfull,
-        loccountrycode: steamProfile.loccountrycode,
-        locstatecode: steamProfile.locstatecode,
-        updatedAt: now,
-        createdAt: now, // Will be overwritten if item already exists
-      },
-      // Only update createdAt if this is a new record
-      ConditionExpression: 'attribute_not_exists(pk)',
-    }));
-    
-    console.log('Player profile stored successfully for Steam ID:', steamId);
-  } catch (error: any) {
-    // If the condition fails, the player already exists, so update it
-    if (error.name === 'ConditionalCheckFailedException') {
-      await docClient.send(new PutCommand({
-        TableName: process.env.TABLE_NAME,
-        Item: {
-          pk: `PLAYER#${steamId}`,
-          sk: 'PROFILE',
-          steamId: steamId,
-          name: steamProfile.personaname,
-          avatar: steamProfile.avatar,
-          avatarMedium: steamProfile.avatarmedium,
-          avatarFull: steamProfile.avatarfull,
-          loccountrycode: steamProfile.loccountrycode,
-          locstatecode: steamProfile.locstatecode,
-          updatedAt: new Date().toISOString(),
-        },
-      }));
-      
-      console.log('Player profile updated successfully for Steam ID:', steamId);
-    } else {
-      console.error('Error storing player profile:', error);
-      throw error;
-    }
-  }
-}
-
 export async function handler(event: any): Promise<any> {
   console.log('Get user profile event received');
   console.log('Headers:', JSON.stringify(event.headers, null, 2));
@@ -191,7 +110,7 @@ export async function handler(event: any): Promise<any> {
       return {
         statusCode: 401,
         headers: {
-          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Origin': 'https://squidcup.spkymnr.xyz',
           'Access-Control-Allow-Headers': 'Content-Type,Authorization',
           'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
         },
@@ -201,13 +120,13 @@ export async function handler(event: any): Promise<any> {
 
     const sessionToken = authHeader.substring(7); // Remove 'Bearer ' prefix
     
-    // Get user session
-    const session = await getUserSession(sessionToken);
+    // Get user session from database service
+    const session = await callDatabaseService('getSession', [sessionToken]);
     if (!session) {
       return {
         statusCode: 401,
         headers: {
-          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Origin': 'https://squidcup.spkymnr.xyz',
           'Access-Control-Allow-Headers': 'Content-Type,Authorization',
           'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
         },
@@ -216,11 +135,11 @@ export async function handler(event: any): Promise<any> {
     }
 
     // Extract numeric Steam ID from the session userId
-    const numericSteamId = extractSteamIdFromOpenId(session.userId);
-    console.log('Session userId:', session.userId, 'Extracted Steam ID:', numericSteamId);
+    const numericSteamId = extractSteamIdFromOpenId(session.steamId);
+    console.log('Session steamId:', session.steamId, 'Extracted Steam ID:', numericSteamId);
 
-    // Get Steam API key from Parameter Store
-    const steamApiKey = await getParameterValue('/unencrypted/SteamApiKey');
+    // Get Steam API key from database service (SSM Parameter Store)
+    const steamApiKey = await callDatabaseService('getSsmParameter', undefined, { parameterName: '/unencrypted/SteamApiKey' });
     
     // Get Steam user profile using the numeric Steam ID
     const steamProfile = await getSteamUserProfile(steamApiKey, numericSteamId);
@@ -229,7 +148,7 @@ export async function handler(event: any): Promise<any> {
       return {
         statusCode: 500,
         headers: {
-          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Origin': 'https://squidcup.spkymnr.xyz',
           'Access-Control-Allow-Headers': 'Content-Type,Authorization',
           'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
         },
@@ -237,9 +156,18 @@ export async function handler(event: any): Promise<any> {
       };
     }
 
-    // Store/update the player profile in the database
+    // Store/update the player profile in the database via database service
     try {
-      await storePlayerProfile(numericSteamId, steamProfile);
+      await callDatabaseService('upsertUser', undefined, {
+        steamId: numericSteamId,
+        username: steamProfile.personaname,
+        avatar: steamProfile.avatar,
+        avatarMedium: steamProfile.avatarmedium,
+        avatarFull: steamProfile.avatarfull,
+        countryCode: steamProfile.loccountrycode,
+        stateCode: steamProfile.locstatecode,
+        isAdmin: false // Default value, admin status set elsewhere
+      });
     } catch (error) {
       console.error('Failed to store player profile, but continuing with response:', error);
     }
@@ -247,7 +175,7 @@ export async function handler(event: any): Promise<any> {
     return {
       statusCode: 200,
       headers: {
-        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Origin': 'https://squidcup.spkymnr.xyz',
         'Access-Control-Allow-Headers': 'Content-Type,Authorization',
         'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
       },
@@ -264,7 +192,7 @@ export async function handler(event: any): Promise<any> {
     return {
       statusCode: 500,
       headers: {
-        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Origin': 'https://squidcup.spkymnr.xyz',
         'Access-Control-Allow-Headers': 'Content-Type,Authorization',
         'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
       },

@@ -1,12 +1,31 @@
-import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { DynamoDBDocumentClient, PutCommand, GetCommand } from '@aws-sdk/lib-dynamodb';
+import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda';
 import * as crypto from 'crypto';
 import * as openid from 'openid';
 
-const dynamoClient = new DynamoDBClient({ region: process.env.REGION });
-const docClient = DynamoDBDocumentClient.from(dynamoClient);
-
+const lambdaClient = new LambdaClient({ region: process.env.REGION });
 const FRONTEND_URL = process.env.FRONTEND_URL || 'https://squidcup.spkymnr.xyz';
+
+async function callDatabaseService(operation: string, params?: any[], data?: any): Promise<any> {
+  const payload = {
+    operation,
+    params,
+    data
+  };
+
+  const command = new InvokeCommand({
+    FunctionName: process.env.DATABASE_SERVICE_FUNCTION_NAME,
+    Payload: new TextEncoder().encode(JSON.stringify(payload)),
+  });
+
+  const response = await lambdaClient.send(command);
+  const result = JSON.parse(new TextDecoder().decode(response.Payload));
+  
+  if (result.errorMessage) {
+    throw new Error(result.errorMessage);
+  }
+  
+  return result;
+}
 
 export async function handler(event: any): Promise<any> {
   console.log('Steam login event received');
@@ -177,7 +196,7 @@ async function handleSteamCallback(event: any): Promise<any> {
         
         console.log('Extracted Steam ID:', steamId);
         
-        // Store user session in DynamoDB
+        // Store user session via database service
         storeUserSession(steamId, frontendDomain)
           .then((sessionData: { sessionToken: string; expiresAt: Date }) => {
             const redirectUrl = `${frontendDomain}?token=${sessionData.sessionToken}&steamId=${steamId}`;
@@ -217,29 +236,15 @@ async function storeUserSession(steamId: string, frontendDomain: string) {
   const sessionToken = crypto.randomUUID();
   const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
 
-  // Store user profile
-  await docClient.send(new PutCommand({
-    TableName: process.env.TABLE_NAME,
-    Item: {
-      pk: `USER#${steamId}`,
-      sk: 'PROFILE',
-      steamId: steamId,
-      lastLogin: new Date().toISOString(),
-      createdAt: new Date().toISOString(),
-    },
-  }));
+  // Upsert user profile via database service
+  await callDatabaseService('upsertUser', undefined, {
+    steamId: steamId,
+    lastLogin: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  });
 
-  // Store session
-  await docClient.send(new PutCommand({
-    TableName: process.env.TABLE_NAME,
-    Item: {
-      pk: `SESSION#${sessionToken}`,
-      sk: 'METADATA',
-      userId: steamId,
-      expiresAt: expiresAt.toISOString(),
-      createdAt: new Date().toISOString(),
-    },
-  }));
+  // Create session via database service
+  await callDatabaseService('createSession', [sessionToken, steamId, expiresAt.toISOString()]);
 
   return { sessionToken, expiresAt };
 }
@@ -259,16 +264,8 @@ async function handleLogout(event: any): Promise<any> {
   }
 
   try {
-    // Delete session from DynamoDB
-    await docClient.send(new PutCommand({
-      TableName: process.env.TABLE_NAME,
-      Item: {
-        pk: `SESSION#${sessionToken}`,
-        sk: 'METADATA',
-        deleted: true,
-        deletedAt: new Date().toISOString(),
-      },
-    }));
+    // Delete session via database service
+    await callDatabaseService('deleteSession', [sessionToken]);
 
     return {
       statusCode: 200,

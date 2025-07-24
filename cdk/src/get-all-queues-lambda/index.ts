@@ -1,80 +1,7 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
-import { DynamoDBClient, QueryCommand, ScanCommand } from '@aws-sdk/client-dynamodb';
-import { SSMClient, GetParameterCommand } from '@aws-sdk/client-ssm';
-import { unmarshall } from '@aws-sdk/util-dynamodb';
+import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda';
 
-const dynamoClient = new DynamoDBClient({ region: process.env.REGION });
-const ssmClient = new SSMClient({ region: process.env.REGION });
-
-interface SessionData {
-  userId: string;
-  expiresAt: string;
-  createdAt: string;
-}
-
-// Function to extract numeric Steam ID from OpenID URL
-function extractSteamIdFromOpenId(steamId: string): string {
-  console.log('extractSteamIdFromOpenId called with:', steamId);
-  
-  // Handle null/undefined steamId
-  if (!steamId) {
-    console.error('steamId is null or undefined');
-    return '';
-  }
-  
-  // If it's already a numeric Steam ID, return as is
-  if (/^\d+$/.test(steamId)) {
-    console.log('Already numeric, returning as is');
-    return steamId;
-  }
-  
-  // Extract from OpenID URL format: https://steamcommunity.com/openid/id/76561198041569692
-  const match = steamId.match(/\/id\/(\d+)$/);
-  if (match && match[1]) {
-    console.log('Extracted from OpenID URL:', match[1]);
-    return match[1];
-  }
-  
-  // If no match found, return the original value
-  console.warn('Could not extract Steam ID from:', steamId);
-  return steamId;
-}
-
-// Function to check if user is admin
-function isAdmin(userId: string): boolean {
-  console.log('isAdmin called with userId:', userId);
-  const numericSteamId = extractSteamIdFromOpenId(userId);
-  console.log('Extracted numeric Steam ID:', numericSteamId);
-  const adminSteamId = '76561198041569692';
-  const isAdminResult = numericSteamId === adminSteamId;
-  console.log('Admin check:', numericSteamId, '===', adminSteamId, '?', isAdminResult);
-  return isAdminResult;
-}
-
-interface UserData {
-  steamId: string;
-  personaname?: string;
-  lastLogin?: string;
-  createdAt?: string;
-}
-
-interface ActiveQueueData {
-  pk: string;
-  sk: string;
-  hostSteamId: string;
-  gameMode: string;
-  mapSelectionMode: string;
-  serverId: string;
-  password?: string;
-  ranked: boolean;
-  startTime: string;
-  joiners: Array<{
-    steamId: string;
-    joinTime: string;
-  }>;
-  createdAt: string;
-  updatedAt: string;
-}
+const lambdaClient = new LambdaClient({ region: process.env.REGION });
 
 interface QueueWithUserInfo {
   id: string;
@@ -83,6 +10,7 @@ interface QueueWithUserInfo {
   gameMode: string;
   mapSelectionMode: string;
   serverId: string;
+  serverName: string;
   hasPassword: boolean;
   ranked: boolean;
   startTime: string;
@@ -93,6 +21,31 @@ interface QueueWithUserInfo {
   }>;
   createdAt: string;
   updatedAt: string;
+  players: number;
+  maxPlayers: number;
+}
+
+// Function to call the database service
+async function callDatabaseService(operation: string, params?: any[], data?: any): Promise<any> {
+  const payload = {
+    operation,
+    params,
+    data
+  };
+
+  const command = new InvokeCommand({
+    FunctionName: process.env.DATABASE_SERVICE_FUNCTION_NAME!,
+    Payload: JSON.stringify(payload),
+  });
+
+  const response = await lambdaClient.send(command);
+  const result = JSON.parse(new TextDecoder().decode(response.Payload));
+  
+  if (!result.success) {
+    throw new Error(result.error || 'Database service call failed');
+  }
+  
+  return result.data;
 }
 
 export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
@@ -100,7 +53,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
   console.log('Event:', JSON.stringify(event, null, 2));
   
   const corsHeaders = {
-    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Origin': 'https://squidcup.spkymnr.xyz',
     'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token',
     'Access-Control-Allow-Methods': 'GET,OPTIONS',
   };
@@ -134,20 +87,11 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
     const sessionToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : authHeader;
     console.log('Session token extracted:', sessionToken.substring(0, 10) + '...');
 
-    // Validate session
+    // Validate session using database service
     console.log('Validating session token');
-    const sessionQuery = new QueryCommand({
-      TableName: process.env.TABLE_NAME,
-      KeyConditionExpression: 'pk = :pk',
-      ExpressionAttributeValues: {
-        ':pk': { S: `SESSION#${sessionToken}` },
-      },
-    });
-
-    const sessionResult = await dynamoClient.send(sessionQuery);
-    console.log('Session query result:', sessionResult.Items ? `Found ${sessionResult.Items.length} items` : 'No items found');
+    const sessionData = await callDatabaseService('getSession', [sessionToken]);
     
-    if (!sessionResult.Items || sessionResult.Items.length === 0) {
+    if (!sessionData) {
       console.log('Invalid session token - no session found');
       return {
         statusCode: 401,
@@ -156,13 +100,11 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
       };
     }
 
-    const sessionData = unmarshall(sessionResult.Items[0]) as SessionData;
     console.log('Session data:', {
-      userId: sessionData.userId,
+      steamId: sessionData.steamId,
       expiresAt: sessionData.expiresAt,
-      currentTime: Date.now(),
+      currentTime: new Date().toISOString(),
     });
-    console.log('Full session data structure:', JSON.stringify(sessionData, null, 2));
     
     // Check if session is expired
     const expiresAtTime = new Date(sessionData.expiresAt).getTime();
@@ -175,12 +117,11 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
       };
     }
 
-    // Check if user is admin
-    console.log('Checking admin status for Steam ID:', sessionData.userId);
-    const adminCheck = isAdmin(sessionData.userId);
-    console.log('Admin check result:', adminCheck);
+    // Get user data to check admin status
+    console.log('Checking admin status for Steam ID:', sessionData.steamId);
+    const userData = await callDatabaseService('getUser', [sessionData.steamId]);
     
-    if (!adminCheck) {
+    if (!userData || !userData.is_admin) {
       console.log('User is not admin, access denied');
       return {
         statusCode: 403,
@@ -189,114 +130,30 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
       };
     }
 
-    // Get all active queues
-    console.log('Getting all active queues');
-    let allQueuesResult;
-    try {
-      // Try to use GSI1 first
-      console.log('Attempting to query GSI1');
-      const gsiQuery = new QueryCommand({
-        TableName: process.env.TABLE_NAME,
-        IndexName: 'GSI1',
-        KeyConditionExpression: 'GSI1PK = :gsi1pk',
-        ExpressionAttributeValues: {
-          ':gsi1pk': { S: 'ACTIVEQUEUE' },
-        },
-      });
-
-      allQueuesResult = await dynamoClient.send(gsiQuery);
-      console.log('GSI1 query successful, found', allQueuesResult.Items?.length || 0, 'items');
-    } catch (error: any) {
-      console.error('Error querying GSI1 (might be backfilling):', error);
-      
-      // Fall back to scanning the main table
-      console.log('Falling back to main table scan');
-      const scanCommand = new ScanCommand({
-        TableName: process.env.TABLE_NAME,
-        FilterExpression: 'begins_with(pk, :pkPrefix)',
-        ExpressionAttributeValues: {
-          ':pkPrefix': { S: 'ACTIVEQUEUE#' },
-        },
-      });
-
-      allQueuesResult = await dynamoClient.send(scanCommand);
-      console.log('Main table scan completed, found', allQueuesResult.Items?.length || 0, 'items');
-    }
-
-    if (!allQueuesResult.Items || allQueuesResult.Items.length === 0) {
-      console.log('No queues found, returning empty result');
-      return {
-        statusCode: 200,
-        headers: corsHeaders,
-        body: JSON.stringify({
-          queues: [],
-          total: 0,
-        }),
-      };
-    }
-
-    // Get all user profiles for name lookups
-    console.log('Getting user profiles for name lookups');
-    const userScanCommand = new ScanCommand({
-      TableName: process.env.TABLE_NAME,
-      FilterExpression: 'begins_with(pk, :pkPrefix)',
-      ExpressionAttributeValues: {
-        ':pkPrefix': { S: 'USER#' },
-      },
-    });
-
-    const usersResult = await dynamoClient.send(userScanCommand);
-    console.log('User scan completed, found', usersResult.Items?.length || 0, 'user profiles');
+    // Get all active queues with details using the database service
+    console.log('Getting all active queues with details');
+    const activeQueues = await callDatabaseService('getActiveQueuesWithDetails');
     
-    const usersMap = new Map<string, string>();
-    
-    if (usersResult.Items) {
-      for (const item of usersResult.Items) {
-        try {
-          const user = unmarshall(item) as UserData;
-          usersMap.set(user.steamId, user.personaname || 'Unknown');
-        } catch (error) {
-          console.error('Error unmarshalling user item:', error, item);
-        }
-      }
-    }
-    console.log('Users map populated with', usersMap.size, 'entries');
+    console.log('Retrieved', activeQueues.length, 'active queues');
 
-    // Process queue data and add user names
-    console.log('Processing queue data');
-    const queuesWithUserInfo: QueueWithUserInfo[] = [];
-    
-    for (const item of allQueuesResult.Items) {
-      try {
-        const queueData = unmarshall(item) as ActiveQueueData;
-        console.log('Processing queue:', queueData.pk);
-        
-        const queueWithUserInfo: QueueWithUserInfo = {
-          id: queueData.pk.replace('ACTIVEQUEUE#', ''),
-          hostSteamId: queueData.hostSteamId,
-          hostName: usersMap.get(queueData.hostSteamId) || 'Unknown',
-          gameMode: queueData.gameMode,
-          mapSelectionMode: queueData.mapSelectionMode,
-          serverId: queueData.serverId,
-          hasPassword: !!queueData.password,
-          ranked: queueData.ranked,
-          startTime: queueData.startTime,
-          joiners: queueData.joiners.map(joiner => ({
-            steamId: joiner.steamId,
-            name: usersMap.get(joiner.steamId) || 'Unknown',
-            joinTime: joiner.joinTime,
-          })),
-          createdAt: queueData.createdAt,
-          updatedAt: queueData.updatedAt,
-        };
-        
-        queuesWithUserInfo.push(queueWithUserInfo);
-      } catch (error) {
-        console.error('Error processing queue item:', error, item);
-      }
-    }
-    
-    console.log('Processed', queuesWithUserInfo.length, 'queues successfully');
+    // Convert to the format expected by the admin interface
+    const queuesWithUserInfo: QueueWithUserInfo[] = activeQueues.map((queue: any) => ({
+      id: queue.queueId,
+      hostSteamId: queue.hostSteamId,
+      hostName: queue.hostName,
+      gameMode: queue.gameMode,
+      mapSelectionMode: queue.mapSelectionMode,
+      serverId: queue.serverId,
+      serverName: queue.serverName,
+      hasPassword: queue.hasPassword,
+      ranked: queue.ranked,
+      startTime: queue.startTime,
+      joiners: queue.joiners,
+      createdAt: queue.createdAt,
+      updatedAt: queue.lastActivity,
+      players: queue.players,
+      maxPlayers: queue.maxPlayers,
+    }));
 
     // Sort by creation time (newest first)
     queuesWithUserInfo.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());

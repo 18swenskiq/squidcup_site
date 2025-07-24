@@ -1,43 +1,55 @@
-import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { DynamoDBDocumentClient, DeleteCommand, GetCommand } from '@aws-sdk/lib-dynamodb';
+import { LambdaClient, InvokeCommand } from "@aws-sdk/client-lambda";
 
-const dynamoClient = new DynamoDBClient({ region: process.env.REGION });
-const docClient = DynamoDBDocumentClient.from(dynamoClient);
+// Initialize Lambda client
+const lambdaClient = new LambdaClient({ region: process.env.REGION });
 
-// Function to get user session from DynamoDB
-async function getUserSession(sessionToken: string): Promise<{ userId: string; expiresAt: string } | null> {
+export interface DatabaseRequest {
+  operation: string;
+  data?: any;
+  params?: any[];
+}
+
+export interface DatabaseResponse {
+  success: boolean;
+  data?: any;
+  error?: string;
+}
+
+// Function to call database service
+async function callDatabaseService(request: DatabaseRequest): Promise<DatabaseResponse> {
   try {
-    const result = await docClient.send(new GetCommand({
-      TableName: process.env.TABLE_NAME,
-      Key: {
-        pk: `SESSION#${sessionToken}`,
-        sk: 'METADATA',
-      },
-    }));
+    const command = new InvokeCommand({
+      FunctionName: process.env.DATABASE_SERVICE_FUNCTION_NAME,
+      Payload: JSON.stringify(request)
+    });
 
-    if (!result.Item || result.Item.deleted) {
-      return null;
+    const response = await lambdaClient.send(command);
+    
+    if (!response.Payload) {
+      throw new Error('No response from database service');
     }
 
-    // Check if session is expired
-    const expiresAt = new Date(result.Item.expiresAt);
-    if (expiresAt < new Date()) {
-      return null;
-    }
-
-    return {
-      userId: result.Item.userId,
-      expiresAt: result.Item.expiresAt,
-    };
+    const responseData = JSON.parse(Buffer.from(response.Payload).toString());
+    return responseData;
   } catch (error) {
-    console.error('Error getting user session:', error);
-    return null;
+    console.error('Error calling database service:', error);
+    throw error;
   }
 }
 
+// Function to extract numeric Steam ID from OpenID URL
+function extractSteamIdFromOpenId(steamId: string): string {
+  if (steamId.includes('steamcommunity.com/openid/id/')) {
+    return steamId.split('/').pop() || steamId;
+  }
+  return steamId;
+}
+
 // Function to check if user is admin
-function isAdmin(userId: string): boolean {
-  return userId === '76561198041569692';
+async function isAdmin(steamId: string): Promise<boolean> {
+  const numericSteamId = extractSteamIdFromOpenId(steamId);
+  const adminSteamId = '76561198041569692';
+  return numericSteamId === adminSteamId;
 }
 
 export async function handler(event: any): Promise<any> {
@@ -52,7 +64,7 @@ export async function handler(event: any): Promise<any> {
       return {
         statusCode: 400,
         headers: {
-          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Origin': 'https://squidcup.spkymnr.xyz',
         },
         body: JSON.stringify({ error: 'Server ID is required' }),
       };
@@ -64,59 +76,73 @@ export async function handler(event: any): Promise<any> {
       return {
         statusCode: 401,
         headers: {
-          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Origin': 'https://squidcup.spkymnr.xyz',
         },
         body: JSON.stringify({ error: 'Missing or invalid authorization header' }),
       };
     }
 
     const sessionToken = authHeader.substring(7);
-    const session = await getUserSession(sessionToken);
+    console.log('Extracted session token:', sessionToken);
     
-    if (!session || !isAdmin(session.userId)) {
+    // Get session from database service
+    const sessionResponse = await callDatabaseService({
+      operation: 'getSession',
+      params: [sessionToken]
+    });
+
+    if (!sessionResponse.success || !sessionResponse.data) {
+      return {
+        statusCode: 401,
+        headers: {
+          'Access-Control-Allow-Origin': 'https://squidcup.spkymnr.xyz',
+        },
+        body: JSON.stringify({ error: 'Invalid or expired session' }),
+      };
+    }
+
+    const session = sessionResponse.data;
+    console.log('Session found:', session);
+
+    // Check if user is admin
+    const userIsAdmin = await isAdmin(session.steamId);
+    if (!userIsAdmin) {
       return {
         statusCode: 403,
         headers: {
-          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Origin': 'https://squidcup.spkymnr.xyz',
         },
         body: JSON.stringify({ error: 'Admin access required' }),
       };
     }
 
-    // Check if server exists before deleting
-    const serverCheck = await docClient.send(new GetCommand({
-      TableName: process.env.TABLE_NAME,
-      Key: {
-        pk: `SERVER#${serverId}`,
-        sk: 'METADATA'
-      }
-    }));
+    // Check if server exists and delete it using database service
+    const deleteServerResponse = await callDatabaseService({
+      operation: 'deleteServer',
+      params: [serverId]
+    });
 
-    if (!serverCheck.Item) {
-      return {
-        statusCode: 404,
-        headers: {
-          'Access-Control-Allow-Origin': '*',
-        },
-        body: JSON.stringify({ error: 'Server not found' }),
-      };
+    if (!deleteServerResponse.success) {
+      // Check if it's a server not found error
+      if (deleteServerResponse.error?.includes('not found')) {
+        return {
+          statusCode: 404,
+          headers: {
+            'Access-Control-Allow-Origin': 'https://squidcup.spkymnr.xyz',
+          },
+          body: JSON.stringify({ error: 'Server not found' }),
+        };
+      }
+      
+      throw new Error(deleteServerResponse.error || 'Failed to delete server');
     }
-
-    // Delete the server
-    await docClient.send(new DeleteCommand({
-      TableName: process.env.TABLE_NAME,
-      Key: {
-        pk: `SERVER#${serverId}`,
-        sk: 'METADATA'
-      }
-    }));
 
     console.log('Server deleted successfully:', serverId);
 
     return {
       statusCode: 200,
       headers: {
-        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Origin': 'https://squidcup.spkymnr.xyz',
         'Access-Control-Allow-Headers': 'Content-Type,Authorization',
         'Access-Control-Allow-Methods': 'DELETE,OPTIONS',
       },
@@ -127,7 +153,7 @@ export async function handler(event: any): Promise<any> {
     return {
       statusCode: 500,
       headers: {
-        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Origin': 'https://squidcup.spkymnr.xyz',
       },
       body: JSON.stringify({ error: 'Failed to delete server' }),
     };

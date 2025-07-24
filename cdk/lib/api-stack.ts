@@ -3,7 +3,6 @@ import { Construct } from 'constructs';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as apigw from "aws-cdk-lib/aws-apigateway";
 import * as iam from 'aws-cdk-lib/aws-iam';
-import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import * as logs from 'aws-cdk-lib/aws-logs';
 import * as events from 'aws-cdk-lib/aws-events';
 import * as targets from 'aws-cdk-lib/aws-events-targets';
@@ -19,59 +18,6 @@ export class ApiStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
-    // Create DynamoDB table
-    const table = new dynamodb.Table(this, 'SquidCupTable', {
-      tableName: 'squidcup-data',
-      partitionKey: {
-        name: 'pk',
-        type: dynamodb.AttributeType.STRING
-      },
-      sortKey: {
-        name: 'sk',
-        type: dynamodb.AttributeType.STRING
-      },
-      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
-      removalPolicy: cdk.RemovalPolicy.DESTROY, // Use RETAIN for production
-      pointInTimeRecovery: true,
-    });
-
-    // Add GSI1 for querying active queues
-    table.addGlobalSecondaryIndex({
-      indexName: 'GSI1',
-      partitionKey: {
-        name: 'GSI1PK',
-        type: dynamodb.AttributeType.STRING
-      },
-      sortKey: {
-        name: 'GSI1SK',
-        type: dynamodb.AttributeType.STRING
-      },
-    });
-
-    const getMapsFunction = new lambda.Function(this, "get-maps-function", {
-      runtime: this.RUNTIME,
-      memorySize: this.MEMORY_SIZE,
-      timeout: this.TIMEOUT,
-      handler: 'index.handler',  // The Lambda runtime will look for index.js
-      code: lambda.Code.fromAsset(path.join(__dirname, '/../src/get-maps-lambda')),
-      environment: {
-        REGION: this.REGION,
-        TABLE_NAME: table.tableName,
-      }
-    });
-
-    const getServersFunction = new lambda.Function(this, "get-servers-function", {
-      runtime: this.RUNTIME,
-      memorySize: this.MEMORY_SIZE,
-      timeout: this.TIMEOUT,
-      handler: 'index.handler',
-      code: lambda.Code.fromAsset(path.join(__dirname, '/../src/get-servers-lambda')),
-      environment: {
-        REGION: this.REGION,
-        TABLE_NAME: table.tableName,
-      }
-    });
-
     const steamLoginFunction = new lambda.Function(this, "steam-login-function", {
       runtime: this.RUNTIME,
       memorySize: this.MEMORY_SIZE,
@@ -79,9 +25,20 @@ export class ApiStack extends cdk.Stack {
       handler: 'index.handler',
       code: lambda.Code.fromAsset(path.join(__dirname, '/../src/steam-login-lambda')),
       environment: {
-        REGION: this.REGION,
-        TABLE_NAME: table.tableName,
+        AWS_REGION: this.REGION,
         FRONTEND_URL: 'https://squidcup.spkymnr.xyz', // Your actual domain
+      }
+    });
+
+    // Database service lambda - centralized MySQL operations
+    const databaseServiceFunction = new lambda.Function(this, "database-service-function", {
+      runtime: this.RUNTIME,
+      memorySize: this.MEMORY_SIZE,
+      timeout: cdk.Duration.seconds(30), // Longer timeout for database operations
+      handler: 'index.handler',
+      code: lambda.Code.fromAsset(path.join(__dirname, '/../src/database-service-lambda')),
+      environment: {
+        REGION: this.REGION,
       }
     });
 
@@ -93,7 +50,19 @@ export class ApiStack extends cdk.Stack {
       code: lambda.Code.fromAsset(path.join(__dirname, '/../src/get-user-profile-lambda')),
       environment: {
         REGION: this.REGION,
-        TABLE_NAME: table.tableName,
+        DATABASE_SERVICE_FUNCTION_NAME: databaseServiceFunction.functionName,
+      }
+    });
+
+    const getMapsFunction = new lambda.Function(this, "get-maps-function", {
+      runtime: this.RUNTIME,
+      memorySize: this.MEMORY_SIZE,
+      timeout: this.TIMEOUT,
+      handler: 'index.handler',
+      code: lambda.Code.fromAsset(path.join(__dirname, '/../src/get-maps-lambda')),
+      environment: {
+        REGION: this.REGION,
+        DATABASE_SERVICE_FUNCTION_NAME: databaseServiceFunction.functionName,
       }
     });
 
@@ -105,7 +74,7 @@ export class ApiStack extends cdk.Stack {
       code: lambda.Code.fromAsset(path.join(__dirname, '/../src/add-server-lambda')),
       environment: {
         REGION: this.REGION,
-        TABLE_NAME: table.tableName,
+        DATABASE_SERVICE_FUNCTION_NAME: databaseServiceFunction.functionName,
       }
     });
 
@@ -117,7 +86,19 @@ export class ApiStack extends cdk.Stack {
       code: lambda.Code.fromAsset(path.join(__dirname, '/../src/delete-server-lambda')),
       environment: {
         REGION: this.REGION,
-        TABLE_NAME: table.tableName,
+        DATABASE_SERVICE_FUNCTION_NAME: databaseServiceFunction.functionName,
+      }
+    });
+
+    const getServersFunction = new lambda.Function(this, "get-servers-function", {
+      runtime: this.RUNTIME,
+      memorySize: this.MEMORY_SIZE,
+      timeout: this.TIMEOUT,
+      handler: 'index.handler',
+      code: lambda.Code.fromAsset(path.join(__dirname, '/../src/get-servers-lambda')),
+      environment: {
+        REGION: this.REGION,
+        DATABASE_SERVICE_FUNCTION_NAME: databaseServiceFunction.functionName,
       }
     });
 
@@ -128,8 +109,8 @@ export class ApiStack extends cdk.Stack {
       handler: 'index.handler',
       code: lambda.Code.fromAsset(path.join(__dirname, '/../src/start-queue-lambda')),
       environment: {
-        REGION: this.REGION,
-        TABLE_NAME: table.tableName,
+        AWS_REGION: this.REGION,
+        DATABASE_SERVICE_FUNCTION_NAME: databaseServiceFunction.functionName,
       }
     });
 
@@ -141,7 +122,7 @@ export class ApiStack extends cdk.Stack {
       code: lambda.Code.fromAsset(path.join(__dirname, '/../src/get-user-queue-lambda')),
       environment: {
         REGION: this.REGION,
-        TABLE_NAME: table.tableName,
+        DATABASE_SERVICE_FUNCTION_NAME: databaseServiceFunction.functionName,
       }
     });
 
@@ -153,7 +134,7 @@ export class ApiStack extends cdk.Stack {
       code: lambda.Code.fromAsset(path.join(__dirname, '/../src/get-all-queues-lambda')),
       environment: {
         REGION: this.REGION,
-        TABLE_NAME: table.tableName,
+        DATABASE_SERVICE_FUNCTION_NAME: databaseServiceFunction.functionName,
       }
     });
 
@@ -165,7 +146,7 @@ export class ApiStack extends cdk.Stack {
       code: lambda.Code.fromAsset(path.join(__dirname, '/../src/leave-queue-lambda')),
       environment: {
         REGION: this.REGION,
-        TABLE_NAME: table.tableName,
+        DATABASE_SERVICE_FUNCTION_NAME: databaseServiceFunction.functionName,
       }
     });
 
@@ -177,7 +158,7 @@ export class ApiStack extends cdk.Stack {
       code: lambda.Code.fromAsset(path.join(__dirname, '/../src/join-queue-lambda')),
       environment: {
         REGION: this.REGION,
-        TABLE_NAME: table.tableName,
+        DATABASE_SERVICE_FUNCTION_NAME: databaseServiceFunction.functionName,
       }
     });
 
@@ -189,7 +170,7 @@ export class ApiStack extends cdk.Stack {
       code: lambda.Code.fromAsset(path.join(__dirname, '/../src/get-queue-history-lambda')),
       environment: {
         REGION: this.REGION,
-        TABLE_NAME: table.tableName,
+        DATABASE_SERVICE_FUNCTION_NAME: databaseServiceFunction.functionName,
       }
     });
 
@@ -201,7 +182,7 @@ export class ApiStack extends cdk.Stack {
       code: lambda.Code.fromAsset(path.join(__dirname, '/../src/get-active-queues-lambda')),
       environment: {
         REGION: this.REGION,
-        TABLE_NAME: table.tableName,
+        DATABASE_SERVICE_FUNCTION_NAME: databaseServiceFunction.functionName,
       }
     });
 
@@ -213,7 +194,7 @@ export class ApiStack extends cdk.Stack {
       code: lambda.Code.fromAsset(path.join(__dirname, '/../src/queue-cleanup-lambda')),
       environment: {
         REGION: this.REGION,
-        TABLE_NAME: table.tableName,
+        DATABASE_SERVICE_FUNCTION_NAME: databaseServiceFunction.functionName,
         QUEUE_TIMEOUT_MINUTES: '10', // 10 minutes of inactivity before cleanup
       }
     });
@@ -226,7 +207,7 @@ export class ApiStack extends cdk.Stack {
       code: lambda.Code.fromAsset(path.join(__dirname, '/../src/create-lobby-lambda')),
       environment: {
         REGION: this.REGION,
-        TABLE_NAME: table.tableName,
+        DATABASE_SERVICE_FUNCTION_NAME: databaseServiceFunction.functionName,
       }
     });
 
@@ -238,7 +219,7 @@ export class ApiStack extends cdk.Stack {
       code: lambda.Code.fromAsset(path.join(__dirname, '/../src/leave-lobby-lambda')),
       environment: {
         REGION: this.REGION,
-        TABLE_NAME: table.tableName,
+        DATABASE_SERVICE_FUNCTION_NAME: databaseServiceFunction.functionName,
       }
     });
 
@@ -249,8 +230,8 @@ export class ApiStack extends cdk.Stack {
       handler: 'index.handler',
       code: lambda.Code.fromAsset(path.join(__dirname, '/../src/select-map-lambda')),
       environment: {
-        REGION: this.REGION,
-        TABLE_NAME: table.tableName,
+        AWS_REGION: this.REGION,
+        DATABASE_SERVICE_FUNCTION_NAME: databaseServiceFunction.functionName,
       }
     });
 
@@ -261,48 +242,42 @@ export class ApiStack extends cdk.Stack {
     });
 
     // Add the SSM policy to all Lambda functions
-    getMapsFunction.addToRolePolicy(ssmPolicy);
-    getServersFunction.addToRolePolicy(ssmPolicy);
-    steamLoginFunction.addToRolePolicy(ssmPolicy);
-    getUserProfileFunction.addToRolePolicy(ssmPolicy);
+    databaseServiceFunction.addToRolePolicy(ssmPolicy);
     addServerFunction.addToRolePolicy(ssmPolicy);
     deleteServerFunction.addToRolePolicy(ssmPolicy);
-    startQueueFunction.addToRolePolicy(ssmPolicy);
     getUserQueueFunction.addToRolePolicy(ssmPolicy);
-    getAllQueuesFunction.addToRolePolicy(ssmPolicy);
-    leaveQueueFunction.addToRolePolicy(ssmPolicy);
-    joinQueueFunction.addToRolePolicy(ssmPolicy);
-    getQueueHistoryFunction.addToRolePolicy(ssmPolicy);
-    getActiveQueuesFunction.addToRolePolicy(ssmPolicy);
-    queueCleanupFunction.addToRolePolicy(ssmPolicy);
     createLobbyFunction.addToRolePolicy(ssmPolicy);
-    leaveLobbyFunction.addToRolePolicy(ssmPolicy);
-    selectMapFunction.addToRolePolicy(ssmPolicy);
 
-    // Grant DynamoDB permissions to Lambda functions
-    table.grantReadWriteData(getMapsFunction);
-    table.grantReadWriteData(getServersFunction);
-    table.grantReadWriteData(steamLoginFunction);
-    table.grantReadWriteData(getUserProfileFunction);
-    table.grantReadWriteData(addServerFunction);
-    table.grantReadWriteData(deleteServerFunction);
-    table.grantReadWriteData(startQueueFunction);
-    table.grantReadWriteData(getUserQueueFunction);
-    table.grantReadWriteData(getAllQueuesFunction);
-    table.grantReadWriteData(leaveQueueFunction);
-    table.grantReadWriteData(joinQueueFunction);
-    table.grantReadWriteData(getQueueHistoryFunction);
-    table.grantReadWriteData(getActiveQueuesFunction);
-    table.grantReadWriteData(queueCleanupFunction);
-    table.grantReadWriteData(createLobbyFunction);
-    table.grantReadWriteData(leaveLobbyFunction);
-    table.grantReadWriteData(selectMapFunction);
+    // Grant database service permissions to Lambda functions
+    databaseServiceFunction.grantInvoke(getUserProfileFunction);
+    databaseServiceFunction.grantInvoke(getUserQueueFunction);
+    databaseServiceFunction.grantInvoke(queueCleanupFunction);
 
     // Grant Lambda invoke permissions for lobby system
     createLobbyFunction.grantInvoke(joinQueueFunction); // Allow join-queue to invoke create-lobby
+    
+    // Grant database service invoke permissions to all lambdas that need it
+    databaseServiceFunction.grantInvoke(addServerFunction);
+    databaseServiceFunction.grantInvoke(createLobbyFunction);
+    databaseServiceFunction.grantInvoke(deleteServerFunction);
+    databaseServiceFunction.grantInvoke(getActiveQueuesFunction);
+    databaseServiceFunction.grantInvoke(getAllQueuesFunction);
+    databaseServiceFunction.grantInvoke(getMapsFunction);
+    databaseServiceFunction.grantInvoke(getQueueHistoryFunction);
+    databaseServiceFunction.grantInvoke(getServersFunction);
+    databaseServiceFunction.grantInvoke(joinQueueFunction);
+    databaseServiceFunction.grantInvoke(leaveLobbyFunction);
+    databaseServiceFunction.grantInvoke(leaveQueueFunction);
+    databaseServiceFunction.grantInvoke(selectMapFunction);
+    databaseServiceFunction.grantInvoke(startQueueFunction);
+    databaseServiceFunction.grantInvoke(steamLoginFunction);
+    // Note: We'll add more functions here as we convert them
 
     // Add environment variable to join queue function for create lobby function name
     joinQueueFunction.addEnvironment('CREATE_LOBBY_FUNCTION_NAME', createLobbyFunction.functionName);
+    
+    // Add database service function name to steam login function
+    steamLoginFunction.addEnvironment('DATABASE_SERVICE_FUNCTION_NAME', databaseServiceFunction.functionName);
 
     // Create CloudWatch log group for API Gateway
     const apiLogGroup = new logs.LogGroup(this, 'ApiGatewayLogGroup', {
@@ -356,7 +331,7 @@ export class ApiStack extends cdk.Stack {
       integrationResponses: [{
         statusCode: '200',
         responseParameters: {
-          'method.response.header.Access-Control-Allow-Origin': "'*'",
+          'method.response.header.Access-Control-Allow-Origin': "'https://squidcup.spkymnr.xyz'",
           'method.response.header.Access-Control-Allow-Headers': "'Content-Type,Authorization'",
           'method.response.header.Access-Control-Allow-Methods': "'GET,POST,OPTIONS'",
         },
@@ -418,7 +393,7 @@ export class ApiStack extends cdk.Stack {
       integrationResponses: [{
         statusCode: '200',
         responseParameters: {
-          'method.response.header.Access-Control-Allow-Origin': "'*'",
+          'method.response.header.Access-Control-Allow-Origin': "'https://squidcup.spkymnr.xyz'",
           'method.response.header.Access-Control-Allow-Headers': "'Content-Type,Authorization'",
           'method.response.header.Access-Control-Allow-Methods': "'GET,OPTIONS'",
         },
@@ -442,7 +417,7 @@ export class ApiStack extends cdk.Stack {
       integrationResponses: [{
         statusCode: '200',
         responseParameters: {
-          'method.response.header.Access-Control-Allow-Origin': "'*'",
+          'method.response.header.Access-Control-Allow-Origin': "'https://squidcup.spkymnr.xyz'",
           'method.response.header.Access-Control-Allow-Headers': "'Content-Type,Authorization'",
           'method.response.header.Access-Control-Allow-Methods': "'PUT,OPTIONS'",
         },
@@ -529,7 +504,7 @@ export class ApiStack extends cdk.Stack {
       integrationResponses: [{
         statusCode: '200',
         responseParameters: {
-          'method.response.header.Access-Control-Allow-Origin': "'*'",
+          'method.response.header.Access-Control-Allow-Origin': "'https://squidcup.spkymnr.xyz'",
           'method.response.header.Access-Control-Allow-Headers': "'Content-Type,Authorization'",
           'method.response.header.Access-Control-Allow-Methods': "'POST,OPTIONS'",
         },
@@ -573,7 +548,7 @@ export class ApiStack extends cdk.Stack {
       integrationResponses: [{
         statusCode: '200',
         responseParameters: {
-          'method.response.header.Access-Control-Allow-Origin': "'*'",
+          'method.response.header.Access-Control-Allow-Origin': "'https://squidcup.spkymnr.xyz'",
           'method.response.header.Access-Control-Allow-Headers': "'Content-Type,Authorization'",
           'method.response.header.Access-Control-Allow-Methods': "'GET,OPTIONS'",
         },
@@ -625,7 +600,7 @@ export class ApiStack extends cdk.Stack {
       integrationResponses: [{
         statusCode: '200',
         responseParameters: {
-          'method.response.header.Access-Control-Allow-Origin': "'*'",
+          'method.response.header.Access-Control-Allow-Origin': "'https://squidcup.spkymnr.xyz'",
           'method.response.header.Access-Control-Allow-Headers': "'Content-Type,Authorization'",
           'method.response.header.Access-Control-Allow-Methods': "'POST,OPTIONS'",
         },
@@ -678,7 +653,7 @@ export class ApiStack extends cdk.Stack {
       integrationResponses: [{
         statusCode: '200',
         responseParameters: {
-          'method.response.header.Access-Control-Allow-Origin': "'*'",
+          'method.response.header.Access-Control-Allow-Origin': "'https://squidcup.spkymnr.xyz'",
           'method.response.header.Access-Control-Allow-Headers': "'Content-Type,Authorization'",
           'method.response.header.Access-Control-Allow-Methods': "'DELETE,OPTIONS'",
         },
@@ -730,7 +705,7 @@ export class ApiStack extends cdk.Stack {
       integrationResponses: [{
         statusCode: '200',
         responseParameters: {
-          'method.response.header.Access-Control-Allow-Origin': "'*'",
+          'method.response.header.Access-Control-Allow-Origin': "'https://squidcup.spkymnr.xyz'",
           'method.response.header.Access-Control-Allow-Headers': "'Content-Type,Authorization'",
           'method.response.header.Access-Control-Allow-Methods': "'POST,OPTIONS'",
         },
@@ -777,7 +752,7 @@ export class ApiStack extends cdk.Stack {
       integrationResponses: [{
         statusCode: '200',
         responseParameters: {
-          'method.response.header.Access-Control-Allow-Origin': "'*'",
+          'method.response.header.Access-Control-Allow-Origin': "'https://squidcup.spkymnr.xyz'",
           'method.response.header.Access-Control-Allow-Headers': "'Content-Type,Authorization'",
           'method.response.header.Access-Control-Allow-Methods': "'GET,OPTIONS'",
         },
@@ -829,7 +804,7 @@ export class ApiStack extends cdk.Stack {
       integrationResponses: [{
         statusCode: '200',
         responseParameters: {
-          'method.response.header.Access-Control-Allow-Origin': "'*'",
+          'method.response.header.Access-Control-Allow-Origin': "'https://squidcup.spkymnr.xyz'",
           'method.response.header.Access-Control-Allow-Headers': "'Content-Type,Authorization'",
           'method.response.header.Access-Control-Allow-Methods': "'GET,OPTIONS'",
         },
@@ -881,7 +856,7 @@ export class ApiStack extends cdk.Stack {
       integrationResponses: [{
         statusCode: '200',
         responseParameters: {
-          'method.response.header.Access-Control-Allow-Origin': "'*'",
+          'method.response.header.Access-Control-Allow-Origin': "'https://squidcup.spkymnr.xyz'",
           'method.response.header.Access-Control-Allow-Headers': "'Content-Type,Authorization'",
           'method.response.header.Access-Control-Allow-Methods': "'POST,OPTIONS'",
         },
@@ -938,7 +913,7 @@ export class ApiStack extends cdk.Stack {
       integrationResponses: [{
         statusCode: '200',
         responseParameters: {
-          'method.response.header.Access-Control-Allow-Origin': "'*'",
+          'method.response.header.Access-Control-Allow-Origin': "'https://squidcup.spkymnr.xyz'",
           'method.response.header.Access-Control-Allow-Headers': "'Content-Type,Authorization'",
           'method.response.header.Access-Control-Allow-Methods': "'POST,OPTIONS'",
         },
@@ -985,7 +960,7 @@ export class ApiStack extends cdk.Stack {
       integrationResponses: [{
         statusCode: '200',
         responseParameters: {
-          'method.response.header.Access-Control-Allow-Origin': "'*'",
+          'method.response.header.Access-Control-Allow-Origin': "'https://squidcup.spkymnr.xyz'",
           'method.response.header.Access-Control-Allow-Headers': "'Content-Type,Authorization'",
           'method.response.header.Access-Control-Allow-Methods': "'GET,OPTIONS'",
         },
@@ -1027,7 +1002,7 @@ export class ApiStack extends cdk.Stack {
       integrationResponses: [{
         statusCode: '200',
         responseParameters: {
-          'method.response.header.Access-Control-Allow-Origin': "'*'",
+          'method.response.header.Access-Control-Allow-Origin': "'https://squidcup.spkymnr.xyz'",
           'method.response.header.Access-Control-Allow-Headers': "'Content-Type,Authorization'",
           'method.response.header.Access-Control-Allow-Methods': "'GET,OPTIONS'",
         },
@@ -1081,7 +1056,7 @@ export class ApiStack extends cdk.Stack {
       integrationResponses: [{
         statusCode: '200',
         responseParameters: {
-          'method.response.header.Access-Control-Allow-Origin': "'*'",
+          'method.response.header.Access-Control-Allow-Origin': "'https://squidcup.spkymnr.xyz'",
           'method.response.header.Access-Control-Allow-Headers': "'Content-Type,Authorization'",
           'method.response.header.Access-Control-Allow-Methods': "'DELETE,OPTIONS'",
         },
@@ -1138,7 +1113,7 @@ export class ApiStack extends cdk.Stack {
       integrationResponses: [{
         statusCode: '200',
         responseParameters: {
-          'method.response.header.Access-Control-Allow-Origin': "'*'",
+          'method.response.header.Access-Control-Allow-Origin': "'https://squidcup.spkymnr.xyz'",
           'method.response.header.Access-Control-Allow-Headers': "'Content-Type,Authorization'",
           'method.response.header.Access-Control-Allow-Methods': "'POST,OPTIONS'",
         },
@@ -1171,13 +1146,6 @@ export class ApiStack extends cdk.Stack {
       value: api.url,
       description: 'URL of the API Gateway',
       exportName: 'SquidCupApiUrl'
-    });
-
-    // Export the DynamoDB table name
-    new cdk.CfnOutput(this, 'TableName', {
-      value: table.tableName,
-      description: 'Name of the DynamoDB table',
-      exportName: 'SquidCupTableName'
     });
 
     // Export the CloudWatch log group name for easy access
