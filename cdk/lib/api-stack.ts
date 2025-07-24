@@ -331,7 +331,7 @@ export class ApiStack extends cdk.Stack {
       integrationResponses: [{
         statusCode: '200',
         responseParameters: {
-          'method.response.header.Access-Control-Allow-Origin': "'*'",
+          'method.response.header.Access-Control-Allow-Origin': "'https://squidcup.spkymnr.xyz'",
           'method.response.header.Access-Control-Allow-Headers': "'Content-Type,Authorization'",
           'method.response.header.Access-Control-Allow-Methods': "'GET,POST,OPTIONS'",
         },
@@ -393,7 +393,7 @@ export class ApiStack extends cdk.Stack {
       integrationResponses: [{
         statusCode: '200',
         responseParameters: {
-          'method.response.header.Access-Control-Allow-Origin': "'*'",
+          'method.response.header.Access-Control-Allow-Origin': "'https://squidcup.spkymnr.xyz'",
           'method.response.header.Access-Control-Allow-Headers': "'Content-Type,Authorization'",
           'method.response.header.Access-Control-Allow-Methods': "'GET,OPTIONS'",
         },
@@ -417,7 +417,7 @@ export class ApiStack extends cdk.Stack {
       integrationResponses: [{
         statusCode: '200',
         responseParameters: {
-          'method.response.header.Access-Control-Allow-Origin': "'*'",
+          'method.response.header.Access-Control-Allow-Origin': "'https://squidcup.spkymnr.xyz'",
           'method.response.header.Access-Control-Allow-Headers': "'Content-Type,Authorization'",
           'method.response.header.Access-Control-Allow-Methods': "'PUT,OPTIONS'",
         },
@@ -504,7 +504,7 @@ export class ApiStack extends cdk.Stack {
       integrationResponses: [{
         statusCode: '200',
         responseParameters: {
-          'method.response.header.Access-Control-Allow-Origin': "'*'",
+          'method.response.header.Access-Control-Allow-Origin': "'https://squidcup.spkymnr.xyz'",
           'method.response.header.Access-Control-Allow-Headers': "'Content-Type,Authorization'",
           'method.response.header.Access-Control-Allow-Methods': "'POST,OPTIONS'",
         },
@@ -548,7 +548,7 @@ export class ApiStack extends cdk.Stack {
       integrationResponses: [{
         statusCode: '200',
         responseParameters: {
-          'method.response.header.Access-Control-Allow-Origin': "'*'",
+          'method.response.header.Access-Control-Allow-Origin': "'https://squidcup.spkymnr.xyz'",
           'method.response.header.Access-Control-Allow-Headers': "'Content-Type,Authorization'",
           'method.response.header.Access-Control-Allow-Methods': "'GET,OPTIONS'",
         },
@@ -600,7 +600,7 @@ export class ApiStack extends cdk.Stack {
       integrationResponses: [{
         statusCode: '200',
         responseParameters: {
-          'method.response.header.Access-Control-Allow-Origin': "'*'",
+          'method.response.header.Access-Control-Allow-Origin': "'https://squidcup.spkymnr.xyz'",
           'method.response.header.Access-Control-Allow-Headers': "'Content-Type,Authorization'",
           'method.response.header.Access-Control-Allow-Methods': "'POST,OPTIONS'",
         },
@@ -653,7 +653,7 @@ export class ApiStack extends cdk.Stack {
       integrationResponses: [{
         statusCode: '200',
         responseParameters: {
-          'method.response.header.Access-Control-Allow-Origin': "'*'",
+          'method.response.header.Access-Control-Allow-Origin': "'https://squidcup.spkymnr.xyz'",
           'method.response.header.Access-Control-Allow-Headers': "'Content-Type,Authorization'",
           'method.response.header.Access-Control-Allow-Methods': "'DELETE,OPTIONS'",
         },
@@ -705,7 +705,7 @@ export class ApiStack extends cdk.Stack {
       integrationResponses: [{
         statusCode: '200',
         responseParameters: {
-          'method.response.header.Access-Control-Allow-Origin': "'*'",
+          'method.response.header.Access-Control-Allow-Origin': "'https://squidcup.spkymnr.xyz'",
           'method.response.header.Access-Control-Allow-Headers': "'Content-Type,Authorization'",
           'method.response.header.Access-Control-Allow-Methods': "'POST,OPTIONS'",
         },
@@ -752,7 +752,7 @@ export class ApiStack extends cdk.Stack {
       integrationResponses: [{
         statusCode: '200',
         responseParameters: {
-          'method.response.header.Access-Control-Allow-Origin': "'*'",
+          'method.response.header.Access-Control-Allow-Origin': "'https://squidcup.spkymnr.xyz'",
           'method.response.header.Access-Control-Allow-Headers': "'Content-Type,Authorization'",
           'method.response.header.Access-Control-Allow-Methods': "'GET,OPTIONS'",
         },
@@ -804,7 +804,7 @@ export class ApiStack extends cdk.Stack {
       integrationResponses: [{
         statusCode: '200',
         responseParameters: {
-          'method.response.header.Access-Control-Allow-Origin': "'*'",
+          'method.response.header.Access-Control-Allow-Origin': "'https://squidcup.spkymnr.xyz'",
           'method.response.header.Access-Control-Allow-Headers': "'Content-Type,Authorization'",
           'method.response.header.Access-Control-Allow-Methods': "'GET,OPTIONS'",
         },
@@ -856,7 +856,7 @@ export class ApiStack extends cdk.Stack {
       integrationResponses: [{
         statusCode: '200',
         responseParameters: {
-          'method.response.header.Access-Control-Allow-Origin': "'*'",
+          'method.response.header.Access-Control-Allow-Origin': "'https://squidcup.spkymnr.xyz'",
           'method.response.header.Access-Control-Allow-Headers': "'Content-Type,Authorization'",
           'method.response.header.Access-Control-Allow-Methods': "'POST,OPTIONS'",
         },
@@ -913,7 +913,7 @@ export class ApiStack extends cdk.Stack {
       integrationResponses: [{
         statusCode: '200',
         responseParameters: {
-          'method.response.header.Access-Control-Allow-Origin': "'*'",
+          'method.response.header.Access-Control-Allow-Origin': "'https://squidcup.spkymnr.xyz'",
           'method.response.header.Access-Control-Allow-Headers': "'Content-Type,Authorization'",
           'method.response.header.Access-Control-Allow-Methods': "'POST,OPTIONS'",
         },
@@ -960,7 +960,7 @@ export class ApiStack extends cdk.Stack {
       integrationResponses: [{
         statusCode: '200',
         responseParameters: {
-          'method.response.header.Access-Control-Allow-Origin': "'*'",
+          'method.response.header.Access-Control-Allow-Origin': "'https://squidcup.spkymnr.xyz'",
           'method.response.header.Access-Control-Allow-Headers': "'Content-Type,Authorization'",
           'method.response.header.Access-Control-Allow-Methods': "'GET,OPTIONS'",
         },
@@ -1002,7 +1002,7 @@ export class ApiStack extends cdk.Stack {
       integrationResponses: [{
         statusCode: '200',
         responseParameters: {
-          'method.response.header.Access-Control-Allow-Origin': "'*'",
+          'method.response.header.Access-Control-Allow-Origin': "'https://squidcup.spkymnr.xyz'",
           'method.response.header.Access-Control-Allow-Headers': "'Content-Type,Authorization'",
           'method.response.header.Access-Control-Allow-Methods': "'GET,OPTIONS'",
         },
@@ -1056,7 +1056,7 @@ export class ApiStack extends cdk.Stack {
       integrationResponses: [{
         statusCode: '200',
         responseParameters: {
-          'method.response.header.Access-Control-Allow-Origin': "'*'",
+          'method.response.header.Access-Control-Allow-Origin': "'https://squidcup.spkymnr.xyz'",
           'method.response.header.Access-Control-Allow-Headers': "'Content-Type,Authorization'",
           'method.response.header.Access-Control-Allow-Methods': "'DELETE,OPTIONS'",
         },
@@ -1113,7 +1113,7 @@ export class ApiStack extends cdk.Stack {
       integrationResponses: [{
         statusCode: '200',
         responseParameters: {
-          'method.response.header.Access-Control-Allow-Origin': "'*'",
+          'method.response.header.Access-Control-Allow-Origin': "'https://squidcup.spkymnr.xyz'",
           'method.response.header.Access-Control-Allow-Headers': "'Content-Type,Authorization'",
           'method.response.header.Access-Control-Allow-Methods': "'POST,OPTIONS'",
         },

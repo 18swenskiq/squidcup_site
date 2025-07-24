@@ -66,7 +66,7 @@ export async function handler(event: any): Promise<any> {
       return {
         statusCode: 401,
         headers: {
-          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Origin': 'https://squidcup.spkymnr.xyz',
         },
         body: JSON.stringify({ error: 'Missing or invalid authorization header' }),
       };
@@ -85,7 +85,7 @@ export async function handler(event: any): Promise<any> {
       return {
         statusCode: 401,
         headers: {
-          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Origin': 'https://squidcup.spkymnr.xyz',
         },
         body: JSON.stringify({ error: 'Invalid or expired session' }),
       };
@@ -104,7 +104,7 @@ export async function handler(event: any): Promise<any> {
       return {
         statusCode: 400,
         headers: {
-          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Origin': 'https://squidcup.spkymnr.xyz',
         },
         body: JSON.stringify({ error: 'Missing required fields: gameMode, mapSelectionMode, server' }),
       };
@@ -159,7 +159,7 @@ export async function handler(event: any): Promise<any> {
     return {
       statusCode: 201,
       headers: {
-        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Origin': 'https://squidcup.spkymnr.xyz',
         'Access-Control-Allow-Headers': 'Content-Type,Authorization',
         'Access-Control-Allow-Methods': 'POST,OPTIONS',
       },
@@ -170,7 +170,7 @@ export async function handler(event: any): Promise<any> {
     return {
       statusCode: 500,
       headers: {
-        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Origin': 'https://squidcup.spkymnr.xyz',
       },
       body: JSON.stringify({ error: 'Failed to start queue' }),
     };

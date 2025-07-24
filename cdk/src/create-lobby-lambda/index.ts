@@ -152,7 +152,7 @@ export const handler = async (event: any) => {
       return {
         statusCode: 400,
         headers: {
-          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Origin': 'https://squidcup.spkymnr.xyz',
           'Access-Control-Allow-Headers': 'Content-Type,Authorization',
           'Access-Control-Allow-Methods': 'POST,OPTIONS',
         },
@@ -170,7 +170,7 @@ export const handler = async (event: any) => {
       return {
         statusCode: 404,
         headers: {
-          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Origin': 'https://squidcup.spkymnr.xyz',
           'Access-Control-Allow-Headers': 'Content-Type,Authorization',
           'Access-Control-Allow-Methods': 'POST,OPTIONS',
         },
@@ -200,7 +200,7 @@ export const handler = async (event: any) => {
       return {
         statusCode: 400,
         headers: {
-          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Origin': 'https://squidcup.spkymnr.xyz',
           'Access-Control-Allow-Headers': 'Content-Type,Authorization',
           'Access-Control-Allow-Methods': 'POST,OPTIONS',
         },
@@ -304,7 +304,7 @@ export const handler = async (event: any) => {
     return {
       statusCode: 201,
       headers: {
-        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Origin': 'https://squidcup.spkymnr.xyz',
         'Access-Control-Allow-Headers': 'Content-Type,Authorization',
         'Access-Control-Allow-Methods': 'POST,OPTIONS',
       },
@@ -320,7 +320,7 @@ export const handler = async (event: any) => {
     return {
       statusCode: 500,
       headers: {
-        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Origin': 'https://squidcup.spkymnr.xyz',
         'Access-Control-Allow-Headers': 'Content-Type,Authorization',
         'Access-Control-Allow-Methods': 'POST,OPTIONS',
       },

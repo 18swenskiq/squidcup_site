@@ -67,7 +67,7 @@ export async function handler(event: any): Promise<any> {
     return {
       statusCode: 404,
       headers: {
-        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Origin': 'https://squidcup.spkymnr.xyz',
         'Access-Control-Allow-Headers': 'Content-Type,Authorization',
         'Access-Control-Allow-Methods': 'GET,PUT,OPTIONS',
       },
@@ -78,7 +78,7 @@ export async function handler(event: any): Promise<any> {
     return {
       statusCode: 500,
       headers: {
-        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Origin': 'https://squidcup.spkymnr.xyz',
         'Access-Control-Allow-Headers': 'Content-Type,Authorization',
         'Access-Control-Allow-Methods': 'GET,PUT,OPTIONS',
       },
@@ -129,7 +129,7 @@ async function handleGetServers(event?: any): Promise<any> {
     return {
       statusCode: 200,
       headers: {
-        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Origin': 'https://squidcup.spkymnr.xyz',
         'Access-Control-Allow-Headers': 'Content-Type,Authorization',
         'Access-Control-Allow-Methods': 'GET,PUT,OPTIONS',
       },
@@ -140,7 +140,7 @@ async function handleGetServers(event?: any): Promise<any> {
     return {
       statusCode: 500,
       headers: {
-        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Origin': 'https://squidcup.spkymnr.xyz',
       },
       body: JSON.stringify({ error: 'Failed to get servers' }),
     };
@@ -155,7 +155,7 @@ async function handleUpdateServer(event: any, serverId: string): Promise<any> {
       return {
         statusCode: 401,
         headers: {
-          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Origin': 'https://squidcup.spkymnr.xyz',
         },
         body: JSON.stringify({ error: 'Missing or invalid authorization header' }),
       };
@@ -170,7 +170,7 @@ async function handleUpdateServer(event: any, serverId: string): Promise<any> {
       return {
         statusCode: 401,
         headers: {
-          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Origin': 'https://squidcup.spkymnr.xyz',
         },
         body: JSON.stringify({ error: 'Invalid or expired session' }),
       };
@@ -181,7 +181,7 @@ async function handleUpdateServer(event: any, serverId: string): Promise<any> {
       return {
         statusCode: 403,
         headers: {
-          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Origin': 'https://squidcup.spkymnr.xyz',
         },
         body: JSON.stringify({ error: 'Admin access required' }),
       };
@@ -193,7 +193,7 @@ async function handleUpdateServer(event: any, serverId: string): Promise<any> {
       return {
         statusCode: 400,
         headers: {
-          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Origin': 'https://squidcup.spkymnr.xyz',
         },
         body: JSON.stringify({ error: 'Missing required fields' }),
       };
@@ -227,7 +227,7 @@ async function handleUpdateServer(event: any, serverId: string): Promise<any> {
     return {
       statusCode: 200,
       headers: {
-        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Origin': 'https://squidcup.spkymnr.xyz',
         'Access-Control-Allow-Headers': 'Content-Type,Authorization',
         'Access-Control-Allow-Methods': 'GET,PUT,OPTIONS',
       },
@@ -238,7 +238,7 @@ async function handleUpdateServer(event: any, serverId: string): Promise<any> {
     return {
       statusCode: 500,
       headers: {
-        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Origin': 'https://squidcup.spkymnr.xyz',
       },
       body: JSON.stringify({ error: 'Failed to update server' }),
     };
