@@ -3,7 +3,6 @@ import { Construct } from 'constructs';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as apigw from "aws-cdk-lib/aws-apigateway";
 import * as iam from 'aws-cdk-lib/aws-iam';
-import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import * as logs from 'aws-cdk-lib/aws-logs';
 import * as events from 'aws-cdk-lib/aws-events';
 import * as targets from 'aws-cdk-lib/aws-events-targets';
@@ -18,35 +17,6 @@ export class ApiStack extends cdk.Stack {
 
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
-
-    // Create DynamoDB table
-    const table = new dynamodb.Table(this, 'SquidCupTable', {
-      tableName: 'squidcup-data',
-      partitionKey: {
-        name: 'pk',
-        type: dynamodb.AttributeType.STRING
-      },
-      sortKey: {
-        name: 'sk',
-        type: dynamodb.AttributeType.STRING
-      },
-      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
-      removalPolicy: cdk.RemovalPolicy.DESTROY, // Use RETAIN for production
-      pointInTimeRecovery: true,
-    });
-
-    // Add GSI1 for querying active queues
-    table.addGlobalSecondaryIndex({
-      indexName: 'GSI1',
-      partitionKey: {
-        name: 'GSI1PK',
-        type: dynamodb.AttributeType.STRING
-      },
-      sortKey: {
-        name: 'GSI1SK',
-        type: dynamodb.AttributeType.STRING
-      },
-    });
 
     const steamLoginFunction = new lambda.Function(this, "steam-login-function", {
       runtime: this.RUNTIME,
@@ -278,7 +248,7 @@ export class ApiStack extends cdk.Stack {
     getUserQueueFunction.addToRolePolicy(ssmPolicy);
     createLobbyFunction.addToRolePolicy(ssmPolicy);
 
-    // Grant DynamoDB permissions to Lambda functions
+    // Grant database service permissions to Lambda functions
     databaseServiceFunction.grantInvoke(getUserProfileFunction);
     databaseServiceFunction.grantInvoke(getUserQueueFunction);
     databaseServiceFunction.grantInvoke(queueCleanupFunction);
@@ -1176,13 +1146,6 @@ export class ApiStack extends cdk.Stack {
       value: api.url,
       description: 'URL of the API Gateway',
       exportName: 'SquidCupApiUrl'
-    });
-
-    // Export the DynamoDB table name
-    new cdk.CfnOutput(this, 'TableName', {
-      value: table.tableName,
-      description: 'Name of the DynamoDB table',
-      exportName: 'SquidCupTableName'
     });
 
     // Export the CloudWatch log group name for easy access

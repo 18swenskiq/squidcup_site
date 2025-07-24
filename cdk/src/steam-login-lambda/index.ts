@@ -190,7 +190,7 @@ async function handleSteamCallback(event: any): Promise<any> {
         
         console.log('Extracted Steam ID:', steamId);
         
-        // Store user session in DynamoDB
+        // Store user session via database service
         storeUserSession(steamId, frontendDomain)
           .then((sessionData: { sessionToken: string; expiresAt: Date }) => {
             const redirectUrl = `${frontendDomain}?token=${sessionData.sessionToken}&steamId=${steamId}`;
