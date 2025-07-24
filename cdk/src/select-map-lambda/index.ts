@@ -3,10 +3,16 @@ import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda';
 
 const lambdaClient = new LambdaClient({ region: process.env.REGION });
 
-async function callDatabaseService(operation: string, params: any = {}) {
+async function callDatabaseService(operation: string, params?: any[], data?: any): Promise<any> {
+  const payload = {
+    operation,
+    params,
+    data
+  };
+
   const command = new InvokeCommand({
     FunctionName: process.env.DATABASE_SERVICE_FUNCTION_NAME,
-    Payload: new TextEncoder().encode(JSON.stringify({ operation, params })),
+    Payload: new TextEncoder().encode(JSON.stringify(payload)),
   });
 
   const response = await lambdaClient.send(command);
@@ -55,9 +61,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
     const sessionToken = authHeader.substring(7);
 
     // Validate session via database service
-    const sessionResult = await callDatabaseService('getSession', {
-      sessionToken: sessionToken,
-    });
+    const sessionResult = await callDatabaseService('getSession', [sessionToken]);
 
     if (!sessionResult.session || !sessionResult.session.userId) {
       return {
@@ -92,9 +96,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
     }
 
     // Get the lobby to verify user is the host via database service
-    const lobbyResult = await callDatabaseService('getLobbyWithPlayers', {
-      lobbyId: lobbyId,
-    });
+    const lobbyResult = await callDatabaseService('getLobbyWithPlayers', [lobbyId]);
     
     if (!lobbyResult.lobby) {
       return {
@@ -123,12 +125,9 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
     }
 
     // Update the lobby with the selected map via database service
-    const updateResult = await callDatabaseService('updateLobby', {
-      lobbyId: lobbyId,
-      updates: {
-        selectedMap: mapName,
-        updatedAt: new Date().toISOString()
-      }
+    const updateResult = await callDatabaseService('updateLobby', [lobbyId], {
+      map: mapName,
+      updatedAt: new Date().toISOString()
     });
 
     return {

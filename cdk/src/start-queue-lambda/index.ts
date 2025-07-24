@@ -3,10 +3,16 @@ import * as crypto from 'crypto';
 
 const lambdaClient = new LambdaClient({ region: process.env.REGION });
 
-async function callDatabaseService(operation: string, params: any = {}) {
+async function callDatabaseService(operation: string, params?: any[], data?: any): Promise<any> {
+  const payload = {
+    operation,
+    params,
+    data
+  };
+
   const command = new InvokeCommand({
     FunctionName: process.env.DATABASE_SERVICE_FUNCTION_NAME,
-    Payload: new TextEncoder().encode(JSON.stringify({ operation, params })),
+    Payload: new TextEncoder().encode(JSON.stringify(payload)),
   });
 
   const response = await lambdaClient.send(command);
@@ -34,6 +40,21 @@ export interface ActiveQueue {
   }>;
   createdAt: string;
   updatedAt: string;
+}
+
+function getMaxPlayersForGamemode(gameMode: string): number {
+  switch (gameMode) {
+    case '5v5':
+      return 10;
+    case 'wingman':
+      return 4;
+    case '3v3':
+      return 6;
+    case '1v1':
+      return 2;
+    default:
+      return 10;
+  }
 }
 
 // Function to extract numeric Steam ID from OpenID URL
@@ -76,9 +97,7 @@ export async function handler(event: any): Promise<any> {
     console.log('Extracted session token:', sessionToken);
     
     // Validate session via database service
-    const sessionResult = await callDatabaseService('getSession', {
-      sessionToken: sessionToken,
-    });
+    const sessionResult = await callDatabaseService('getSession', [sessionToken]);
     console.log('Session result:', sessionResult);
     
     if (!sessionResult.session || !sessionResult.session.userId) {
@@ -130,23 +149,25 @@ export async function handler(event: any): Promise<any> {
     };
 
     // Create queue via database service
-    const queueResult = await callDatabaseService('createQueue', {
-      queueId: queueId,
-      hostSteamId: hostSteamId,
+    const queueResult = await callDatabaseService('createQueue', undefined, {
+      id: queueId,
       gameMode: gameMode,
       mapSelectionMode: mapSelectionMode,
+      hostSteamId: hostSteamId,
       serverId: server,
       password: password || null,
       ranked: ranked === true,
       startTime: now,
+      maxPlayers: getMaxPlayersForGamemode(gameMode)
     });
 
     // Store queue history event
-    await callDatabaseService('storeQueueHistoryEvent', {
+    await callDatabaseService('storeQueueHistoryEvent', undefined, {
+      id: crypto.randomUUID(),
       queueId: queueId,
-      steamId: hostSteamId,
-      action: 'start',
-      details: {
+      playerSteamId: hostSteamId,
+      eventType: 'join',
+      eventData: {
         gameMode,
         mapSelectionMode,
         serverId: server,

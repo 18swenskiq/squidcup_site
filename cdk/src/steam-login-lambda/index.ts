@@ -5,10 +5,16 @@ import * as openid from 'openid';
 const lambdaClient = new LambdaClient({ region: process.env.REGION });
 const FRONTEND_URL = process.env.FRONTEND_URL || 'https://squidcup.spkymnr.xyz';
 
-async function callDatabaseService(operation: string, params: any = {}) {
+async function callDatabaseService(operation: string, params?: any[], data?: any): Promise<any> {
+  const payload = {
+    operation,
+    params,
+    data
+  };
+
   const command = new InvokeCommand({
     FunctionName: process.env.DATABASE_SERVICE_FUNCTION_NAME,
-    Payload: new TextEncoder().encode(JSON.stringify({ operation, params })),
+    Payload: new TextEncoder().encode(JSON.stringify(payload)),
   });
 
   const response = await lambdaClient.send(command);
@@ -231,18 +237,14 @@ async function storeUserSession(steamId: string, frontendDomain: string) {
   const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
 
   // Upsert user profile via database service
-  await callDatabaseService('upsertUser', {
+  await callDatabaseService('upsertUser', undefined, {
     steamId: steamId,
     lastLogin: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   });
 
   // Create session via database service
-  await callDatabaseService('createSession', {
-    sessionToken: sessionToken,
-    userId: steamId,
-    expiresAt: expiresAt.toISOString(),
-  });
+  await callDatabaseService('createSession', [sessionToken, steamId, expiresAt.toISOString()]);
 
   return { sessionToken, expiresAt };
 }
@@ -263,9 +265,7 @@ async function handleLogout(event: any): Promise<any> {
 
   try {
     // Delete session via database service
-    await callDatabaseService('deleteSession', {
-      sessionToken: sessionToken,
-    });
+    await callDatabaseService('deleteSession', [sessionToken]);
 
     return {
       statusCode: 200,
