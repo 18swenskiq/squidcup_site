@@ -140,8 +140,8 @@ export class ApiStack extends cdk.Stack {
       handler: 'index.handler',
       code: lambda.Code.fromAsset(path.join(__dirname, '/../src/start-queue-lambda')),
       environment: {
-        REGION: this.REGION,
-        TABLE_NAME: table.tableName,
+        AWS_REGION: this.REGION,
+        DATABASE_SERVICE_FUNCTION_NAME: databaseServiceFunction.functionName,
       }
     });
 
@@ -277,14 +277,12 @@ export class ApiStack extends cdk.Stack {
     databaseServiceFunction.addToRolePolicy(ssmPolicy);
     addServerFunction.addToRolePolicy(ssmPolicy);
     deleteServerFunction.addToRolePolicy(ssmPolicy);
-    startQueueFunction.addToRolePolicy(ssmPolicy);
     getUserQueueFunction.addToRolePolicy(ssmPolicy);
     createLobbyFunction.addToRolePolicy(ssmPolicy);
 
     // Grant DynamoDB permissions to Lambda functions
     table.grantReadWriteData(steamLoginFunction);
     databaseServiceFunction.grantInvoke(getUserProfileFunction);
-    table.grantReadWriteData(startQueueFunction);
     databaseServiceFunction.grantInvoke(getUserQueueFunction);
     databaseServiceFunction.grantInvoke(queueCleanupFunction);
 
@@ -304,6 +302,7 @@ export class ApiStack extends cdk.Stack {
     databaseServiceFunction.grantInvoke(leaveLobbyFunction);
     databaseServiceFunction.grantInvoke(leaveQueueFunction);
     databaseServiceFunction.grantInvoke(selectMapFunction);
+    databaseServiceFunction.grantInvoke(startQueueFunction);
     // Note: We'll add more functions here as we convert them
 
     // Add environment variable to join queue function for create lobby function name
