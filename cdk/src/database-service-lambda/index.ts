@@ -51,6 +51,11 @@ async function getParameterValue(parameterName: string): Promise<string> {
   }
 }
 
+// Function to sanitize query parameters (convert undefined to null)
+function sanitizeParams(params: any[]): any[] {
+  return params.map(param => param === undefined ? null : param);
+}
+
 // Function to get database configuration from Parameter Store
 async function getDatabaseConfig(): Promise<DatabaseConfig> {
   // If we already have a cached config, return it immediately
@@ -126,7 +131,7 @@ async function ensureTablesExist(connection: mysql.Connection): Promise<void> {
     // Create users table
     await connection.execute(`
       CREATE TABLE IF NOT EXISTS squidcup_users (
-        steam_id VARCHAR(20) PRIMARY KEY,
+        steam_id VARCHAR(50) PRIMARY KEY,
         username VARCHAR(255),
         avatar VARCHAR(500),
         avatar_medium VARCHAR(500),
@@ -143,7 +148,7 @@ async function ensureTablesExist(connection: mysql.Connection): Promise<void> {
     await connection.execute(`
       CREATE TABLE IF NOT EXISTS squidcup_sessions (
         session_token VARCHAR(255) PRIMARY KEY,
-        user_steam_id VARCHAR(20) NOT NULL,
+        user_steam_id VARCHAR(50) NOT NULL,
         expires_at TIMESTAMP NOT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (user_steam_id) REFERENCES squidcup_users(steam_id) ON DELETE CASCADE,
@@ -176,7 +181,7 @@ async function ensureTablesExist(connection: mysql.Connection): Promise<void> {
         game_mode VARCHAR(20) NOT NULL,
         map VARCHAR(100),
         map_selection_mode ENUM('All Pick', 'Host Pick', 'Random Map') NOT NULL,
-        host_steam_id VARCHAR(20) NOT NULL,
+        host_steam_id VARCHAR(50) NOT NULL,
         server_id VARCHAR(36),
         password VARCHAR(255),
         ranked BOOLEAN DEFAULT FALSE,
@@ -199,7 +204,7 @@ async function ensureTablesExist(connection: mysql.Connection): Promise<void> {
     await connection.execute(`
       CREATE TABLE IF NOT EXISTS squidcup_queue_players (
         queue_id VARCHAR(36) NOT NULL,
-        player_steam_id VARCHAR(20) NOT NULL,
+        player_steam_id VARCHAR(50) NOT NULL,
         team INT DEFAULT 0,
         joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         PRIMARY KEY (queue_id, player_steam_id),
@@ -217,7 +222,7 @@ async function ensureTablesExist(connection: mysql.Connection): Promise<void> {
         queue_id VARCHAR(36),
         game_mode VARCHAR(20) NOT NULL,
         map VARCHAR(100),
-        host_steam_id VARCHAR(20) NOT NULL,
+        host_steam_id VARCHAR(50) NOT NULL,
         server_id VARCHAR(36),
         status ENUM('waiting', 'ready', 'in_progress', 'completed', 'cancelled') DEFAULT 'waiting',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -234,7 +239,7 @@ async function ensureTablesExist(connection: mysql.Connection): Promise<void> {
     await connection.execute(`
       CREATE TABLE IF NOT EXISTS squidcup_lobby_players (
         lobby_id VARCHAR(36) NOT NULL,
-        player_steam_id VARCHAR(20) NOT NULL,
+        player_steam_id VARCHAR(50) NOT NULL,
         team INT DEFAULT 0,
         joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         PRIMARY KEY (lobby_id, player_steam_id),
@@ -250,7 +255,7 @@ async function ensureTablesExist(connection: mysql.Connection): Promise<void> {
       CREATE TABLE IF NOT EXISTS squidcup_queue_history (
         id VARCHAR(36) PRIMARY KEY,
         queue_id VARCHAR(36) NOT NULL,
-        player_steam_id VARCHAR(20) NOT NULL,
+        player_steam_id VARCHAR(50) NOT NULL,
         event_type ENUM('join', 'leave', 'disband', 'timeout', 'complete') NOT NULL,
         event_data JSON,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -264,7 +269,7 @@ async function ensureTablesExist(connection: mysql.Connection): Promise<void> {
       CREATE TABLE IF NOT EXISTS squidcup_lobby_history (
         id VARCHAR(36) PRIMARY KEY,
         lobby_id VARCHAR(36) NOT NULL,
-        player_steam_id VARCHAR(20) NOT NULL,
+        player_steam_id VARCHAR(50) NOT NULL,
         event_type ENUM('join', 'leave', 'disband', 'timeout', 'complete') NOT NULL,
         event_data JSON,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -284,7 +289,9 @@ async function ensureTablesExist(connection: mysql.Connection): Promise<void> {
 // Function to execute raw query
 async function executeQuery(connection: mysql.Connection, query: string, params: any[] = []): Promise<any> {
   try {
-    const [rows] = await connection.execute(query, params);
+    // Sanitize parameters to convert undefined to null
+    const sanitizedParams = sanitizeParams(params);
+    const [rows] = await connection.execute(query, sanitizedParams);
     return rows;
   } catch (error) {
     console.error('Error executing query:', error);
@@ -335,13 +342,13 @@ async function upsertUser(connection: mysql.Connection, userData: any): Promise<
      state_code = VALUES(state_code),
      updated_at = CURRENT_TIMESTAMP`,
     [
-      userData.steamId,
-      userData.username,
-      userData.avatar,
-      userData.avatarMedium,
-      userData.avatarFull,
-      userData.countryCode,
-      userData.stateCode,
+      userData.steamId || null,
+      userData.username || null,
+      userData.avatar || null,
+      userData.avatarMedium || null,
+      userData.avatarFull || null,
+      userData.countryCode || null,
+      userData.stateCode || null,
       userData.isAdmin || false
     ]
   );
