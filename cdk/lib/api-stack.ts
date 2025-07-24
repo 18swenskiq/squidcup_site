@@ -25,7 +25,7 @@ export class ApiStack extends cdk.Stack {
       handler: 'index.handler',
       code: lambda.Code.fromAsset(path.join(__dirname, '/../src/steam-login-lambda')),
       environment: {
-        AWS_REGION: this.REGION,
+        REGION: this.REGION,
         FRONTEND_URL: 'https://squidcup.spkymnr.xyz', // Your actual domain
       }
     });
@@ -109,7 +109,7 @@ export class ApiStack extends cdk.Stack {
       handler: 'index.handler',
       code: lambda.Code.fromAsset(path.join(__dirname, '/../src/start-queue-lambda')),
       environment: {
-        AWS_REGION: this.REGION,
+        REGION: this.REGION,
         DATABASE_SERVICE_FUNCTION_NAME: databaseServiceFunction.functionName,
       }
     });
@@ -230,7 +230,7 @@ export class ApiStack extends cdk.Stack {
       handler: 'index.handler',
       code: lambda.Code.fromAsset(path.join(__dirname, '/../src/select-map-lambda')),
       environment: {
-        AWS_REGION: this.REGION,
+        REGION: this.REGION,
         DATABASE_SERVICE_FUNCTION_NAME: databaseServiceFunction.functionName,
       }
     });
