@@ -225,7 +225,7 @@ export class ApiStack extends cdk.Stack {
       code: lambda.Code.fromAsset(path.join(__dirname, '/../src/queue-cleanup-lambda')),
       environment: {
         REGION: this.REGION,
-        TABLE_NAME: table.tableName,
+        DATABASE_SERVICE_FUNCTION_NAME: databaseServiceFunction.functionName,
         QUEUE_TIMEOUT_MINUTES: '10', // 10 minutes of inactivity before cleanup
       }
     });
@@ -280,7 +280,6 @@ export class ApiStack extends cdk.Stack {
     deleteServerFunction.addToRolePolicy(ssmPolicy);
     startQueueFunction.addToRolePolicy(ssmPolicy);
     getUserQueueFunction.addToRolePolicy(ssmPolicy);
-    queueCleanupFunction.addToRolePolicy(ssmPolicy);
     createLobbyFunction.addToRolePolicy(ssmPolicy);
     selectMapFunction.addToRolePolicy(ssmPolicy);
 
@@ -289,7 +288,7 @@ export class ApiStack extends cdk.Stack {
     table.grantReadWriteData(getUserProfileFunction);
     table.grantReadWriteData(startQueueFunction);
     databaseServiceFunction.grantInvoke(getUserQueueFunction);
-    table.grantReadWriteData(queueCleanupFunction);
+    databaseServiceFunction.grantInvoke(queueCleanupFunction);
     table.grantReadWriteData(selectMapFunction);
 
     // Grant Lambda invoke permissions for lobby system

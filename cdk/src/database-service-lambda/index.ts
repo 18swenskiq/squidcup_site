@@ -728,6 +728,24 @@ async function getSsmParameter(parameterName: string): Promise<string> {
   }
 }
 
+// Function to get active queues for cleanup (simple format)
+async function getActiveQueuesForCleanup(connection: mysql.Connection): Promise<any[]> {
+  return await executeQuery(
+    connection,
+    `SELECT 
+      id,
+      host_steam_id,
+      game_mode,
+      map_selection_mode,
+      start_time,
+      created_at,
+      updated_at
+     FROM queues
+     WHERE status = 'waiting'
+     ORDER BY created_at DESC`
+  );
+}
+
 // Function to get active queues with user and server details
 async function getActiveQueuesWithDetails(connection: mysql.Connection): Promise<any[]> {
   // Get all active queues with host information and server details
@@ -923,6 +941,10 @@ export async function handler(event: DatabaseRequest): Promise<DatabaseResponse>
       case 'getSsmParameter':
         const parameterValue = await getSsmParameter(event.data.parameterName);
         return { success: true, data: parameterValue };
+
+      case 'getActiveQueuesForCleanup':
+        const queuesForCleanup = await getActiveQueuesForCleanup(connection);
+        return { success: true, data: queuesForCleanup };
 
       case 'getActiveQueuesWithDetails':
         const activeQueues = await getActiveQueuesWithDetails(connection);
