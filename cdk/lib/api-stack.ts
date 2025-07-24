@@ -14,6 +14,7 @@ export class ApiStack extends cdk.Stack {
   private readonly MEMORY_SIZE = 512;
   private readonly TIMEOUT = cdk.Duration.seconds(5);
   private readonly REGION = 'us-east-1';
+  private readonly LOG_RETENTION = logs.RetentionDays.ONE_WEEK; // 7 days retention for all Lambda logs
 
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
@@ -24,6 +25,7 @@ export class ApiStack extends cdk.Stack {
       timeout: cdk.Duration.seconds(10), // Slightly longer for OAuth operations
       handler: 'index.handler',
       code: lambda.Code.fromAsset(path.join(__dirname, '/../src/steam-login-lambda')),
+      logRetention: this.LOG_RETENTION,
       environment: {
         REGION: this.REGION,
         FRONTEND_URL: 'https://squidcup.spkymnr.xyz', // Your actual domain
@@ -37,6 +39,7 @@ export class ApiStack extends cdk.Stack {
       timeout: cdk.Duration.seconds(30), // Longer timeout for database operations
       handler: 'index.handler',
       code: lambda.Code.fromAsset(path.join(__dirname, '/../src/database-service-lambda')),
+      logRetention: this.LOG_RETENTION,
       environment: {
         REGION: this.REGION,
       }
@@ -48,6 +51,7 @@ export class ApiStack extends cdk.Stack {
       timeout: this.TIMEOUT,
       handler: 'index.handler',
       code: lambda.Code.fromAsset(path.join(__dirname, '/../src/get-user-profile-lambda')),
+      logRetention: this.LOG_RETENTION,
       environment: {
         REGION: this.REGION,
         DATABASE_SERVICE_FUNCTION_NAME: databaseServiceFunction.functionName,
@@ -60,6 +64,7 @@ export class ApiStack extends cdk.Stack {
       timeout: this.TIMEOUT,
       handler: 'index.handler',
       code: lambda.Code.fromAsset(path.join(__dirname, '/../src/get-maps-lambda')),
+      logRetention: this.LOG_RETENTION,
       environment: {
         REGION: this.REGION,
         DATABASE_SERVICE_FUNCTION_NAME: databaseServiceFunction.functionName,
@@ -72,6 +77,7 @@ export class ApiStack extends cdk.Stack {
       timeout: this.TIMEOUT,
       handler: 'index.handler',
       code: lambda.Code.fromAsset(path.join(__dirname, '/../src/add-server-lambda')),
+      logRetention: this.LOG_RETENTION,
       environment: {
         REGION: this.REGION,
         DATABASE_SERVICE_FUNCTION_NAME: databaseServiceFunction.functionName,
@@ -84,6 +90,7 @@ export class ApiStack extends cdk.Stack {
       timeout: this.TIMEOUT,
       handler: 'index.handler',
       code: lambda.Code.fromAsset(path.join(__dirname, '/../src/delete-server-lambda')),
+      logRetention: this.LOG_RETENTION,
       environment: {
         REGION: this.REGION,
         DATABASE_SERVICE_FUNCTION_NAME: databaseServiceFunction.functionName,
@@ -96,6 +103,7 @@ export class ApiStack extends cdk.Stack {
       timeout: this.TIMEOUT,
       handler: 'index.handler',
       code: lambda.Code.fromAsset(path.join(__dirname, '/../src/get-servers-lambda')),
+      logRetention: this.LOG_RETENTION,
       environment: {
         REGION: this.REGION,
         DATABASE_SERVICE_FUNCTION_NAME: databaseServiceFunction.functionName,
@@ -108,6 +116,7 @@ export class ApiStack extends cdk.Stack {
       timeout: this.TIMEOUT,
       handler: 'index.handler',
       code: lambda.Code.fromAsset(path.join(__dirname, '/../src/start-queue-lambda')),
+      logRetention: this.LOG_RETENTION,
       environment: {
         REGION: this.REGION,
         DATABASE_SERVICE_FUNCTION_NAME: databaseServiceFunction.functionName,
@@ -120,6 +129,7 @@ export class ApiStack extends cdk.Stack {
       timeout: cdk.Duration.seconds(10), // Extended timeout for comprehensive metrics collection
       handler: 'index.handler',
       code: lambda.Code.fromAsset(path.join(__dirname, '/../src/get-user-queue-lambda')),
+      logRetention: this.LOG_RETENTION,
       environment: {
         REGION: this.REGION,
         DATABASE_SERVICE_FUNCTION_NAME: databaseServiceFunction.functionName,
@@ -132,6 +142,7 @@ export class ApiStack extends cdk.Stack {
       timeout: this.TIMEOUT,
       handler: 'index.handler',
       code: lambda.Code.fromAsset(path.join(__dirname, '/../src/get-all-queues-lambda')),
+      logRetention: this.LOG_RETENTION,
       environment: {
         REGION: this.REGION,
         DATABASE_SERVICE_FUNCTION_NAME: databaseServiceFunction.functionName,
@@ -144,6 +155,7 @@ export class ApiStack extends cdk.Stack {
       timeout: this.TIMEOUT,
       handler: 'index.handler',
       code: lambda.Code.fromAsset(path.join(__dirname, '/../src/leave-queue-lambda')),
+      logRetention: this.LOG_RETENTION,
       environment: {
         REGION: this.REGION,
         DATABASE_SERVICE_FUNCTION_NAME: databaseServiceFunction.functionName,
@@ -156,6 +168,7 @@ export class ApiStack extends cdk.Stack {
       timeout: this.TIMEOUT,
       handler: 'index.handler',
       code: lambda.Code.fromAsset(path.join(__dirname, '/../src/join-queue-lambda')),
+      logRetention: this.LOG_RETENTION,
       environment: {
         REGION: this.REGION,
         DATABASE_SERVICE_FUNCTION_NAME: databaseServiceFunction.functionName,
@@ -168,6 +181,7 @@ export class ApiStack extends cdk.Stack {
       timeout: this.TIMEOUT,
       handler: 'index.handler',
       code: lambda.Code.fromAsset(path.join(__dirname, '/../src/get-queue-history-lambda')),
+      logRetention: this.LOG_RETENTION,
       environment: {
         REGION: this.REGION,
         DATABASE_SERVICE_FUNCTION_NAME: databaseServiceFunction.functionName,
@@ -180,6 +194,7 @@ export class ApiStack extends cdk.Stack {
       timeout: this.TIMEOUT,
       handler: 'index.handler',
       code: lambda.Code.fromAsset(path.join(__dirname, '/../src/get-active-queues-lambda')),
+      logRetention: this.LOG_RETENTION,
       environment: {
         REGION: this.REGION,
         DATABASE_SERVICE_FUNCTION_NAME: databaseServiceFunction.functionName,
@@ -192,6 +207,7 @@ export class ApiStack extends cdk.Stack {
       timeout: cdk.Duration.seconds(30), // Longer timeout for cleanup operations
       handler: 'index.handler',
       code: lambda.Code.fromAsset(path.join(__dirname, '/../src/queue-cleanup-lambda')),
+      logRetention: this.LOG_RETENTION,
       environment: {
         REGION: this.REGION,
         DATABASE_SERVICE_FUNCTION_NAME: databaseServiceFunction.functionName,
@@ -205,6 +221,7 @@ export class ApiStack extends cdk.Stack {
       timeout: cdk.Duration.seconds(10), // Longer timeout for lobby operations
       handler: 'index.handler',
       code: lambda.Code.fromAsset(path.join(__dirname, '/../src/create-lobby-lambda')),
+      logRetention: this.LOG_RETENTION,
       environment: {
         REGION: this.REGION,
         DATABASE_SERVICE_FUNCTION_NAME: databaseServiceFunction.functionName,
@@ -217,6 +234,7 @@ export class ApiStack extends cdk.Stack {
       timeout: this.TIMEOUT,
       handler: 'index.handler',
       code: lambda.Code.fromAsset(path.join(__dirname, '/../src/leave-lobby-lambda')),
+      logRetention: this.LOG_RETENTION,
       environment: {
         REGION: this.REGION,
         DATABASE_SERVICE_FUNCTION_NAME: databaseServiceFunction.functionName,
@@ -229,6 +247,7 @@ export class ApiStack extends cdk.Stack {
       timeout: this.TIMEOUT,
       handler: 'index.handler',
       code: lambda.Code.fromAsset(path.join(__dirname, '/../src/select-map-lambda')),
+      logRetention: this.LOG_RETENTION,
       environment: {
         REGION: this.REGION,
         DATABASE_SERVICE_FUNCTION_NAME: databaseServiceFunction.functionName,
