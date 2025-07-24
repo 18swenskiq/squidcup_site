@@ -1,23 +1,12 @@
 // Database connection and operation utilities
 // This module will contain database operations when we migrate them
 
-/**
- * Placeholder for database connection utilities
- * This will be populated when we migrate database operations
- */
-
-export interface DatabaseConfig {
-  host: string;
-  user: string;
-  password: string;
-  database: string;
-  port?: number;
-}
+import { DatabaseConnection } from '@squidcup/types';
 
 // Export placeholder functions that will be implemented later
 export const database = {
   // Connection management
-  createConnection: async (config: DatabaseConfig) => {
+  createConnection: async (config: DatabaseConnection) => {
     // TODO: Implement when migrating from database-service-lambda
     throw new Error('Not implemented yet');
   },

@@ -1,5 +1,5 @@
 // Authentication utilities for Lambda functions
-import { Session } from '../types';
+import { Session } from '@squidcup/types';
 
 /**
  * Extracts Bearer token from Authorization header

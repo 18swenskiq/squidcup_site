@@ -27,7 +27,8 @@
     "typescript": "^5.0.0"
   },
   "dependencies": {
-    "mysql2": "^3.6.0"
+    "mysql2": "^3.6.0",
+    "@squidcup/types": "file:../types-squidcup"
   },
   "peerDependencies": {
     "@aws-sdk/client-lambda": "^3.0.0",
