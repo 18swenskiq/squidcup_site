@@ -786,7 +786,7 @@ async function getActiveQueuesWithDetails(connection: mysql.Connection): Promise
       q.status,
       q.created_at,
       q.updated_at,
-      u.personaname as host_name,
+      u.username as host_name,
       s.nickname as server_name
      FROM squidcup_queues q
      LEFT JOIN squidcup_users u ON q.host_steam_id = u.steam_id
@@ -805,7 +805,7 @@ async function getActiveQueuesWithDetails(connection: mysql.Connection): Promise
         qp.player_steam_id,
         qp.team,
         qp.joined_at,
-        u.personaname
+        u.username
        FROM squidcup_queue_players qp
        LEFT JOIN squidcup_users u ON qp.player_steam_id = u.steam_id
        WHERE qp.queue_id = ?
@@ -817,7 +817,7 @@ async function getActiveQueuesWithDetails(connection: mysql.Connection): Promise
     const joiners = players.map((player: any) => ({
       steamId: player.player_steam_id,
       joinTime: player.joined_at,
-      name: player.personaname || 'Unknown'
+      name: player.username || 'Unknown'
     }));
 
     result.push({
