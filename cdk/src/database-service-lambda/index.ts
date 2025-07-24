@@ -799,6 +799,181 @@ async function getUserQueueHistory(connection: mysql.Connection, steamId: string
   );
 }
 
+// Consolidated function to get user's complete status (session + queue + lobby + player names)
+async function getUserCompleteStatus(connection: mysql.Connection, sessionToken: string): Promise<any> {
+  console.log('getUserCompleteStatus called with token:', sessionToken.substring(0, 8) + '...');
+  
+  // Step 1: Validate session
+  const session = await executeQuery(
+    connection,
+    'SELECT * FROM squidcup_sessions WHERE session_token = ? AND expires_at > NOW()',
+    [sessionToken]
+  );
+  
+  if (!session || session.length === 0) {
+    return { session: null };
+  }
+  
+  const userSteamId = session[0].steam_id;
+  console.log('User Steam ID from session:', userSteamId);
+  
+  // Step 2: Check for active lobby (as host)
+  const hostLobby = await executeQuery(
+    connection,
+    `SELECT l.*, 'host' as user_role
+     FROM squidcup_lobbies l 
+     WHERE l.host_steam_id = ? AND l.status = 'active'`,
+    [userSteamId]
+  );
+  
+  // Step 3: Check for active lobby (as player)
+  const playerLobby = await executeQuery(
+    connection,
+    `SELECT l.*, 'player' as user_role
+     FROM squidcup_lobbies l 
+     JOIN squidcup_lobby_players lp ON l.id = lp.lobby_id 
+     WHERE lp.player_steam_id = ? AND l.status = 'active'`,
+    [userSteamId]
+  );
+  
+  let activeLobby = null;
+  let isLobbyHost = false;
+  
+  if (hostLobby.length > 0) {
+    activeLobby = hostLobby[0];
+    isLobbyHost = true;
+  } else if (playerLobby.length > 0) {
+    activeLobby = playerLobby[0];
+    isLobbyHost = false;
+  }
+  
+  // Step 4: If in lobby, get lobby players and their names
+  let lobbyPlayers = [];
+  let lobbyPlayerNames = new Map();
+  
+  if (activeLobby) {
+    console.log('User found in lobby:', activeLobby.id);
+    
+    // Get all lobby players
+    lobbyPlayers = await executeQuery(
+      connection,
+      'SELECT * FROM squidcup_lobby_players WHERE lobby_id = ?',
+      [activeLobby.id]
+    );
+    
+    // Get player names for lobby
+    const allLobbyIds = [activeLobby.host_steam_id, ...lobbyPlayers.map((p: any) => p.player_steam_id)];
+    const lobbyUsers = await executeQuery(
+      connection,
+      `SELECT steam_id, username FROM squidcup_users WHERE steam_id IN (${allLobbyIds.map(() => '?').join(',')})`,
+      allLobbyIds
+    );
+    
+    for (const user of lobbyUsers) {
+      lobbyPlayerNames.set(user.steam_id, user.username || `Player ${user.steam_id.slice(-4)}`);
+    }
+    
+    // Add fallback names for missing users
+    for (const steamId of allLobbyIds) {
+      if (!lobbyPlayerNames.has(steamId)) {
+        lobbyPlayerNames.set(steamId, `Player ${steamId.slice(-4)}`);
+      }
+    }
+    
+    return {
+      session: session[0],
+      userSteamId,
+      lobby: {
+        ...activeLobby,
+        isHost: isLobbyHost,
+        players: lobbyPlayers,
+        playerNames: Object.fromEntries(lobbyPlayerNames)
+      }
+    };
+  }
+  
+  // Step 5: Check for active queue (as host)
+  const hostQueue = await executeQuery(
+    connection,
+    `SELECT q.*, 'host' as user_role
+     FROM squidcup_queues q 
+     WHERE q.host_steam_id = ? AND q.status = 'waiting'`,
+    [userSteamId]
+  );
+  
+  // Step 6: Check for active queue (as player)
+  const playerQueue = await executeQuery(
+    connection,
+    `SELECT q.*, 'player' as user_role
+     FROM squidcup_queues q 
+     JOIN squidcup_queue_players qp ON q.id = qp.queue_id 
+     WHERE qp.player_steam_id = ? AND q.status = 'waiting'`,
+    [userSteamId]
+  );
+  
+  let activeQueue = null;
+  let isQueueHost = false;
+  
+  if (hostQueue.length > 0) {
+    activeQueue = hostQueue[0];
+    isQueueHost = true;
+  } else if (playerQueue.length > 0) {
+    activeQueue = playerQueue[0];
+    isQueueHost = false;
+  }
+  
+  // Step 7: If in queue, get queue players and their names
+  let queuePlayers = [];
+  let queuePlayerNames = new Map();
+  
+  if (activeQueue) {
+    console.log('User found in queue:', activeQueue.id);
+    
+    // Get all queue players
+    queuePlayers = await executeQuery(
+      connection,
+      'SELECT * FROM squidcup_queue_players WHERE queue_id = ?',
+      [activeQueue.id]
+    );
+    
+    // Get player names for queue
+    const allQueueIds = [activeQueue.host_steam_id, ...queuePlayers.map((p: any) => p.player_steam_id)];
+    const queueUsers = await executeQuery(
+      connection,
+      `SELECT steam_id, username FROM squidcup_users WHERE steam_id IN (${allQueueIds.map(() => '?').join(',')})`,
+      allQueueIds
+    );
+    
+    for (const user of queueUsers) {
+      queuePlayerNames.set(user.steam_id, user.username || `Player ${user.steam_id.slice(-4)}`);
+    }
+    
+    // Add fallback names for missing users
+    for (const steamId of allQueueIds) {
+      if (!queuePlayerNames.has(steamId)) {
+        queuePlayerNames.set(steamId, `Player ${steamId.slice(-4)}`);
+      }
+    }
+    
+    return {
+      session: session[0],
+      userSteamId,
+      queue: {
+        ...activeQueue,
+        isHost: isQueueHost,
+        players: queuePlayers,
+        playerNames: Object.fromEntries(queuePlayerNames)
+      }
+    };
+  }
+  
+  // User is not in any queue or lobby
+  return {
+    session: session[0],
+    userSteamId
+  };
+}
+
 // Function to get SSM parameter value
 async function getSsmParameter(parameterName: string): Promise<string> {
   try {
@@ -1024,6 +1199,11 @@ export async function handler(event: DatabaseRequest): Promise<DatabaseResponse>
       case 'storeQueueHistoryEvent':
         await storeQueueHistoryEvent(connection, event.data);
         return { success: true };
+
+      case 'getUserCompleteStatus':
+        console.log('Handling getUserCompleteStatus operation');
+        const completeStatus = await getUserCompleteStatus(connection, event.data.sessionToken);
+        return { success: true, data: completeStatus };
 
       case 'getUserQueueHistory':
         const queueHistory = await getUserQueueHistory(connection, event.data.steamId, event.data.limit);

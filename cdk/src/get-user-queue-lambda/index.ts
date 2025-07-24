@@ -192,14 +192,16 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
     const authTime = Date.now() - authCheckStart;
     console.log(`Auth header processed in ${authTime}ms`);
 
-    // Validate session using database service
-    const sessionValidationStart = Date.now();
-    console.log(`Starting session validation for token: ${sessionToken.substring(0, 8)}...`);
-    const session = await callDatabaseService('getSession', [sessionToken]);
-    const sessionValidationTime = Date.now() - sessionValidationStart;
-    console.log(`Session validation completed in ${sessionValidationTime}ms`);
+    // Use consolidated database call to get complete user status
+    const statusCheckStart = Date.now();
+    console.log(`Starting consolidated status check for token: ${sessionToken.substring(0, 8)}...`);
     
-    if (!session) {
+    const userStatus = await callDatabaseService('getUserCompleteStatus', undefined, { sessionToken });
+    
+    const statusCheckTime = Date.now() - statusCheckStart;
+    console.log(`Consolidated status check completed in ${statusCheckTime}ms`);
+    
+    if (!userStatus.session) {
       const totalTime = Date.now() - startTime;
       console.log(`Invalid session - total time: ${totalTime}ms`);
       return {
@@ -209,114 +211,86 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
       };
     }
 
-    const userSteamId = session.steamId;
+    const userSteamId = userStatus.userSteamId;
     console.log('User Steam ID:', userSteamId);
 
-    // First check if user is in a lobby
-    const lobbyCheckStart = Date.now();
-    console.log('Starting lobby check for user:', userSteamId);
-    const userLobby: LobbyData = await callDatabaseService('getUserActiveLobby', [userSteamId]);
-    const lobbyCheckTime = Date.now() - lobbyCheckStart;
-    console.log(`Lobby check completed in ${lobbyCheckTime}ms, found lobby:`, !!userLobby);
-    
-    if (userLobby) {
-      console.log('User found in lobby:', userLobby.id);
-      const isHost = userLobby.isHost || userLobby.host_steam_id === userSteamId;
-      
-      // Get player names for all players in the lobby
-      const playerNamesStart = Date.now();
-      const allSteamIds = [userLobby.host_steam_id, ...userLobby.players.map(p => p.player_steam_id)];
-      console.log(`Getting player names for ${allSteamIds.length} users in lobby`);
-      const playerNames = await getPlayerNames(allSteamIds);
-      const playerNamesTime = Date.now() - playerNamesStart;
-      console.log(`Player names retrieved in ${playerNamesTime}ms`);
+    // Check if user is in a lobby
+    if (userStatus.lobby) {
+      console.log('User found in lobby:', userStatus.lobby.id);
+      const lobby = userStatus.lobby;
       
       // Enrich players with names
-      const enrichedPlayers = userLobby.players.map(player => ({
+      const enrichedPlayers = lobby.players.map((player: any) => ({
         steamId: player.player_steam_id,
         team: player.team,
         joinedAt: player.joined_at,
-        name: playerNames.get(player.player_steam_id) || `Player ${player.player_steam_id.slice(-4)}`
+        name: lobby.playerNames[player.player_steam_id] || `Player ${player.player_steam_id.slice(-4)}`
       }));
       
       const totalTime = Date.now() - startTime;
       console.log(`Lobby response completed in total ${totalTime}ms`);
-      console.log(`[TIMING SUMMARY] Auth: ${authTime}ms, Session: ${sessionValidationTime}ms, Lobby: ${lobbyCheckTime}ms, PlayerNames: ${playerNamesTime}ms, Total: ${totalTime}ms`);
+      console.log(`[TIMING SUMMARY] Auth: ${authTime}ms, StatusCheck: ${statusCheckTime}ms, Total: ${totalTime}ms`);
       
       return {
         statusCode: 200,
         headers: corsHeaders,
         body: JSON.stringify({
           inLobby: true,
-          isHost: isHost,
+          isHost: lobby.isHost,
           lobby: {
-            id: userLobby.id,
-            hostSteamId: userLobby.host_steam_id,
-            hostName: playerNames.get(userLobby.host_steam_id) || `Player ${userLobby.host_steam_id.slice(-4)}`,
-            gameMode: userLobby.game_mode,
-            mapSelectionMode: userLobby.map_selection_mode,
-            serverId: userLobby.server_id,
-            hasPassword: !!userLobby.password,
-            ranked: !!userLobby.ranked,
+            id: lobby.id,
+            hostSteamId: lobby.host_steam_id,
+            hostName: lobby.playerNames[lobby.host_steam_id] || `Player ${lobby.host_steam_id.slice(-4)}`,
+            gameMode: lobby.game_mode,
+            mapSelectionMode: lobby.map_selection_mode,
+            serverId: lobby.server_id,
+            hasPassword: !!lobby.password,
+            ranked: !!lobby.ranked,
             players: enrichedPlayers,
-            createdAt: userLobby.created_at,
-            updatedAt: userLobby.updated_at,
+            createdAt: lobby.created_at,
+            updatedAt: lobby.updated_at,
           }
         }),
       };
     }
 
     // Check if user is in a queue
-    const queueCheckStart = Date.now();
-    console.log('Starting queue check for user:', userSteamId);
-    const userQueue: QueueData = await callDatabaseService('getUserActiveQueue', [userSteamId]);
-    const queueCheckTime = Date.now() - queueCheckStart;
-    console.log(`Queue check completed in ${queueCheckTime}ms, found queue:`, !!userQueue);
-    
-    if (userQueue) {
-      console.log('User found in queue:', userQueue.id);
-      const isHost = userQueue.isHost || userQueue.host_steam_id === userSteamId;
-      
-      // Get player names for host and all players
-      const playerNamesStart = Date.now();
-      const allSteamIds = [userQueue.host_steam_id, ...userQueue.players.map(p => p.player_steam_id)];
-      console.log(`Getting player names for ${allSteamIds.length} users in queue`);
-      const playerNames = await getPlayerNames(allSteamIds);
-      const playerNamesTime = Date.now() - playerNamesStart;
-      console.log(`Player names retrieved in ${playerNamesTime}ms`);
+    if (userStatus.queue) {
+      console.log('User found in queue:', userStatus.queue.id);
+      const queue = userStatus.queue;
       
       // Enrich players with names (converting from queue players to joiners format)
-      const enrichedJoiners = userQueue.players
-        .filter(player => player.player_steam_id !== userQueue.host_steam_id) // Exclude host from joiners
-        .map(player => ({
+      const enrichedJoiners = queue.players
+        .filter((player: any) => player.player_steam_id !== queue.host_steam_id) // Exclude host from joiners
+        .map((player: any) => ({
           steamId: player.player_steam_id,
           joinTime: player.joined_at,
-          name: playerNames.get(player.player_steam_id) || `Player ${player.player_steam_id.slice(-4)}`
+          name: queue.playerNames[player.player_steam_id] || `Player ${player.player_steam_id.slice(-4)}`
         }));
       
       const totalTime = Date.now() - startTime;
       console.log(`Queue response completed in total ${totalTime}ms`);
-      console.log(`[TIMING SUMMARY] Auth: ${authTime}ms, Session: ${sessionValidationTime}ms, Lobby: ${lobbyCheckTime}ms, Queue: ${queueCheckTime}ms, PlayerNames: ${playerNamesTime}ms, Total: ${totalTime}ms`);
+      console.log(`[TIMING SUMMARY] Auth: ${authTime}ms, StatusCheck: ${statusCheckTime}ms, Total: ${totalTime}ms`);
       
       return {
         statusCode: 200,
         headers: corsHeaders,
         body: JSON.stringify({
           inQueue: true,
-          isHost: isHost,
+          isHost: queue.isHost,
           queue: {
-            id: userQueue.id,
-            hostSteamId: userQueue.host_steam_id,
-            hostName: playerNames.get(userQueue.host_steam_id) || `Player ${userQueue.host_steam_id.slice(-4)}`,
-            gameMode: userQueue.game_mode,
-            mapSelectionMode: userQueue.map_selection_mode,
-            serverId: userQueue.server_id,
-            hasPassword: !!userQueue.password,
-            ranked: !!userQueue.ranked,
-            startTime: userQueue.start_time,
+            id: queue.id,
+            hostSteamId: queue.host_steam_id,
+            hostName: queue.playerNames[queue.host_steam_id] || `Player ${queue.host_steam_id.slice(-4)}`,
+            gameMode: queue.game_mode,
+            mapSelectionMode: queue.map_selection_mode,
+            serverId: queue.server_id,
+            hasPassword: !!queue.password,
+            ranked: !!queue.ranked,
+            startTime: queue.start_time,
             joiners: enrichedJoiners,
-            createdAt: userQueue.created_at,
-            updatedAt: userQueue.updated_at,
+            createdAt: queue.created_at,
+            updatedAt: queue.updated_at,
           }
         }),
       };
@@ -325,7 +299,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
     // User is not in any queue or lobby
     const totalTime = Date.now() - startTime;
     console.log(`No queue/lobby found - total time: ${totalTime}ms`);
-    console.log(`[TIMING SUMMARY] Auth: ${authTime}ms, Session: ${sessionValidationTime}ms, Lobby: ${lobbyCheckTime}ms, Queue: ${queueCheckTime}ms, Total: ${totalTime}ms`);
+    console.log(`[TIMING SUMMARY] Auth: ${authTime}ms, StatusCheck: ${statusCheckTime}ms, Total: ${totalTime}ms`);
     
     return {
       statusCode: 200,
