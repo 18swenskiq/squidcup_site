@@ -332,10 +332,19 @@ async function createSession(connection: mysql.Connection, sessionToken: string,
   console.log('- steamId length:', steamId?.length, 'value:', steamId);
   console.log('- expiresAt length:', expiresAt?.length, 'value:', expiresAt);
   
+  // Convert ISO string to MySQL-compatible datetime format
+  // MySQL TIMESTAMP expects 'YYYY-MM-DD HH:MM:SS' format
+  let mysqlDateTime = expiresAt;
+  if (expiresAt && typeof expiresAt === 'string' && expiresAt.includes('T')) {
+    // Convert ISO string (2025-07-25T08:00:24.370Z) to MySQL format (2025-07-25 08:00:24)
+    mysqlDateTime = new Date(expiresAt).toISOString().slice(0, 19).replace('T', ' ');
+    console.log('Converted expiresAt from ISO to MySQL format:', mysqlDateTime);
+  }
+  
   await executeQuery(
     connection,
     'INSERT INTO squidcup_sessions (session_token, user_steam_id, expires_at) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE expires_at = VALUES(expires_at)',
-    [sessionToken, steamId, expiresAt]
+    [sessionToken, steamId, mysqlDateTime]
   );
 }
 
