@@ -110,7 +110,7 @@ async function createConnection(): Promise<mysql.Connection> {
     password: config.password,
     database: config.database,
     ssl: {
-      rejectUnauthorized: true,
+      rejectUnauthorized: false, // Allow self-signed certificates
       ca: config.caCert
     }
   };
