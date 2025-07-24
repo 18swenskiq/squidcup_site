@@ -250,7 +250,7 @@ export class ApiStack extends cdk.Stack {
       code: lambda.Code.fromAsset(path.join(__dirname, '/../src/leave-lobby-lambda')),
       environment: {
         REGION: this.REGION,
-        TABLE_NAME: table.tableName,
+        DATABASE_SERVICE_FUNCTION_NAME: databaseServiceFunction.functionName,
       }
     });
 
@@ -283,7 +283,6 @@ export class ApiStack extends cdk.Stack {
     leaveQueueFunction.addToRolePolicy(ssmPolicy);
     queueCleanupFunction.addToRolePolicy(ssmPolicy);
     createLobbyFunction.addToRolePolicy(ssmPolicy);
-    leaveLobbyFunction.addToRolePolicy(ssmPolicy);
     selectMapFunction.addToRolePolicy(ssmPolicy);
 
     // Grant DynamoDB permissions to Lambda functions
@@ -293,7 +292,6 @@ export class ApiStack extends cdk.Stack {
     table.grantReadWriteData(getUserQueueFunction);
     table.grantReadWriteData(leaveQueueFunction);
     table.grantReadWriteData(queueCleanupFunction);
-    table.grantReadWriteData(leaveLobbyFunction);
     table.grantReadWriteData(selectMapFunction);
 
     // Grant Lambda invoke permissions for lobby system
@@ -309,6 +307,7 @@ export class ApiStack extends cdk.Stack {
     databaseServiceFunction.grantInvoke(getQueueHistoryFunction);
     databaseServiceFunction.grantInvoke(getServersFunction);
     databaseServiceFunction.grantInvoke(joinQueueFunction);
+    databaseServiceFunction.grantInvoke(leaveLobbyFunction);
     // Note: We'll add more functions here as we convert them
 
     // Add environment variable to join queue function for create lobby function name

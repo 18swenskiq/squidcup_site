@@ -563,6 +563,37 @@ async function createLobby(connection: mysql.Connection, lobbyData: any): Promis
   );
 }
 
+// Function to get lobby by ID
+async function getLobby(connection: mysql.Connection, lobbyId: string): Promise<any> {
+  const rows = await executeQuery(
+    connection,
+    'SELECT * FROM lobbies WHERE id = ?',
+    [lobbyId]
+  );
+  return rows.length > 0 ? rows[0] : null;
+}
+
+// Function to get lobby with players by ID
+async function getLobbyWithPlayers(connection: mysql.Connection, lobbyId: string): Promise<any> {
+  const lobby = await getLobby(connection, lobbyId);
+  if (!lobby) return null;
+  
+  const players = await getLobbyPlayers(connection, lobbyId);
+  return {
+    ...lobby,
+    players
+  };
+}
+
+// Function to get lobby players
+async function getLobbyPlayers(connection: mysql.Connection, lobbyId: string): Promise<any[]> {
+  return await executeQuery(
+    connection,
+    'SELECT * FROM lobby_players WHERE lobby_id = ? ORDER BY joined_at',
+    [lobbyId]
+  );
+}
+
 // Function to add lobby players
 async function addLobbyPlayers(connection: mysql.Connection, lobbyId: string, players: any[]): Promise<void> {
   if (players.length === 0) return;
@@ -575,6 +606,14 @@ async function addLobbyPlayers(connection: mysql.Connection, lobbyId: string, pl
     `INSERT INTO lobby_players (lobby_id, player_steam_id, team) VALUES ${placeholders}`,
     values.flat()
   );
+}
+
+// Function to delete lobby and its players
+async function deleteLobby(connection: mysql.Connection, lobbyId: string): Promise<void> {
+  // Delete lobby players first (due to foreign key constraints)
+  await executeQuery(connection, 'DELETE FROM lobby_players WHERE lobby_id = ?', [lobbyId]);
+  // Delete the lobby
+  await executeQuery(connection, 'DELETE FROM lobbies WHERE id = ?', [lobbyId]);
 }
 
 // Function to delete queue and its players
@@ -799,8 +838,24 @@ export async function handler(event: DatabaseRequest): Promise<DatabaseResponse>
         await createLobby(connection, event.data);
         return { success: true };
 
+      case 'getLobby':
+        const lobby = await getLobby(connection, event.params![0]);
+        return { success: true, data: lobby };
+
+      case 'getLobbyWithPlayers':
+        const lobbyWithPlayers = await getLobbyWithPlayers(connection, event.params![0]);
+        return { success: true, data: lobbyWithPlayers };
+
+      case 'getLobbyPlayers':
+        const lobbyPlayers = await getLobbyPlayers(connection, event.params![0]);
+        return { success: true, data: lobbyPlayers };
+
       case 'addLobbyPlayers':
         await addLobbyPlayers(connection, event.params![0], event.data);
+        return { success: true };
+
+      case 'deleteLobby':
+        await deleteLobby(connection, event.params![0]);
         return { success: true };
 
       case 'deleteQueue':

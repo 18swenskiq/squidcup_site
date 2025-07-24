@@ -1,128 +1,49 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
-import { DynamoDBClient, QueryCommand, DeleteItemCommand } from '@aws-sdk/client-dynamodb';
-import { DynamoDBDocumentClient, GetCommand, PutCommand } from '@aws-sdk/lib-dynamodb';
-import { unmarshall } from '@aws-sdk/util-dynamodb';
+import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda';
 import * as crypto from 'crypto';
 
-const dynamoClient = new DynamoDBClient({ region: process.env.REGION });
-const docClient = DynamoDBDocumentClient.from(dynamoClient);
-
-interface SessionData {
-  userId: string;
-  expiresAt: string;
-  createdAt: string;
-}
+const lambdaClient = new LambdaClient({ region: process.env.REGION });
 
 interface LobbyPlayer {
-  steamId: string;
+  player_steam_id: string;
   team?: number;
-  mapSelection?: string;
-  hasSelectedMap?: boolean;
+  joined_at?: string;
 }
 
 interface LobbyData {
-  pk: string;
-  sk: string;
   id: string;
-  hostSteamId: string;
-  gameMode: string;
-  mapSelectionMode: string;
-  serverId: string;
+  host_steam_id: string;
+  game_mode: string;
+  map_selection_mode: string;
+  server_id: string;
   password?: string;
   ranked: boolean;
   players: LobbyPlayer[];
-  mapSelectionComplete: boolean;
-  selectedMap?: string;
-  createdAt: string;
-  updatedAt: string;
+  created_at: string;
+  updated_at: string;
 }
 
-// Function to extract numeric Steam ID from OpenID URL
-function extractSteamIdFromOpenId(steamId: string): string {
-  if (!steamId) {
-    console.error('steamId is null or undefined');
-    return '';
+// Function to call database service
+async function callDatabaseService(operation: string, params?: any[], data?: any): Promise<any> {
+  const payload = {
+    operation,
+    params,
+    data
+  };
+
+  const command = new InvokeCommand({
+    FunctionName: process.env.DATABASE_SERVICE_FUNCTION_NAME,
+    Payload: new TextEncoder().encode(JSON.stringify(payload)),
+  });
+
+  const response = await lambdaClient.send(command);
+  const result = JSON.parse(new TextDecoder().decode(response.Payload));
+
+  if (!result.success) {
+    throw new Error(result.error || 'Database operation failed');
   }
-  
-  if (/^\d+$/.test(steamId)) {
-    return steamId;
-  }
-  
-  const match = steamId.match(/\/id\/(\d+)$/);
-  if (match && match[1]) {
-    return match[1];
-  }
-  
-  console.warn('Could not extract Steam ID from:', steamId);
-  return steamId;
-}
 
-// Function to get user session from DynamoDB
-async function getUserSession(sessionToken: string): Promise<{ userId: string; expiresAt: string } | null> {
-  try {
-    const sessionQuery = new QueryCommand({
-      TableName: process.env.TABLE_NAME,
-      KeyConditionExpression: 'pk = :pk',
-      ExpressionAttributeValues: {
-        ':pk': { S: `SESSION#${sessionToken}` },
-      },
-    });
-
-    const result = await dynamoClient.send(sessionQuery);
-    
-    if (!result.Items || result.Items.length === 0) {
-      return null;
-    }
-
-    const sessionData = unmarshall(result.Items[0]) as SessionData;
-    
-    // Check if session is expired
-    const expiresAtTime = new Date(sessionData.expiresAt).getTime();
-    if (expiresAtTime < Date.now()) {
-      return null;
-    }
-
-    return {
-      userId: sessionData.userId,
-      expiresAt: sessionData.expiresAt
-    };
-  } catch (error) {
-    console.error('Error getting user session:', error);
-    return null;
-  }
-}
-
-// Function to store lobby history event
-async function storeLobbyHistoryEvent(
-  lobbyId: string,
-  userSteamId: string,
-  eventType: 'created' | 'joined' | 'left' | 'disbanded' | 'map_selected' | 'game_started',
-  eventData?: any
-): Promise<void> {
-  try {
-    const eventId = crypto.randomUUID();
-    const now = new Date().toISOString();
-
-    await docClient.send(new PutCommand({
-      TableName: process.env.TABLE_NAME,
-      Item: {
-        pk: `LOBBYHISTORY#${userSteamId}`,
-        sk: `${now}#${eventId}`,
-        GSI1PK: `LOBBYEVENT#${lobbyId}`,
-        GSI1SK: `${now}#${eventType}`,
-        lobbyId,
-        userSteamId,
-        eventType,
-        eventData: eventData || {},
-        timestamp: now,
-        createdAt: now,
-      }
-    }));
-
-    console.log(`Stored lobby history event: ${eventType} for user ${userSteamId} in lobby ${lobbyId}`);
-  } catch (error) {
-    console.error('Error storing lobby history event:', error);
-  }
+  return result.data;
 }
 
 export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
@@ -159,7 +80,8 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
     const sessionToken = authHeader.substring(7);
     console.log('Extracted session token:', sessionToken);
     
-    const session = await getUserSession(sessionToken);
+    // Validate session using database service
+    const session = await callDatabaseService('getSession', [sessionToken]);
     console.log('Session result:', session);
     
     if (!session) {
@@ -170,8 +92,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
       };
     }
 
-    // Extract Steam ID from session
-    const userSteamId = extractSteamIdFromOpenId(session.userId);
+    const userSteamId = session.steamId;
     console.log('User Steam ID:', userSteamId);
 
     // Parse request body
@@ -185,16 +106,10 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
       };
     }
 
-    // Get the lobby from DynamoDB
-    const lobbyResult = await docClient.send(new GetCommand({
-      TableName: process.env.TABLE_NAME,
-      Key: {
-        pk: `LOBBY#${lobbyId}`,
-        sk: 'METADATA',
-      },
-    }));
+    // Get the lobby with players from database service
+    const lobbyData: LobbyData = await callDatabaseService('getLobbyWithPlayers', [lobbyId]);
 
-    if (!lobbyResult.Item) {
+    if (!lobbyData) {
       return {
         statusCode: 404,
         headers: corsHeaders,
@@ -202,11 +117,10 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
       };
     }
 
-    const lobbyData = lobbyResult.Item as LobbyData;
-    console.log('Found lobby:', lobbyData.pk);
+    console.log('Found lobby:', lobbyData.id);
 
     // Check if user is in the lobby
-    const isInLobby = lobbyData.players.some(player => player.steamId === userSteamId);
+    const isInLobby = lobbyData.players.some(player => player.player_steam_id === userSteamId);
     if (!isInLobby) {
       return {
         statusCode: 400,
@@ -215,7 +129,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
       };
     }
 
-    const isHost = lobbyData.hostSteamId === userSteamId;
+    const isHost = lobbyData.host_steam_id === userSteamId;
     console.log('User is host:', isHost);
 
     // Since leaving a lobby always disbands it (unlike queues), we always delete the entire lobby
@@ -223,22 +137,23 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
     
     // Store disband events for all players
     for (const player of lobbyData.players) {
-      await storeLobbyHistoryEvent(lobbyId, player.steamId, 'disbanded', {
-        gameMode: lobbyData.gameMode,
-        mapSelectionMode: lobbyData.mapSelectionMode,
-        disbandedBy: userSteamId,
-        isHost: player.steamId === lobbyData.hostSteamId,
+      const eventId = crypto.randomUUID();
+      await callDatabaseService('storeLobbyHistoryEvent', [], {
+        id: eventId,
+        lobbyId: lobbyData.id,
+        playerSteamId: player.player_steam_id,
+        eventType: 'disbanded',
+        eventData: {
+          gameMode: lobbyData.game_mode,
+          mapSelectionMode: lobbyData.map_selection_mode,
+          disbandedBy: userSteamId,
+          isHost: player.player_steam_id === lobbyData.host_steam_id,
+        }
       });
     }
     
-    // Delete the lobby
-    await dynamoClient.send(new DeleteItemCommand({
-      TableName: process.env.TABLE_NAME,
-      Key: {
-        pk: { S: lobbyData.pk },
-        sk: { S: lobbyData.sk },
-      },
-    }));
+    // Delete the lobby using database service
+    await callDatabaseService('deleteLobby', [lobbyData.id]);
 
     console.log('Lobby disbanded successfully');
     return {
