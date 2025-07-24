@@ -430,6 +430,48 @@ async function getQueueWithPlayers(connection: mysql.Connection, queueId: string
   };
 }
 
+// Function to get user's active lobby (where they are host or player)
+async function getUserActiveLobby(connection: mysql.Connection, steamId: string): Promise<any> {
+  // First check if user is hosting a lobby
+  const hostLobby = await executeQuery(
+    connection,
+    'SELECT * FROM lobbies WHERE host_steam_id = ? AND status = "waiting"',
+    [steamId]
+  );
+  
+  if (hostLobby.length > 0) {
+    const players = await getLobbyPlayers(connection, hostLobby[0].id);
+    return {
+      ...hostLobby[0],
+      players,
+      isHost: true
+    };
+  }
+  
+  // Check if user is a player in any lobby
+  const playerLobby = await executeQuery(
+    connection,
+    `SELECT l.*, lp.joined_at, lp.team
+     FROM lobbies l
+     INNER JOIN lobby_players lp ON l.id = lp.lobby_id
+     WHERE lp.player_steam_id = ? AND l.status = "waiting"`,
+    [steamId]
+  );
+  
+  if (playerLobby.length > 0) {
+    const players = await getLobbyPlayers(connection, playerLobby[0].id);
+    return {
+      ...playerLobby[0],
+      players,
+      isHost: false,
+      userJoinedAt: playerLobby[0].joined_at,
+      userTeam: playerLobby[0].team
+    };
+  }
+  
+  return null;
+}
+
 // Function to get user's active queue (where they are host or player)
 async function getUserActiveQueue(connection: mysql.Connection, steamId: string): Promise<any> {
   // First check if user is hosting a queue
@@ -829,6 +871,10 @@ export async function handler(event: DatabaseRequest): Promise<DatabaseResponse>
       case 'getUserActiveQueue':
         const userQueue = await getUserActiveQueue(connection, event.params![0]);
         return { success: true, data: userQueue };
+
+      case 'getUserActiveLobby':
+        const userLobby = await getUserActiveLobby(connection, event.params![0]);
+        return { success: true, data: userLobby };
 
       case 'getQueuePlayers':
         const queuePlayers = await getQueuePlayers(connection, event.params![0]);

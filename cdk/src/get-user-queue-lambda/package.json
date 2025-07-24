@@ -7,12 +7,12 @@
     "build": "tsc",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "devDependencies": {
-    "@types/aws-lambda": "^8.10.119",
-    "@types/node": "^20.5.0",
-    "typescript": "^5.1.6",
-    "@aws-sdk/client-dynamodb": "^3.0.0",
-    "@aws-sdk/util-dynamodb": "^3.0.0"
+  "dependencies": {
+    "@aws-sdk/client-lambda": "^3.0.0"
   },
-  "dependencies": {}
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "@types/aws-lambda": "^8.10.0",
+    "@types/node": "^20.0.0"
+  }
 }

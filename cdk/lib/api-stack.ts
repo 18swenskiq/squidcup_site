@@ -153,7 +153,7 @@ export class ApiStack extends cdk.Stack {
       code: lambda.Code.fromAsset(path.join(__dirname, '/../src/get-user-queue-lambda')),
       environment: {
         REGION: this.REGION,
-        TABLE_NAME: table.tableName,
+        DATABASE_SERVICE_FUNCTION_NAME: databaseServiceFunction.functionName,
       }
     });
 
@@ -288,7 +288,7 @@ export class ApiStack extends cdk.Stack {
     table.grantReadWriteData(steamLoginFunction);
     table.grantReadWriteData(getUserProfileFunction);
     table.grantReadWriteData(startQueueFunction);
-    table.grantReadWriteData(getUserQueueFunction);
+    databaseServiceFunction.grantInvoke(getUserQueueFunction);
     table.grantReadWriteData(queueCleanupFunction);
     table.grantReadWriteData(selectMapFunction);
 
