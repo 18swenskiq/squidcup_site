@@ -291,6 +291,21 @@ async function executeQuery(connection: mysql.Connection, query: string, params:
   try {
     // Sanitize parameters to convert undefined to null
     const sanitizedParams = sanitizeParams(params);
+    
+    // Debug logging for data length issues
+    if (query.includes('squidcup_sessions')) {
+      console.log('Executing sessions query:', query);
+      console.log('Original params:', params);
+      console.log('Sanitized params:', sanitizedParams);
+      sanitizedParams.forEach((param, index) => {
+        if (typeof param === 'string') {
+          console.log(`Param ${index}: length=${param.length}, value="${param}"`);
+        } else {
+          console.log(`Param ${index}: type=${typeof param}, value=${param}`);
+        }
+      });
+    }
+    
     const [rows] = await connection.execute(query, sanitizedParams);
     return rows;
   } catch (error) {
@@ -311,6 +326,12 @@ async function getSession(connection: mysql.Connection, sessionToken: string): P
 
 // Function to create session
 async function createSession(connection: mysql.Connection, sessionToken: string, steamId: string, expiresAt: string): Promise<void> {
+  // Debug logging to see what data we're trying to insert
+  console.log('createSession called with:');
+  console.log('- sessionToken length:', sessionToken?.length, 'value:', sessionToken);
+  console.log('- steamId length:', steamId?.length, 'value:', steamId);
+  console.log('- expiresAt length:', expiresAt?.length, 'value:', expiresAt);
+  
   await executeQuery(
     connection,
     'INSERT INTO squidcup_sessions (session_token, user_steam_id, expires_at) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE expires_at = VALUES(expires_at)',
