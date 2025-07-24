@@ -366,8 +366,18 @@ async function addServer(connection: mysql.Connection, serverData: any): Promise
 }
 
 // Function to get all servers
-async function getServers(connection: mysql.Connection): Promise<any[]> {
-  return await executeQuery(connection, 'SELECT * FROM servers ORDER BY created_at DESC');
+async function getServers(connection: mysql.Connection, minPlayers?: number): Promise<any[]> {
+  let query = 'SELECT * FROM servers';
+  const params: any[] = [];
+  
+  if (minPlayers && minPlayers > 0) {
+    query += ' WHERE max_players >= ?';
+    params.push(minPlayers);
+  }
+  
+  query += ' ORDER BY created_at DESC';
+  
+  return await executeQuery(connection, query, params);
 }
 
 // Function to update server
@@ -757,7 +767,8 @@ export async function handler(event: DatabaseRequest): Promise<DatabaseResponse>
         return { success: true };
 
       case 'getServers':
-        const servers = await getServers(connection);
+        const minPlayers = event.data?.minPlayers;
+        const servers = await getServers(connection, minPlayers);
         return { success: true, data: servers };
 
       case 'updateServer':

@@ -1,9 +1,6 @@
-import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { DynamoDBDocumentClient, ScanCommand, PutCommand, DeleteCommand, GetCommand } from '@aws-sdk/lib-dynamodb';
-import * as crypto from 'crypto';
+import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda';
 
-const dynamoClient = new DynamoDBClient({ region: process.env.REGION });
-const docClient = DynamoDBDocumentClient.from(dynamoClient);
+const lambdaClient = new LambdaClient({ region: process.env.REGION });
 
 export interface GameServer {
   id: string;
@@ -18,35 +15,27 @@ export interface GameServer {
   updatedAt: string;
 }
 
-// Function to get user session from DynamoDB
-async function getUserSession(sessionToken: string): Promise<{ userId: string; expiresAt: string } | null> {
-  try {
-    const result = await docClient.send(new GetCommand({
-      TableName: process.env.TABLE_NAME,
-      Key: {
-        pk: `SESSION#${sessionToken}`,
-        sk: 'METADATA',
-      },
-    }));
+// Function to call the database service
+async function callDatabaseService(operation: string, params?: any[], data?: any): Promise<any> {
+  const payload = {
+    operation,
+    params,
+    data
+  };
 
-    if (!result.Item || result.Item.deleted) {
-      return null;
-    }
+  const command = new InvokeCommand({
+    FunctionName: process.env.DATABASE_SERVICE_FUNCTION_NAME!,
+    Payload: JSON.stringify(payload),
+  });
 
-    // Check if session is expired
-    const expiresAt = new Date(result.Item.expiresAt);
-    if (expiresAt < new Date()) {
-      return null;
-    }
-
-    return {
-      userId: result.Item.userId,
-      expiresAt: result.Item.expiresAt,
-    };
-  } catch (error) {
-    console.error('Error getting user session:', error);
-    return null;
+  const response = await lambdaClient.send(command);
+  const result = JSON.parse(new TextDecoder().decode(response.Payload));
+  
+  if (!result.success) {
+    throw new Error(result.error || 'Database service call failed');
   }
+  
+  return result.data;
 }
 
 // Function to check if user is admin
@@ -121,35 +110,21 @@ async function handleGetServers(event?: any): Promise<any> {
 
     const minPlayers = getMinPlayersForGamemode(gamemode);
     
-    // Build the filter expression
-    let filterExpression = 'begins_with(pk, :pk)';
-    const expressionAttributeValues: any = {
-      ':pk': 'SERVER#'
-    };
-    
-    // Add player count filter if gamemode is specified
-    if (minPlayers > 0) {
-      filterExpression += ' AND maxPlayers >= :minPlayers';
-      expressionAttributeValues[':minPlayers'] = minPlayers;
-    }
+    // Get servers from database service
+    const servers = await callDatabaseService('getServers', undefined, { minPlayers });
 
-    const result = await docClient.send(new ScanCommand({
-      TableName: process.env.TABLE_NAME,
-      FilterExpression: filterExpression,
-      ExpressionAttributeValues: expressionAttributeValues
+    // Transform the data to match the expected response format (exclude rconPassword)
+    const serversResponse: Omit<GameServer, 'rconPassword'>[] = servers.map((server: any) => ({
+      id: server.id,
+      ip: server.ip,
+      port: server.port,
+      location: server.location,
+      defaultPassword: server.default_password || '',
+      maxPlayers: server.max_players,
+      nickname: server.nickname,
+      createdAt: server.created_at,
+      updatedAt: server.updated_at
     }));
-
-    const servers: Omit<GameServer, 'rconPassword'>[] = result.Items?.map((item: any) => ({
-      id: item.pk.replace('SERVER#', ''),
-      ip: item.ip,
-      port: item.port,
-      location: item.location,
-      defaultPassword: item.defaultPassword || '', // Handle existing servers without defaultPassword
-      maxPlayers: item.maxPlayers,
-      nickname: item.nickname,
-      createdAt: item.createdAt,
-      updatedAt: item.updatedAt
-    })) || [];
 
     return {
       statusCode: 200,
@@ -158,7 +133,7 @@ async function handleGetServers(event?: any): Promise<any> {
         'Access-Control-Allow-Headers': 'Content-Type,Authorization',
         'Access-Control-Allow-Methods': 'GET,PUT,OPTIONS',
       },
-      body: JSON.stringify(servers),
+      body: JSON.stringify(serversResponse),
     };
   } catch (error) {
     console.error('Error getting servers:', error);
@@ -187,9 +162,22 @@ async function handleUpdateServer(event: any, serverId: string): Promise<any> {
     }
 
     const sessionToken = authHeader.substring(7);
-    const session = await getUserSession(sessionToken);
     
-    if (!session || !isAdmin(session.userId)) {
+    // Validate session using database service
+    const sessionData = await callDatabaseService('getSession', [sessionToken]);
+    
+    if (!sessionData) {
+      return {
+        statusCode: 401,
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+        },
+        body: JSON.stringify({ error: 'Invalid or expired session' }),
+      };
+    }
+
+    // Check if user is admin
+    if (!isAdmin(sessionData.steamId)) {
       return {
         statusCode: 403,
         headers: {
@@ -211,47 +199,30 @@ async function handleUpdateServer(event: any, serverId: string): Promise<any> {
       };
     }
 
+    const serverData = {
+      ip,
+      port: Number(port),
+      location,
+      rconPassword,
+      defaultPassword: defaultPassword || '',
+      maxPlayers: Number(maxPlayers),
+      nickname,
+    };
+
+    // Update server using database service
+    await callDatabaseService('updateServer', [serverId], serverData);
+
     const updatedServer = {
       id: serverId,
       ip,
       port: Number(port),
       location,
       rconPassword,
-      defaultPassword: defaultPassword || '', // Optional field, default to empty string
+      defaultPassword: defaultPassword || '',
       maxPlayers: Number(maxPlayers),
       nickname,
       updatedAt: new Date().toISOString(),
     };
-
-    // First, get the existing server to preserve createdAt
-    const existingServer = await docClient.send(new GetCommand({
-      TableName: process.env.TABLE_NAME,
-      Key: {
-        pk: `SERVER#${serverId}`,
-        sk: 'METADATA'
-      }
-    }));
-
-    if (!existingServer.Item) {
-      return {
-        statusCode: 404,
-        headers: {
-          'Access-Control-Allow-Origin': '*',
-        },
-        body: JSON.stringify({ error: 'Server not found' }),
-      };
-    }
-
-    // Update the server, preserving createdAt
-    await docClient.send(new PutCommand({
-      TableName: process.env.TABLE_NAME,
-      Item: {
-        pk: `SERVER#${serverId}`,
-        sk: 'METADATA',
-        ...updatedServer,
-        createdAt: existingServer.Item.createdAt, // Preserve original creation time
-      },
-    }));
 
     return {
       statusCode: 200,

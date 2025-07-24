@@ -48,18 +48,6 @@ export class ApiStack extends cdk.Stack {
       },
     });
 
-    const getServersFunction = new lambda.Function(this, "get-servers-function", {
-      runtime: this.RUNTIME,
-      memorySize: this.MEMORY_SIZE,
-      timeout: this.TIMEOUT,
-      handler: 'index.handler',
-      code: lambda.Code.fromAsset(path.join(__dirname, '/../src/get-servers-lambda')),
-      environment: {
-        REGION: this.REGION,
-        TABLE_NAME: table.tableName,
-      }
-    });
-
     const steamLoginFunction = new lambda.Function(this, "steam-login-function", {
       runtime: this.RUNTIME,
       memorySize: this.MEMORY_SIZE,
@@ -127,6 +115,18 @@ export class ApiStack extends cdk.Stack {
       timeout: this.TIMEOUT,
       handler: 'index.handler',
       code: lambda.Code.fromAsset(path.join(__dirname, '/../src/delete-server-lambda')),
+      environment: {
+        REGION: this.REGION,
+        DATABASE_SERVICE_FUNCTION_NAME: databaseServiceFunction.functionName,
+      }
+    });
+
+    const getServersFunction = new lambda.Function(this, "get-servers-function", {
+      runtime: this.RUNTIME,
+      memorySize: this.MEMORY_SIZE,
+      timeout: this.TIMEOUT,
+      handler: 'index.handler',
+      code: lambda.Code.fromAsset(path.join(__dirname, '/../src/get-servers-lambda')),
       environment: {
         REGION: this.REGION,
         DATABASE_SERVICE_FUNCTION_NAME: databaseServiceFunction.functionName,
@@ -273,7 +273,6 @@ export class ApiStack extends cdk.Stack {
     });
 
     // Add the SSM policy to all Lambda functions
-    getServersFunction.addToRolePolicy(ssmPolicy);
     steamLoginFunction.addToRolePolicy(ssmPolicy);
     getUserProfileFunction.addToRolePolicy(ssmPolicy);
     databaseServiceFunction.addToRolePolicy(ssmPolicy);
@@ -289,7 +288,6 @@ export class ApiStack extends cdk.Stack {
     selectMapFunction.addToRolePolicy(ssmPolicy);
 
     // Grant DynamoDB permissions to Lambda functions
-    table.grantReadWriteData(getServersFunction);
     table.grantReadWriteData(steamLoginFunction);
     table.grantReadWriteData(getUserProfileFunction);
     table.grantReadWriteData(startQueueFunction);
@@ -311,6 +309,7 @@ export class ApiStack extends cdk.Stack {
     databaseServiceFunction.grantInvoke(getAllQueuesFunction);
     databaseServiceFunction.grantInvoke(getMapsFunction);
     databaseServiceFunction.grantInvoke(getQueueHistoryFunction);
+    databaseServiceFunction.grantInvoke(getServersFunction);
     // Note: We'll add more functions here as we convert them
 
     // Add environment variable to join queue function for create lobby function name
