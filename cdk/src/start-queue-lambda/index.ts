@@ -100,7 +100,7 @@ export async function handler(event: any): Promise<any> {
     const sessionResult = await callDatabaseService('getSession', [sessionToken]);
     console.log('Session result:', sessionResult);
     
-    if (!sessionResult.session || !sessionResult.session.steamId) {
+    if (!sessionResult.success || !sessionResult.data || !sessionResult.data.steamId) {
       return {
         statusCode: 401,
         headers: {
@@ -111,7 +111,7 @@ export async function handler(event: any): Promise<any> {
     }
 
     // Extract Steam ID from session
-    const hostSteamId = extractSteamIdFromOpenId(sessionResult.session.steamId);
+    const hostSteamId = extractSteamIdFromOpenId(sessionResult.data.steamId);
     console.log('Host Steam ID:', hostSteamId);
 
     // Parse request body
