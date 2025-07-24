@@ -82,16 +82,29 @@ async function getDatabaseConfig(): Promise<DatabaseConfig> {
 async function createConnection(): Promise<mysql.Connection> {
   const config = await getDatabaseConfig();
   
-  const connection = await mysql.createConnection({
+  // Determine SSL configuration based on environment
+  const connectionConfig: any = {
     host: config.host,
     port: config.port,
     user: config.user,
     password: config.password,
-    database: config.database,
-    ssl: {
-      rejectUnauthorized: false
-    }
-  });
+    database: config.database
+  };
+  
+  // Configure SSL securely
+  if (process.env.DB_DISABLE_SSL === 'true') {
+    console.warn('SSL disabled for database connection - this should only be used in development!');
+    // SSL explicitly disabled - connection will be unencrypted
+  } else {
+    // Default secure SSL configuration for production
+    connectionConfig.ssl = {
+      rejectUnauthorized: true,
+      // Add CA certificate if provided (for custom certificates)
+      ...(process.env.DB_SSL_CA && { ca: process.env.DB_SSL_CA })
+    };
+  }
+  
+  const connection = await mysql.createConnection(connectionConfig);
 
   return connection;
 }
