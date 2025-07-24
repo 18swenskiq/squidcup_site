@@ -7,3 +7,8 @@ When executing powershell commands, instead of using the && operator, we should 
 When working on CDK code we do not need to manually deploy, this will be taken care of by the Github Actions pipeline.
 
 When building the api-stack of the CDK to ensure there are no build errors, provide the --skipLibCheck flag to tsc.
+
+When a lambda is attempting to access the database, it should call the local shared-lambda-utils package. All Lambdas thus will need SSM permissions for the DB credentials.
+
+Types that will need to be shared between lambdas or between the backend/frontend should be stored in and used from the local types-squidcup package.
+
