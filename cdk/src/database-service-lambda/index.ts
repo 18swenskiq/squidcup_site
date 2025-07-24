@@ -10,6 +10,7 @@ export interface DatabaseConfig {
   user: string;
   password: string;
   database: string;
+  caCert: string;
 }
 
 export interface DatabaseRequest {
@@ -65,12 +66,13 @@ async function getDatabaseConfig(): Promise<DatabaseConfig> {
   // Start the configuration loading process
   configPromise = (async (): Promise<DatabaseConfig> => {
     try {
-      const [host, port, user, password, database] = await Promise.all([
+      const [host, port, user, password, database, caCert] = await Promise.all([
         getParameterValue('/squidcup/sql/host'),
         getParameterValue('/squidcup/sql/port'),
         getParameterValue('/squidcup/sql/user'),
         getParameterValue('/squidcup/sql/password'),
-        getParameterValue('/squidcup/sql/database')
+        getParameterValue('/squidcup/sql/database'),
+        getParameterValue('/squidcup/sql/ca_cert')
       ]);
 
       const config: DatabaseConfig = {
@@ -78,7 +80,8 @@ async function getDatabaseConfig(): Promise<DatabaseConfig> {
         port: parseInt(port, 10),
         user,
         password,
-        database
+        database,
+        caCert
       };
 
       // Cache the config for future use
@@ -99,27 +102,18 @@ async function getDatabaseConfig(): Promise<DatabaseConfig> {
 async function createConnection(): Promise<mysql.Connection> {
   const config = await getDatabaseConfig();
   
-  // Determine SSL configuration based on environment
+  // Configure connection with SSL using the CA certificate
   const connectionConfig: any = {
     host: config.host,
     port: config.port,
     user: config.user,
     password: config.password,
-    database: config.database
-  };
-  
-  // Configure SSL securely
-  if (process.env.DB_DISABLE_SSL === 'true') {
-    console.warn('SSL disabled for database connection - this should only be used in development!');
-    // SSL explicitly disabled - connection will be unencrypted
-  } else {
-    // Default secure SSL configuration for production
-    connectionConfig.ssl = {
+    database: config.database,
+    ssl: {
       rejectUnauthorized: true,
-      // Add CA certificate if provided (for custom certificates)
-      ...(process.env.DB_SSL_CA && { ca: process.env.DB_SSL_CA })
-    };
-  }
+      ca: config.caCert
+    }
+  };
   
   const connection = await mysql.createConnection(connectionConfig);
 
