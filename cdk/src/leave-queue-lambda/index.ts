@@ -1,177 +1,52 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
-import { DynamoDBClient, QueryCommand, ScanCommand, DeleteItemCommand } from '@aws-sdk/client-dynamodb';
-import { DynamoDBDocumentClient, GetCommand, PutCommand } from '@aws-sdk/lib-dynamodb';
-import { unmarshall } from '@aws-sdk/util-dynamodb';
+import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda';
 import * as crypto from 'crypto';
 
-const dynamoClient = new DynamoDBClient({ region: process.env.REGION });
-const docClient = DynamoDBDocumentClient.from(dynamoClient);
+const lambdaClient = new LambdaClient({ region: process.env.REGION });
 
-interface SessionData {
-  userId: string;
-  expiresAt: string;
-  createdAt: string;
-}
-
-interface ActiveQueueData {
-  pk: string;
-  sk: string;
-  hostSteamId: string;
-  gameMode: string;
-  mapSelectionMode: string;
-  serverId: string;
+interface QueueData {
+  id: string;
+  host_steam_id: string;
+  game_mode: string;
+  map_selection_mode: string;
+  server_id: string;
   password?: string;
   ranked: boolean;
-  startTime: string;
-  joiners: Array<{
-    steamId: string;
-    joinTime: string;
+  start_time: string;
+  max_players: number;
+  current_players: number;
+  status: string;
+  players: Array<{
+    player_steam_id: string;
+    team?: number;
+    joined_at: string;
   }>;
-  createdAt: string;
-  updatedAt: string;
+  isHost?: boolean;
+  created_at: string;
+  updated_at: string;
 }
 
-// Function to extract numeric Steam ID from OpenID URL
-function extractSteamIdFromOpenId(steamId: string): string {
-  console.log('extractSteamIdFromOpenId called with:', steamId);
-  
-  // Handle null/undefined steamId
-  if (!steamId) {
-    console.error('steamId is null or undefined');
-    return '';
+// Function to call database service
+async function callDatabaseService(operation: string, params?: any[], data?: any): Promise<any> {
+  const payload = {
+    operation,
+    params,
+    data
+  };
+
+  const command = new InvokeCommand({
+    FunctionName: process.env.DATABASE_SERVICE_FUNCTION_NAME,
+    Payload: new TextEncoder().encode(JSON.stringify(payload)),
+  });
+
+  const response = await lambdaClient.send(command);
+  const result = JSON.parse(new TextDecoder().decode(response.Payload));
+
+  if (!result.success) {
+    throw new Error(result.error || 'Database operation failed');
   }
-  
-  // If it's already a numeric Steam ID, return as is
-  if (/^\d+$/.test(steamId)) {
-    console.log('Already numeric, returning as is');
-    return steamId;
-  }
-  
-  // Extract from OpenID URL format: https://steamcommunity.com/openid/id/76561198041569692
-  const match = steamId.match(/\/id\/(\d+)$/);
-  if (match && match[1]) {
-    console.log('Extracted from OpenID URL:', match[1]);
-    return match[1];
-  }
-  
-  // If no match found, return the original value
-  console.warn('Could not extract Steam ID from:', steamId);
-  return steamId;
-}
 
-// Function to store queue history event
-async function storeQueueHistoryEvent(
-  queueId: string,
-  userSteamId: string,
-  eventType: 'start' | 'join' | 'leave' | 'disband' | 'timeout' | 'complete',
-  eventData?: any
-): Promise<void> {
-  try {
-    const eventId = crypto.randomUUID();
-    const now = new Date().toISOString();
-
-    await docClient.send(new PutCommand({
-      TableName: process.env.TABLE_NAME,
-      Item: {
-        pk: `QUEUEHISTORY#${userSteamId}`,
-        sk: `${now}#${eventId}`,
-        GSI1PK: `QUEUEEVENT#${queueId}`,
-        GSI1SK: `${now}#${eventType}`,
-        queueId,
-        userSteamId,
-        eventType,
-        eventData: eventData || {},
-        timestamp: now,
-        createdAt: now,
-      }
-    }));
-
-    console.log(`Stored queue history event: ${eventType} for user ${userSteamId} in queue ${queueId}`);
-  } catch (error) {
-    console.error('Error storing queue history event:', error);
-    // Don't fail the main operation if history storage fails
-  }
-}
-
-// Function to get user session from DynamoDB
-async function getUserSession(sessionToken: string): Promise<{ userId: string; expiresAt: string } | null> {
-  try {
-    const result = await docClient.send(new GetCommand({
-      TableName: process.env.TABLE_NAME,
-      Key: {
-        pk: `SESSION#${sessionToken}`,
-        sk: 'METADATA',
-      },
-    }));
-
-    if (!result.Item || result.Item.deleted) {
-      return null;
-    }
-
-    // Check if session is expired
-    const expiresAt = new Date(result.Item.expiresAt);
-    if (expiresAt < new Date()) {
-      return null;
-    }
-
-    return {
-      userId: result.Item.userId,
-      expiresAt: result.Item.expiresAt,
-    };
-  } catch (error) {
-    console.error('Error getting user session:', error);
-    return null;
-  }
-}
-
-// Function to find user's queue (either as host or joiner)
-async function findUserQueue(userSteamId: string): Promise<ActiveQueueData | null> {
-  console.log('Looking for queue for user:', userSteamId);
-  
-  try {
-    // First check if user is hosting a queue
-    const hostScanCommand = new ScanCommand({
-      TableName: process.env.TABLE_NAME,
-      FilterExpression: 'begins_with(pk, :pkPrefix) AND hostSteamId = :hostSteamId',
-      ExpressionAttributeValues: {
-        ':pkPrefix': { S: 'ACTIVEQUEUE#' },
-        ':hostSteamId': { S: userSteamId },
-      },
-    });
-
-    const hostResult = await dynamoClient.send(hostScanCommand);
-    if (hostResult.Items && hostResult.Items.length > 0) {
-      console.log('User is hosting a queue');
-      return unmarshall(hostResult.Items[0]) as ActiveQueueData;
-    }
-
-    // If not hosting, scan all queues to see if user is a joiner
-    const allQueuesScanCommand = new ScanCommand({
-      TableName: process.env.TABLE_NAME,
-      FilterExpression: 'begins_with(pk, :pkPrefix)',
-      ExpressionAttributeValues: {
-        ':pkPrefix': { S: 'ACTIVEQUEUE#' },
-      },
-    });
-
-    const allQueuesResult = await dynamoClient.send(allQueuesScanCommand);
-    if (allQueuesResult.Items) {
-      for (const item of allQueuesResult.Items) {
-        const queueData = unmarshall(item) as ActiveQueueData;
-        const isJoiner = queueData.joiners.some(joiner => joiner.steamId === userSteamId);
-        if (isJoiner) {
-          console.log('User is a joiner in queue:', queueData.pk);
-          return queueData;
-        }
-      }
-    }
-
-    console.log('User is not in any queue');
-    return null;
-  } catch (error) {
-    console.error('Error finding user queue:', error);
-    return null;
-  }
+  return result.data;
 }
 
 export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
@@ -210,7 +85,8 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
     const sessionToken = authHeader.substring(7);
     console.log('Extracted session token:', sessionToken.substring(0, 10) + '...');
     
-    const session = await getUserSession(sessionToken);
+    // Validate session using database service
+    const session = await callDatabaseService('getSession', [sessionToken]);
     console.log('Session result:', session);
     
     if (!session) {
@@ -222,12 +98,11 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
       };
     }
 
-    // Extract Steam ID from session
-    const userSteamId = extractSteamIdFromOpenId(session.userId);
+    const userSteamId = session.steamId;
     console.log('User Steam ID:', userSteamId);
 
-    // Find the user's queue
-    const userQueue = await findUserQueue(userSteamId);
+    // Find the user's active queue using database service
+    const userQueue: QueueData = await callDatabaseService('getUserActiveQueue', [userSteamId]);
     if (!userQueue) {
       console.log('User is not in any queue');
       return {
@@ -237,37 +112,50 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
       };
     }
 
-    console.log('Found user queue:', userQueue.pk);
-    const isHost = userQueue.hostSteamId === userSteamId;
+    console.log('Found user queue:', userQueue.id);
+    const isHost = userQueue.isHost || userQueue.host_steam_id === userSteamId;
     console.log('User is host:', isHost);
 
     if (isHost) {
       // User is the host - disband the entire queue
       console.log('Disbanding queue as host');
       
-      // Store history events for host and all joiners
-      await storeQueueHistoryEvent(userQueue.pk.replace('ACTIVEQUEUE#', ''), userSteamId, 'disband', {
-        gameMode: userQueue.gameMode,
-        mapSelectionMode: userQueue.mapSelectionMode,
-        joinerCount: userQueue.joiners.length,
+      // Store disband event for the host
+      const hostEventId = crypto.randomUUID();
+      await callDatabaseService('storeQueueHistoryEvent', [], {
+        id: hostEventId,
+        queueId: userQueue.id,
+        playerSteamId: userSteamId,
+        eventType: 'disband',
+        eventData: {
+          gameMode: userQueue.game_mode,
+          mapSelectionMode: userQueue.map_selection_mode,
+          joinerCount: userQueue.players ? userQueue.players.length : 0,
+        }
       });
 
-      // Store disband events for all joiners too
-      for (const joiner of userQueue.joiners) {
-        await storeQueueHistoryEvent(userQueue.pk.replace('ACTIVEQUEUE#', ''), joiner.steamId, 'disband', {
-          gameMode: userQueue.gameMode,
-          mapSelectionMode: userQueue.mapSelectionMode,
-          disbandedByHost: userSteamId,
-        });
+      // Store disband events for all players in the queue
+      if (userQueue.players && userQueue.players.length > 0) {
+        for (const player of userQueue.players) {
+          if (player.player_steam_id !== userSteamId) { // Don't duplicate for host
+            const playerEventId = crypto.randomUUID();
+            await callDatabaseService('storeQueueHistoryEvent', [], {
+              id: playerEventId,
+              queueId: userQueue.id,
+              playerSteamId: player.player_steam_id,
+              eventType: 'disband',
+              eventData: {
+                gameMode: userQueue.game_mode,
+                mapSelectionMode: userQueue.map_selection_mode,
+                disbandedByHost: userSteamId,
+              }
+            });
+          }
+        }
       }
       
-      await dynamoClient.send(new DeleteItemCommand({
-        TableName: process.env.TABLE_NAME,
-        Key: {
-          pk: { S: userQueue.pk },
-          sk: { S: userQueue.sk },
-        },
-      }));
+      // Delete the entire queue using database service
+      await callDatabaseService('deleteQueue', [userQueue.id]);
 
       console.log('Queue disbanded successfully');
       return {
@@ -283,26 +171,28 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
       // User is a joiner - remove them from the queue
       console.log('Removing user from queue as joiner');
       
-      const updatedJoiners = userQueue.joiners.filter(joiner => joiner.steamId !== userSteamId);
-      console.log('Updated joiners:', updatedJoiners);
-      
       // Store leave event
-      await storeQueueHistoryEvent(userQueue.pk.replace('ACTIVEQUEUE#', ''), userSteamId, 'leave', {
-        gameMode: userQueue.gameMode,
-        mapSelectionMode: userQueue.mapSelectionMode,
-        hostSteamId: userQueue.hostSteamId,
+      const eventId = crypto.randomUUID();
+      await callDatabaseService('storeQueueHistoryEvent', [], {
+        id: eventId,
+        queueId: userQueue.id,
+        playerSteamId: userSteamId,
+        eventType: 'leave',
+        eventData: {
+          gameMode: userQueue.game_mode,
+          mapSelectionMode: userQueue.map_selection_mode,
+          hostSteamId: userQueue.host_steam_id,
+        }
       });
       
-      const updatedQueue = {
-        ...userQueue,
-        joiners: updatedJoiners,
-        updatedAt: new Date().toISOString(),
-      };
+      // Remove player from queue using database service
+      await callDatabaseService('removePlayerFromQueue', [userQueue.id, userSteamId]);
 
-      await docClient.send(new PutCommand({
-        TableName: process.env.TABLE_NAME,
-        Item: updatedQueue,
-      }));
+      // Update queue current_players count
+      const newPlayerCount = Math.max(0, (userQueue.current_players || 1) - 1);
+      await callDatabaseService('updateQueue', [userQueue.id], {
+        currentPlayers: newPlayerCount
+      });
 
       console.log('User removed from queue successfully');
       return {
