@@ -465,6 +465,71 @@ async function storeLobbyHistoryEvent(connection: mysql.Connection, eventData: a
   );
 }
 
+// Function to get active queues with user and server details
+async function getActiveQueuesWithDetails(connection: mysql.Connection): Promise<any[]> {
+  // Get all active queues with host information
+  const queues = await executeQuery(
+    connection,
+    `SELECT 
+      q.id,
+      q.game_mode,
+      q.map,
+      q.host_steam_id,
+      q.max_players,
+      q.current_players,
+      q.status,
+      q.created_at,
+      q.updated_at,
+      u.personaname as host_name
+     FROM queues q
+     LEFT JOIN users u ON q.host_steam_id = u.steam_id
+     WHERE q.status = 'waiting'
+     ORDER BY q.created_at DESC`
+  );
+
+  // For each queue, get the players and server details
+  const result = [];
+  for (const queue of queues) {
+    // Get queue players
+    const players = await executeQuery(
+      connection,
+      `SELECT 
+        qp.player_steam_id,
+        qp.team,
+        qp.joined_at,
+        u.personaname
+       FROM queue_players qp
+       LEFT JOIN users u ON qp.player_steam_id = u.steam_id
+       WHERE qp.queue_id = ?
+       ORDER BY qp.joined_at`,
+      [queue.id]
+    );
+
+    // Convert to format expected by frontend
+    const joiners = players.map((player: any) => ({
+      steamId: player.player_steam_id,
+      joinTime: player.joined_at,
+      name: player.personaname || 'Unknown'
+    }));
+
+    result.push({
+      queueId: queue.id,
+      hostSteamId: queue.host_steam_id,
+      hostName: queue.host_name || 'Unknown',
+      gameMode: queue.game_mode,
+      players: 1 + joiners.length, // host + joiners
+      maxPlayers: queue.max_players,
+      joiners: joiners,
+      ranked: false, // TODO: Add ranked field to queues table when needed
+      hasPassword: false, // TODO: Add password field to queues table when needed  
+      createdAt: queue.created_at,
+      lastActivity: queue.updated_at || queue.created_at
+    });
+  }
+
+  return result;
+}
+
 // Main handler function
 export async function handler(event: DatabaseRequest): Promise<DatabaseResponse> {
   console.log('Database service invoked with operation:', event.operation);
@@ -543,6 +608,10 @@ export async function handler(event: DatabaseRequest): Promise<DatabaseResponse>
       case 'storeLobbyHistoryEvent':
         await storeLobbyHistoryEvent(connection, event.data);
         return { success: true };
+
+      case 'getActiveQueuesWithDetails':
+        const activeQueues = await getActiveQueuesWithDetails(connection);
+        return { success: true, data: activeQueues };
 
       case 'rawQuery':
         const result = await executeQuery(connection, event.query!, event.params || []);

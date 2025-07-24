@@ -213,7 +213,7 @@ export class ApiStack extends cdk.Stack {
       code: lambda.Code.fromAsset(path.join(__dirname, '/../src/get-active-queues-lambda')),
       environment: {
         REGION: this.REGION,
-        TABLE_NAME: table.tableName,
+        DATABASE_SERVICE_FUNCTION_NAME: databaseServiceFunction.functionName,
       }
     });
 
@@ -286,7 +286,6 @@ export class ApiStack extends cdk.Stack {
     leaveQueueFunction.addToRolePolicy(ssmPolicy);
     joinQueueFunction.addToRolePolicy(ssmPolicy);
     getQueueHistoryFunction.addToRolePolicy(ssmPolicy);
-    getActiveQueuesFunction.addToRolePolicy(ssmPolicy);
     queueCleanupFunction.addToRolePolicy(ssmPolicy);
     createLobbyFunction.addToRolePolicy(ssmPolicy);
     leaveLobbyFunction.addToRolePolicy(ssmPolicy);
@@ -303,7 +302,6 @@ export class ApiStack extends cdk.Stack {
     table.grantReadWriteData(leaveQueueFunction);
     table.grantReadWriteData(joinQueueFunction);
     table.grantReadWriteData(getQueueHistoryFunction);
-    table.grantReadWriteData(getActiveQueuesFunction);
     table.grantReadWriteData(queueCleanupFunction);
     table.grantReadWriteData(leaveLobbyFunction);
     table.grantReadWriteData(selectMapFunction);
@@ -315,6 +313,7 @@ export class ApiStack extends cdk.Stack {
     databaseServiceFunction.grantInvoke(addServerFunction);
     databaseServiceFunction.grantInvoke(createLobbyFunction);
     databaseServiceFunction.grantInvoke(deleteServerFunction);
+    databaseServiceFunction.grantInvoke(getActiveQueuesFunction);
     // Note: We'll add more functions here as we convert them
 
     // Add environment variable to join queue function for create lobby function name
