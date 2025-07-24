@@ -30,6 +30,13 @@ export class PlayViewComponent implements OnInit, OnDestroy {
     showLobby: false
   };
   
+  // Timeout functionality
+  isTimedOut: boolean = false;
+  private lastUserQueueResponse: string = '';
+  private lastResponseTime: number = Date.now();
+  private readonly TIMEOUT_DURATION = 5 * 60 * 1000; // 5 minutes in milliseconds
+  private readonly POLLING_INTERVAL = 5000; // 5 seconds
+  
   private queueSubscription?: Subscription;
   private userQueueSubscription?: Subscription;
   private apiBaseUrl: string = environment.apiUrl;
@@ -54,6 +61,8 @@ export class PlayViewComponent implements OnInit, OnDestroy {
     if (this.userQueueSubscription) {
       this.userQueueSubscription.unsubscribe();
     }
+    // Reset timeout state on component destroy
+    this.isTimedOut = false;
   }
 
   private initForm(): void {
@@ -78,6 +87,10 @@ export class PlayViewComponent implements OnInit, OnDestroy {
           this.userQueueStatus = status;
           this.isLoadingUserQueue = false;
           this.updateViewState();
+          
+          // Initialize response tracking
+          this.lastUserQueueResponse = JSON.stringify(status);
+          this.lastResponseTime = Date.now();
         },
         error: (error) => {
           console.error('Error fetching initial user queue status:', error);
@@ -88,7 +101,7 @@ export class PlayViewComponent implements OnInit, OnDestroy {
   }
 
   private startUserQueueStatusPolling(): void {
-    this.userQueueSubscription = interval(3000) // Poll every 3 seconds
+    this.userQueueSubscription = interval(this.POLLING_INTERVAL)
       .pipe(
         switchMap(() => {
           const headers = this.authService.getAuthHeaders();
@@ -97,6 +110,22 @@ export class PlayViewComponent implements OnInit, OnDestroy {
       )
       .subscribe({
         next: (status) => {
+          const responseString = JSON.stringify(status);
+          
+          // Check if response has changed
+          if (responseString !== this.lastUserQueueResponse) {
+            this.lastUserQueueResponse = responseString;
+            this.lastResponseTime = Date.now();
+            this.isTimedOut = false; // Reset timeout state if response changes
+          } else {
+            // Check if we've exceeded the timeout duration
+            const timeSinceLastChange = Date.now() - this.lastResponseTime;
+            if (timeSinceLastChange >= this.TIMEOUT_DURATION && !this.isTimedOut) {
+              this.isTimedOut = true;
+              this.stopPolling();
+            }
+          }
+          
           this.userQueueStatus = status;
           this.updateViewState();
         },
@@ -120,6 +149,19 @@ export class PlayViewComponent implements OnInit, OnDestroy {
         showLobby: false
       };
     }
+  }
+
+  private stopPolling(): void {
+    if (this.userQueueSubscription) {
+      this.userQueueSubscription.unsubscribe();
+      this.userQueueSubscription = undefined;
+    }
+  }
+
+  restartPolling(): void {
+    this.isTimedOut = false;
+    this.lastResponseTime = Date.now();
+    this.startUserQueueStatusPolling();
   }
 
   onGameModeChange(): void {
@@ -271,7 +313,7 @@ export class PlayViewComponent implements OnInit, OnDestroy {
   }
 
   private startQueuePolling(): void {
-    this.queueSubscription = interval(5000) // Poll every 5 seconds
+    this.queueSubscription = interval(this.POLLING_INTERVAL) // Poll every 5 seconds
       .pipe(
         switchMap(() => this.http.get<{queues: ActiveQueue[]}>(`${this.apiBaseUrl}/activeQueues`))
       )

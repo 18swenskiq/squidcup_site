@@ -1,9 +1,23 @@
 <div class="play-view-container">
-  <!-- Loading State -->
-  <div *ngIf="isLoadingUserQueue && isLoggedIn" class="loading-container">
-    <div class="loading-spinner"></div>
-    <p>Checking queue status...</p>
+  <!-- Timeout Overlay -->
+  <div *ngIf="isTimedOut" class="timeout-overlay">
+    <div class="timeout-modal">
+      <h2>Are you still there?</h2>
+      <p>You have been timed out from polling to save system resources.</p>
+      <p>Click the button below to resume monitoring your queue status.</p>
+      <button class="restart-button" (click)="restartPolling()">
+        Resume Monitoring
+      </button>
+    </div>
   </div>
+
+  <!-- Main Content (blurred when timed out) -->
+  <div [class.blurred]="isTimedOut" class="main-content">
+    <!-- Loading State -->
+    <div *ngIf="isLoadingUserQueue && isLoggedIn" class="loading-container">
+      <div class="loading-spinner"></div>
+      <p>Checking queue status...</p>
+    </div>
 
   <!-- Lobby View - Show if user is in a queue or lobby -->
   <div *ngIf="!isLoadingUserQueue && viewState.showLobby && (userQueueStatus?.queue || userQueueStatus?.lobby)">
@@ -139,8 +153,9 @@
     </div>
   </div>
   
-  <!-- Queue History Section - Show when not in a lobby and not loading -->
-  <div *ngIf="!isLoadingUserQueue && !viewState.showLobby" class="queue-history-section">
-    <app-queue-history></app-queue-history>
+    <!-- Queue History Section - Show when not in a lobby and not loading -->
+    <div *ngIf="!isLoadingUserQueue && !viewState.showLobby" class="queue-history-section">
+      <app-queue-history></app-queue-history>
+    </div>
   </div>
 </div>
