@@ -40,6 +40,20 @@ jobs:
           for dir in ./src/*/; do
             if [ -d "$dir" ]; then
               echo "Building Lambda in $dir"
+              
+              # Create the @squidcup directory structure
+              mkdir -p "$dir/node_modules/@squidcup"
+              
+              # Copy the built packages with their package.json and dist folders
+              echo "Copying types package to $dir"
+              cp -r "../packages/types-squidcup/dist" "$dir/node_modules/@squidcup/types"
+              cp "../packages/types-squidcup/package.json" "$dir/node_modules/@squidcup/types/"
+              
+              echo "Copying shared-lambda-utils package to $dir"  
+              cp -r "../packages/shared-lambda-utils/dist" "$dir/node_modules/@squidcup/shared-lambda-utils"
+              cp "../packages/shared-lambda-utils/package.json" "$dir/node_modules/@squidcup/shared-lambda-utils/"
+              
+              # Install dependencies and build
               (cd "$dir" && npm install && npm run build)
             fi
           done
