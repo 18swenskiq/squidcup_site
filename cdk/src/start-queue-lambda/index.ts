@@ -121,12 +121,13 @@ export async function handler(event: any): Promise<any> {
       id: crypto.randomUUID(),
       queueId: queueId,
       playerSteamId: hostSteamId,
-      eventType: 'start',
+      eventType: 'join', // Host joining their own queue
       eventData: {
         gameMode,
         mapSelectionMode,
         serverId: server,
         ranked,
+        isHost: true
       }
     });
 

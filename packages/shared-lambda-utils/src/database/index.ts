@@ -1,6 +1,32 @@
 import * as mysql from 'mysql2/promise';
 import { SSMClient, GetParameterCommand } from '@aws-sdk/client-ssm';
-import { User, Session, GameServer, ActiveQueueWithDetails } from '@squidcup/types';
+import { 
+  User, 
+  Session, 
+  GameServer, 
+  ActiveQueueWithDetails,
+  DatabaseQueue,
+  DatabaseLobby,
+  QueuePlayerRecord,
+  LobbyPlayerRecord,
+  QueueHistoryRecord,
+  LobbyHistoryRecord,
+  EnrichedQueueWithPlayers,
+  EnrichedLobbyWithPlayers,
+  UserCompleteStatus,
+  UserWithSteamData,
+  QueueCleanupRecord,
+  CreateQueueInput,
+  UpdateQueueInput,
+  CreateLobbyInput,
+  UpdateLobbyInput,
+  AddPlayerToQueueInput,
+  UpdateServerInput,
+  UpsertUserInput,
+  QueueHistoryEventInput,
+  LobbyHistoryEventInput,
+  AddLobbyPlayerInput
+} from '@squidcup/types';
 
 // Initialize SSM client
 const ssmClient = new SSMClient({ region: process.env.AWS_REGION || 'us-east-1' });
@@ -362,7 +388,7 @@ export async function deleteSession(sessionToken: string): Promise<void> {
 }
 
 // User management functions
-export async function upsertUser(userData: any): Promise<void> {
+export async function upsertUser(userData: UpsertUserInput): Promise<void> {
   const connection = await getDatabaseConnection();
   await executeQuery(
     connection,
@@ -399,7 +425,7 @@ export async function getUser(steamId: string): Promise<User | null> {
   return rows.length > 0 ? rows[0] : null;
 }
 
-export async function getUsersBySteamIds(steamIds: string[]): Promise<any[]> {
+export async function getUsersBySteamIds(steamIds: string[]): Promise<UserWithSteamData[]> {
   if (steamIds.length === 0) return [];
   
   const connection = await getDatabaseConnection();
@@ -432,7 +458,7 @@ export async function addServer(serverData: GameServer): Promise<void> {
   );
 }
 
-export async function getServers(minPlayers?: number): Promise<any[]> {
+export async function getServers(minPlayers?: number): Promise<GameServer[]> {
   const connection = await getDatabaseConnection();
   let query = 'SELECT * FROM squidcup_servers';
   const params: any[] = [];
@@ -447,7 +473,7 @@ export async function getServers(minPlayers?: number): Promise<any[]> {
   return await executeQuery(connection, query, params);
 }
 
-export async function updateServer(serverId: string, serverData: any): Promise<void> {
+export async function updateServer(serverId: string, serverData: UpdateServerInput): Promise<void> {
   const connection = await getDatabaseConnection();
   const fields = [];
   const values = [];
@@ -476,7 +502,7 @@ export async function deleteServer(serverId: string): Promise<void> {
 }
 
 // Queue management functions
-export async function getQueue(queueId: string): Promise<any> {
+export async function getQueue(queueId: string): Promise<DatabaseQueue | null> {
   const connection = await getDatabaseConnection();
   const rows = await executeQuery(
     connection,
@@ -486,7 +512,7 @@ export async function getQueue(queueId: string): Promise<any> {
   return rows.length > 0 ? rows[0] : null;
 }
 
-export async function getQueueWithPlayers(queueId: string): Promise<any> {
+export async function getQueueWithPlayers(queueId: string): Promise<EnrichedQueueWithPlayers | null> {
   const queue = await getQueue(queueId);
   if (!queue) return null;
   
@@ -497,7 +523,7 @@ export async function getQueueWithPlayers(queueId: string): Promise<any> {
   };
 }
 
-export async function getUserActiveQueue(steamId: string): Promise<any> {
+export async function getUserActiveQueue(steamId: string): Promise<EnrichedQueueWithPlayers | null> {
   const connection = await getDatabaseConnection();
   
   // First check if user is hosting a queue
@@ -540,7 +566,7 @@ export async function getUserActiveQueue(steamId: string): Promise<any> {
   return null;
 }
 
-export async function getQueuePlayers(queueId: string): Promise<any[]> {
+export async function getQueuePlayers(queueId: string): Promise<QueuePlayerRecord[]> {
   const connection = await getDatabaseConnection();
   return await executeQuery(
     connection,
@@ -549,7 +575,7 @@ export async function getQueuePlayers(queueId: string): Promise<any[]> {
   );
 }
 
-export async function createQueue(queueData: any): Promise<void> {
+export async function createQueue(queueData: CreateQueueInput): Promise<void> {
   const connection = await getDatabaseConnection();
   await executeQuery(
     connection,
@@ -570,7 +596,7 @@ export async function createQueue(queueData: any): Promise<void> {
   );
 }
 
-export async function updateQueue(queueId: string, queueData: any): Promise<void> {
+export async function updateQueue(queueId: string, queueData: UpdateQueueInput): Promise<void> {
   const connection = await getDatabaseConnection();
   const fields = [];
   const values = [];
@@ -589,7 +615,7 @@ export async function updateQueue(queueId: string, queueData: any): Promise<void
   );
 }
 
-export async function addPlayerToQueue(queueId: string, playerData: any): Promise<void> {
+export async function addPlayerToQueue(queueId: string, playerData: AddPlayerToQueueInput): Promise<void> {
   const connection = await getDatabaseConnection();
   await executeQuery(
     connection,
@@ -622,7 +648,7 @@ export async function deleteQueue(queueId: string): Promise<void> {
 }
 
 // Lobby management functions
-export async function getUserActiveLobby(steamId: string): Promise<any> {
+export async function getUserActiveLobby(steamId: string): Promise<EnrichedLobbyWithPlayers | null> {
   const connection = await getDatabaseConnection();
   
   // First check if user is hosting a lobby
@@ -665,7 +691,7 @@ export async function getUserActiveLobby(steamId: string): Promise<any> {
   return null;
 }
 
-export async function createLobby(lobbyData: any): Promise<void> {
+export async function createLobby(lobbyData: CreateLobbyInput): Promise<void> {
   const connection = await getDatabaseConnection();
   await executeQuery(
     connection,
@@ -683,7 +709,7 @@ export async function createLobby(lobbyData: any): Promise<void> {
   );
 }
 
-export async function getLobby(lobbyId: string): Promise<any> {
+export async function getLobby(lobbyId: string): Promise<DatabaseLobby | null> {
   const connection = await getDatabaseConnection();
   const rows = await executeQuery(
     connection,
@@ -693,7 +719,7 @@ export async function getLobby(lobbyId: string): Promise<any> {
   return rows.length > 0 ? rows[0] : null;
 }
 
-export async function getLobbyWithPlayers(lobbyId: string): Promise<any> {
+export async function getLobbyWithPlayers(lobbyId: string): Promise<EnrichedLobbyWithPlayers | null> {
   const lobby = await getLobby(lobbyId);
   if (!lobby) return null;
   
@@ -704,7 +730,7 @@ export async function getLobbyWithPlayers(lobbyId: string): Promise<any> {
   };
 }
 
-export async function getLobbyPlayers(lobbyId: string): Promise<any[]> {
+export async function getLobbyPlayers(lobbyId: string): Promise<LobbyPlayerRecord[]> {
   const connection = await getDatabaseConnection();
   return await executeQuery(
     connection,
@@ -713,7 +739,7 @@ export async function getLobbyPlayers(lobbyId: string): Promise<any[]> {
   );
 }
 
-export async function updateLobby(lobbyId: string, lobbyData: any): Promise<void> {
+export async function updateLobby(lobbyId: string, lobbyData: UpdateLobbyInput): Promise<void> {
   const connection = await getDatabaseConnection();
   const fields = [];
   const values = [];
@@ -733,7 +759,7 @@ export async function updateLobby(lobbyId: string, lobbyData: any): Promise<void
   );
 }
 
-export async function addLobbyPlayers(lobbyId: string, players: any[]): Promise<void> {
+export async function addLobbyPlayers(lobbyId: string, players: AddLobbyPlayerInput[]): Promise<void> {
   if (players.length === 0) return;
   
   const connection = await getDatabaseConnection();
@@ -756,7 +782,7 @@ export async function deleteLobby(lobbyId: string): Promise<void> {
 }
 
 // History functions
-export async function storeLobbyHistoryEvent(eventData: any): Promise<void> {
+export async function storeLobbyHistoryEvent(eventData: LobbyHistoryEventInput): Promise<void> {
   const connection = await getDatabaseConnection();
   await executeQuery(
     connection,
@@ -772,7 +798,7 @@ export async function storeLobbyHistoryEvent(eventData: any): Promise<void> {
   );
 }
 
-export async function storeQueueHistoryEvent(eventData: any): Promise<void> {
+export async function storeQueueHistoryEvent(eventData: QueueHistoryEventInput): Promise<void> {
   const connection = await getDatabaseConnection();
   await executeQuery(
     connection,
@@ -788,7 +814,7 @@ export async function storeQueueHistoryEvent(eventData: any): Promise<void> {
   );
 }
 
-export async function getUserQueueHistory(steamId: string, limit: number = 50): Promise<any[]> {
+export async function getUserQueueHistory(steamId: string, limit: number = 50): Promise<QueueHistoryRecord[]> {
   const connection = await getDatabaseConnection();
   console.log('getUserQueueHistory called with steamId:', steamId, 'limit:', limit, 'limit type:', typeof limit);
   
@@ -809,7 +835,7 @@ export async function getUserQueueHistory(steamId: string, limit: number = 50): 
 }
 
 // Consolidated function to get user's complete status (session + queue + lobby + player names)
-export async function getUserCompleteStatus(sessionToken: string): Promise<any> {
+export async function getUserCompleteStatus(sessionToken: string): Promise<UserCompleteStatus> {
   const connection = await getDatabaseConnection();
   console.log('getUserCompleteStatus called with token:', sessionToken.substring(0, 8) + '...');
   
@@ -990,7 +1016,7 @@ export async function getSsmParameter(parameterName: string): Promise<string> {
 }
 
 // Function to get active queues for cleanup (simple format)
-export async function getActiveQueuesForCleanup(): Promise<any[]> {
+export async function getActiveQueuesForCleanup(): Promise<QueueCleanupRecord[]> {
   const connection = await getDatabaseConnection();
   return await executeQuery(
     connection,

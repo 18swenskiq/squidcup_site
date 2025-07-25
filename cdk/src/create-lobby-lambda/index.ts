@@ -1,15 +1,24 @@
 import { 
   getQueue, 
   getQueuePlayers, 
-  createLobby, 
+  createLobby,
   addLobbyPlayers, 
   deleteQueue, 
   storeLobbyHistoryEvent,
   getMaxPlayersForGamemode,
-  GameMode,
-  MapSelectionMode 
+  createCorsHeaders
 } from '@squidcup/shared-lambda-utils';
-import { QueueData, QueuePlayer, LobbyPlayer, LobbyData } from '@squidcup/types-squidcup';
+import { 
+  DatabaseQueue, 
+  QueuePlayerRecord, 
+  LobbyPlayerRecord, 
+  GameMode, 
+  MapSelectionMode,
+  LobbyData,
+  CreateLobbyInput,
+  AddLobbyPlayerInput,
+  LobbyHistoryEventInput
+} from '@squidcup/types-squidcup';
 import * as crypto from 'crypto';
 
 // Extended response interface for API responses
@@ -19,7 +28,7 @@ interface LobbyResponseData extends LobbyData {
 }
 
 // Function to balance players into teams
-function balancePlayersIntoTeams(players: LobbyPlayer[], gameMode: GameMode): LobbyPlayer[] {
+function balancePlayersIntoTeams(players: LobbyPlayerRecord[], gameMode: GameMode): LobbyPlayerRecord[] {
   const maxPlayers = getMaxPlayersForGamemode(gameMode);
   const playersPerTeam = maxPlayers / 2;
   
@@ -28,7 +37,7 @@ function balancePlayersIntoTeams(players: LobbyPlayer[], gameMode: GameMode): Lo
   
   return shuffledPlayers.map((player, index) => ({
     ...player,
-    team: String(Math.floor(index / playersPerTeam) + 1) // Convert to string as required by LobbyPlayer
+    team: Math.floor(index / playersPerTeam) + 1 // Team numbers as numbers
   }));
 }
 
@@ -41,32 +50,24 @@ export const handler = async (event: any) => {
     if (!queueId) {
       return {
         statusCode: 400,
-        headers: {
-          'Access-Control-Allow-Origin': 'https://squidcup.spkymnr.xyz',
-          'Access-Control-Allow-Headers': 'Content-Type,Authorization',
-          'Access-Control-Allow-Methods': 'POST,OPTIONS',
-        },
+        headers: createCorsHeaders(),
         body: JSON.stringify({ error: 'Queue ID is required' })
       };
     }
 
     // Get the queue from database
-    const queueData: QueueData = await getQueue(queueId);
+    const queueData = await getQueue(queueId);
 
     if (!queueData) {
       return {
         statusCode: 404,
-        headers: {
-          'Access-Control-Allow-Origin': 'https://squidcup.spkymnr.xyz',
-          'Access-Control-Allow-Headers': 'Content-Type,Authorization',
-          'Access-Control-Allow-Methods': 'POST,OPTIONS',
-        },
+        headers: createCorsHeaders(),
         body: JSON.stringify({ error: 'Queue not found' })
       };
     }
     
     // Get queue players
-    const queuePlayers: QueuePlayer[] = await getQueuePlayers(queueId);
+    const queuePlayers = await getQueuePlayers(queueId);
     
     // Check if queue is full
     const maxPlayers = getMaxPlayersForGamemode(queueData.game_mode as GameMode);
@@ -75,11 +76,7 @@ export const handler = async (event: any) => {
     if (currentPlayers < maxPlayers) {
       return {
         statusCode: 400,
-        headers: {
-          'Access-Control-Allow-Origin': 'https://squidcup.spkymnr.xyz',
-          'Access-Control-Allow-Headers': 'Content-Type,Authorization',
-          'Access-Control-Allow-Methods': 'POST,OPTIONS',
-        },
+        headers: createCorsHeaders(),
         body: JSON.stringify({ error: 'Queue is not full yet' })
       };
     }
@@ -89,13 +86,17 @@ export const handler = async (event: any) => {
     const now = new Date().toISOString();
 
     // Create players array from queue data
-    const allPlayers: LobbyPlayer[] = [
+    const allPlayers: LobbyPlayerRecord[] = [
       { 
+        lobby_id: lobbyId,
         player_steam_id: queueData.host_steam_id, 
+        team: 0,
         joined_at: new Date().toISOString() 
       },
       ...queuePlayers.map(player => ({
+        lobby_id: lobbyId,
         player_steam_id: player.player_steam_id,
+        team: 0,
         joined_at: player.joined_at
       }))
     ];
@@ -120,13 +121,13 @@ export const handler = async (event: any) => {
     }
 
     // Create lobby data
-    const lobbyData = {
+    const lobbyData: CreateLobbyInput = {
       id: lobbyId,
       queueId: queueId,
-      gameMode: queueData.game_mode,
+      gameMode: queueData.game_mode as GameMode,
       map: selectedMap,
       hostSteamId: queueData.host_steam_id,
-      serverId: null, // Will be assigned later
+      serverId: undefined, // Will be assigned later
       status: 'waiting'
     };
 
@@ -135,8 +136,8 @@ export const handler = async (event: any) => {
 
     // Add lobby players
     await addLobbyPlayers(lobbyId, playersWithTeams.map(player => ({
-      player_steam_id: player.player_steam_id,
-      team: player.team || '0'
+      steamId: player.player_steam_id,
+      team: player.team || 0
     })));
 
     // Delete the original queue
@@ -148,7 +149,7 @@ export const handler = async (event: any) => {
         id: crypto.randomUUID(),
         lobbyId,
         playerSteamId: player.player_steam_id,
-        eventType: 'created',
+        eventType: 'join',
         eventData: {
           gameMode: queueData.game_mode,
           mapSelectionMode: mapSelectionMode,
@@ -169,7 +170,11 @@ export const handler = async (event: any) => {
       server_id: '', // Will be assigned later
       ranked: false, // Default for now
       status: 'active' as any, // Temporary cast, should match LobbyStatus
-      players: playersWithTeams,
+      players: playersWithTeams.map(p => ({
+        player_steam_id: p.player_steam_id,
+        team: String(p.team),
+        joined_at: p.joined_at
+      })),
       mapSelectionComplete,
       selectedMap,
       created_at: now,
@@ -178,11 +183,7 @@ export const handler = async (event: any) => {
 
     return {
       statusCode: 201,
-      headers: {
-        'Access-Control-Allow-Origin': 'https://squidcup.spkymnr.xyz',
-        'Access-Control-Allow-Headers': 'Content-Type,Authorization',
-        'Access-Control-Allow-Methods': 'POST,OPTIONS',
-      },
+      headers: createCorsHeaders(),
       body: JSON.stringify({
         message: 'Lobby created successfully',
         lobby: responseData
@@ -194,11 +195,7 @@ export const handler = async (event: any) => {
     
     return {
       statusCode: 500,
-      headers: {
-        'Access-Control-Allow-Origin': 'https://squidcup.spkymnr.xyz',
-        'Access-Control-Allow-Headers': 'Content-Type,Authorization',
-        'Access-Control-Allow-Methods': 'POST,OPTIONS',
-      },
+      headers: createCorsHeaders(),
       body: JSON.stringify({
         error: 'Internal server error',
         message: 'Failed to create lobby'

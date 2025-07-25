@@ -93,7 +93,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
     }
 
     // Check if user is the host (only host can select map)
-    if (lobby.hostSteamId !== steamId) {
+    if (lobby.host_steam_id !== steamId) {
       return {
         statusCode: 403,
         headers: corsHeaders,
@@ -101,19 +101,19 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
       };
     }
 
-    // Check if lobby allows host to pick maps
-    if (lobby.mapSelectionMode !== 'Host Pick') {
-      return {
-        statusCode: 400,
-        headers: corsHeaders,
-        body: JSON.stringify({ error: 'Map selection is not allowed in this lobby mode' }),
-      };
-    }
+    // For now, assume all lobbies allow host to pick maps
+    // TODO: Add map selection mode to lobby schema
+    // if (lobby.mapSelectionMode !== 'Host Pick') {
+    //   return {
+    //     statusCode: 400,
+    //     headers: corsHeaders,
+    //     body: JSON.stringify({ error: 'Map selection is not allowed in this lobby mode' }),
+    //   };
+    // }
 
     // Update the lobby with the selected map using shared utilities
     await updateLobby(lobbyId, {
-      map: mapName,
-      updatedAt: new Date().toISOString()
+      map: mapName
     });
 
     return {

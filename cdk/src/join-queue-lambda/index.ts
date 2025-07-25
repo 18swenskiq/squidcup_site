@@ -1,5 +1,6 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda';
+import * as crypto from 'crypto';
 import { 
   getSession, 
   getQueueWithPlayers, 
@@ -122,9 +123,10 @@ export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayPr
 
     // Store queue history event using shared utilities
     const historyEventData = {
+      id: crypto.randomUUID(),
       queueId,
-      userSteamId,
-      eventType: 'join',
+      playerSteamId: userSteamId,
+      eventType: 'join' as const,
       eventData: {
         gameMode: queueData.game_mode,
         mapSelectionMode: queueData.map_selection_mode,
@@ -136,6 +138,14 @@ export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayPr
 
     // Get updated queue data to check if it's full
     const updatedQueueData = await getQueueWithPlayers(queueId);
+    
+    if (!updatedQueueData) {
+      return {
+        statusCode: 404,
+        headers: corsHeaders,
+        body: JSON.stringify({ error: 'Queue not found after joining' }),
+      };
+    }
     
     // Check if queue is now full and should be converted to lobby
     const maxPlayers = getMaxPlayersForGamemode(queueData.game_mode);

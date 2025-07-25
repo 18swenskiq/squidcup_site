@@ -60,7 +60,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
     console.log('User Steam ID:', userSteamId);
 
     // Find the user's active queue using shared utilities
-    const userQueue: QueueData = await getUserActiveQueue(userSteamId);
+    const userQueue = await getUserActiveQueue(userSteamId);
     if (!userQueue) {
       console.log('User is not in any queue');
       return {

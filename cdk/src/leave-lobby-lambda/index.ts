@@ -67,7 +67,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
     }
 
     // Get the lobby with players from shared utilities
-    const lobbyData: LobbyData = await getLobbyWithPlayers(lobbyId);
+    const lobbyData = await getLobbyWithPlayers(lobbyId);
 
     if (!lobbyData) {
       return {
@@ -102,10 +102,10 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
         id: eventId,
         lobbyId: lobbyData.id,
         playerSteamId: player.player_steam_id,
-        eventType: 'disbanded',
+        eventType: 'disband',
         eventData: {
           gameMode: lobbyData.game_mode,
-          mapSelectionMode: lobbyData.map_selection_mode,
+          mapSelectionMode: 'Host Pick', // Default since lobbies don't store this
           disbandedBy: userSteamId,
           isHost: player.player_steam_id === lobbyData.host_steam_id,
         }

@@ -88,10 +88,10 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
             hostSteamId: lobby.host_steam_id,
             hostName: lobby.playerNames[lobby.host_steam_id] || `Player ${lobby.host_steam_id.slice(-4)}`,
             gameMode: lobby.game_mode,
-            mapSelectionMode: lobby.map_selection_mode,
+            mapSelectionMode: 'Host Pick', // Default since lobbies don't store this
             serverId: lobby.server_id,
-            hasPassword: !!lobby.password,
-            ranked: !!lobby.ranked,
+            hasPassword: false, // Lobbies don't have passwords
+            ranked: false, // Default for lobbies
             players: enrichedPlayers,
             createdAt: lobby.created_at,
             updatedAt: lobby.updated_at,

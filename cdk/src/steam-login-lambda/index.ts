@@ -220,9 +220,7 @@ async function storeUserSession(steamId: string, frontendDomain: string) {
 
   // Upsert user profile using shared utilities
   await upsertUser({
-    steamId: steamId,
-    lastLogin: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
+    steamId: steamId
   });
 
   // Create session using shared utilities
