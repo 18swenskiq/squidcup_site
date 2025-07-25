@@ -1,29 +1,10 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
-import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda';
-
-const lambdaClient = new LambdaClient({ region: process.env.REGION });
-
-async function callDatabaseService(operation: string, params?: any[], data?: any): Promise<any> {
-  const payload = {
-    operation,
-    params,
-    data
-  };
-
-  const command = new InvokeCommand({
-    FunctionName: process.env.DATABASE_SERVICE_FUNCTION_NAME,
-    Payload: new TextEncoder().encode(JSON.stringify(payload)),
-  });
-
-  const response = await lambdaClient.send(command);
-  const result = JSON.parse(new TextDecoder().decode(response.Payload));
-  
-  if (result.errorMessage) {
-    throw new Error(result.errorMessage);
-  }
-  
-  return result;
-}
+import { 
+  getSession,
+  getLobbyWithPlayers,
+  updateLobby,
+  createCorsHeaders
+} from '@squidcup/shared-lambda-utils';
 
 interface SelectMapRequest {
   lobbyId: string;
@@ -31,13 +12,18 @@ interface SelectMapRequest {
 }
 
 export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
-  const corsHeaders = {
-    'Access-Control-Allow-Origin': 'https://squidcup.spkymnr.xyz',
-    'Access-Control-Allow-Headers': 'Content-Type,Authorization',
-    'Access-Control-Allow-Methods': 'POST,OPTIONS',
-  };
+  const corsHeaders = createCorsHeaders();
 
   try {
+    // Handle preflight OPTIONS request
+    if (event.httpMethod === 'OPTIONS') {
+      return {
+        statusCode: 200,
+        headers: corsHeaders,
+        body: '',
+      };
+    }
+
     // Validate HTTP method
     if (event.httpMethod !== 'POST') {
       return {
@@ -60,10 +46,10 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
     // Extract session token
     const sessionToken = authHeader.substring(7);
 
-    // Validate session via database service
-    const sessionResult = await callDatabaseService('getSession', [sessionToken]);
+    // Validate session using shared utilities
+    const session = await getSession(sessionToken);
 
-    if (!sessionResult.session || !sessionResult.session.steamId) {
+    if (!session) {
       return {
         statusCode: 401,
         headers: corsHeaders,
@@ -71,7 +57,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
       };
     }
 
-    const steamId = sessionResult.session.steamId;
+    const steamId = session.steamId;
 
     // Parse request body
     let requestBody: SelectMapRequest;
@@ -95,10 +81,10 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
       };
     }
 
-    // Get the lobby to verify user is the host via database service
-    const lobbyResult = await callDatabaseService('getLobbyWithPlayers', [lobbyId]);
+    // Get the lobby to verify user is the host using shared utilities
+    const lobby = await getLobbyWithPlayers(lobbyId);
     
-    if (!lobbyResult.lobby) {
+    if (!lobby) {
       return {
         statusCode: 404,
         headers: corsHeaders,
@@ -107,7 +93,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
     }
 
     // Check if user is the host (only host can select map)
-    if (lobbyResult.lobby.hostSteamId !== steamId) {
+    if (lobby.hostSteamId !== steamId) {
       return {
         statusCode: 403,
         headers: corsHeaders,
@@ -116,7 +102,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
     }
 
     // Check if lobby allows host to pick maps
-    if (lobbyResult.lobby.mapSelectionMode !== 'Host Pick') {
+    if (lobby.mapSelectionMode !== 'Host Pick') {
       return {
         statusCode: 400,
         headers: corsHeaders,
@@ -124,8 +110,8 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
       };
     }
 
-    // Update the lobby with the selected map via database service
-    const updateResult = await callDatabaseService('updateLobby', [lobbyId], {
+    // Update the lobby with the selected map using shared utilities
+    await updateLobby(lobbyId, {
       map: mapName,
       updatedAt: new Date().toISOString()
     });
@@ -135,7 +121,11 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
       headers: corsHeaders,
       body: JSON.stringify({
         message: 'Map selected successfully',
-        lobby: updateResult.lobby
+        lobby: {
+          ...lobby,
+          map: mapName,
+          updatedAt: new Date().toISOString()
+        }
       }),
     };
 
