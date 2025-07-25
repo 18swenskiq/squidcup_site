@@ -77,14 +77,21 @@ jobs:
           UTILS_TARBALL=$(realpath ../packages/shared-lambda-utils/*.tgz)
           echo "UTILS_TARBALL=$UTILS_TARBALL" >> $GITHUB_ENV
 
-      - name: Update Lambda Dependencies
+      - name: Update Lambda Dependencies and Install Packages
         run: |
           for dir in ./src/*/; do
             if [ -d "$dir" ]; then
               echo "Updating dependencies for Lambda in $dir"
               (cd "$dir" && \
+                # Add @squidcup/types as a dependency if it doesn't exist
+                if ! grep -q '"@squidcup/types"' package.json; then
+                  jq '.dependencies["@squidcup/types"] = "file:../../../packages/types-squidcup"' package.json > package.tmp.json && mv package.tmp.json package.json
+                fi && \
+                # Update package.json to use tarballs
                 sed -i.bak "s|file:../../../packages/types-squidcup|file:${{ env.TYPES_TARBALL }}|" package.json && \
-                sed -i.bak "s|file:../../../packages/shared-lambda-utils|file:${{ env.UTILS_TARBALL }}|" package.json)
+                sed -i.bak "s|file:../../../packages/shared-lambda-utils|file:${{ env.UTILS_TARBALL }}|" package.json && \
+                # Install packages so CDK can resolve dependencies
+                npm install)
             fi
           done
 
