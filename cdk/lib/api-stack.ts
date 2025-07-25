@@ -7,7 +7,6 @@ import * as logs from 'aws-cdk-lib/aws-logs';
 import * as events from 'aws-cdk-lib/aws-events';
 import * as targets from 'aws-cdk-lib/aws-events-targets';
 import * as path from 'path';
-import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 
 export class ApiStack extends cdk.Stack {
   // Constants for Lambda configuration
@@ -20,294 +19,209 @@ export class ApiStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
-    const steamLoginFunction = new NodejsFunction(this, "steam-login-function", {
+    const steamLoginFunction = new lambda.Function(this, "steam-login-function", {
       runtime: this.RUNTIME,
       memorySize: this.MEMORY_SIZE,
       timeout: cdk.Duration.seconds(10), // Slightly longer for OAuth operations
       handler: 'index.handler',
-      entry: path.join(__dirname, '/../src/steam-login-lambda/index.ts'),
+      code: lambda.Code.fromAsset(path.join(__dirname, '/../src/steam-login-lambda')),
       logRetention: this.LOG_RETENTION,
       environment: {
         REGION: this.REGION,
         FRONTEND_URL: 'https://squidcup.spkymnr.xyz', // Your actual domain
-      },
-      bundling: {
-        minify: true,
-        sourceMap: true,
-        nodeModules: ['@squidcup/shared-lambda-utils', '@squidcup/types']
       }
     });
 
-    const getUserProfileFunction = new NodejsFunction(this, "get-user-profile-function", {
+    const getUserProfileFunction = new lambda.Function(this, "get-user-profile-function", {
       runtime: this.RUNTIME,
       memorySize: this.MEMORY_SIZE,
       timeout: this.TIMEOUT,
       handler: 'index.handler',
-      entry: path.join(__dirname, '/../src/get-user-profile-lambda/index.ts'),
+      code: lambda.Code.fromAsset(path.join(__dirname, '/../src/get-user-profile-lambda')),
       logRetention: this.LOG_RETENTION,
       environment: {
         REGION: this.REGION,
-      },
-      bundling: {
-        minify: true,
-        sourceMap: true,
-        nodeModules: ['@squidcup/shared-lambda-utils', '@squidcup/types']
       }
     });
 
-    const getMapsFunction = new NodejsFunction(this, "get-maps-function", {
+    const getMapsFunction = new lambda.Function(this, "get-maps-function", {
       runtime: this.RUNTIME,
       memorySize: this.MEMORY_SIZE,
       timeout: this.TIMEOUT,
       handler: 'index.handler',
-      entry: path.join(__dirname, '/../src/get-maps-lambda/index.ts'),
+      code: lambda.Code.fromAsset(path.join(__dirname, '/../src/get-maps-lambda')),
       logRetention: this.LOG_RETENTION,
       environment: {
         REGION: this.REGION,
-      },
-      bundling: {
-        minify: true,
-        sourceMap: true,
-        nodeModules: ['@squidcup/shared-lambda-utils', '@squidcup/types']
       }
     });
 
-    const addServerFunction = new NodejsFunction(this, "add-server-function", {
+    const addServerFunction = new lambda.Function(this, "add-server-function", {
       runtime: this.RUNTIME,
       memorySize: this.MEMORY_SIZE,
       timeout: this.TIMEOUT,
       handler: 'index.handler',
-      entry: path.join(__dirname, '/../src/add-server-lambda/index.ts'),
+      code: lambda.Code.fromAsset(path.join(__dirname, '/../src/add-server-lambda')),
       logRetention: this.LOG_RETENTION,
       environment: {
         REGION: this.REGION,
-      },
-      bundling: {
-        minify: true,
-        sourceMap: true,
-        nodeModules: ['@squidcup/shared-lambda-utils', '@squidcup/types']
       }
     });
 
-    const deleteServerFunction = new NodejsFunction(this, "delete-server-function", {
+    const deleteServerFunction = new lambda.Function(this, "delete-server-function", {
       runtime: this.RUNTIME,
       memorySize: this.MEMORY_SIZE,
       timeout: this.TIMEOUT,
       handler: 'index.handler',
-      entry: path.join(__dirname, '/../src/delete-server-lambda/index.ts'),
+      code: lambda.Code.fromAsset(path.join(__dirname, '/../src/delete-server-lambda')),
       logRetention: this.LOG_RETENTION,
       environment: {
         REGION: this.REGION,
-      },
-      bundling: {
-        minify: true,
-        sourceMap: true,
-        nodeModules: ['@squidcup/shared-lambda-utils', '@squidcup/types']
       }
     });
 
-    const getServersFunction = new NodejsFunction(this, "get-servers-function", {
+    const getServersFunction = new lambda.Function(this, "get-servers-function", {
       runtime: this.RUNTIME,
       memorySize: this.MEMORY_SIZE,
       timeout: this.TIMEOUT,
       handler: 'index.handler',
-      entry: path.join(__dirname, '/../src/get-servers-lambda/index.ts'),
+      code: lambda.Code.fromAsset(path.join(__dirname, '/../src/get-servers-lambda')),
       logRetention: this.LOG_RETENTION,
       environment: {
         REGION: this.REGION,
-      },
-      bundling: {
-        minify: true,
-        sourceMap: true,
-        nodeModules: ['@squidcup/shared-lambda-utils', '@squidcup/types']
       }
     });
 
-    const startQueueFunction = new NodejsFunction(this, "start-queue-function", {
+    const startQueueFunction = new lambda.Function(this, "start-queue-function", {
       runtime: this.RUNTIME,
       memorySize: this.MEMORY_SIZE,
       timeout: this.TIMEOUT,
       handler: 'index.handler',
-      entry: path.join(__dirname, '/../src/start-queue-lambda/index.ts'),
+      code: lambda.Code.fromAsset(path.join(__dirname, '/../src/start-queue-lambda')),
       logRetention: this.LOG_RETENTION,
       environment: {
         REGION: this.REGION,
-      },
-      bundling: {
-        minify: true,
-        sourceMap: true,
-        nodeModules: ['@squidcup/shared-lambda-utils', '@squidcup/types']
       }
     });
 
-    const getUserQueueFunction = new NodejsFunction(this, "get-user-queue-function", {
+    const getUserQueueFunction = new lambda.Function(this, "get-user-queue-function", {
       runtime: this.RUNTIME,
       memorySize: this.MEMORY_SIZE,
       timeout: cdk.Duration.seconds(10), // Extended timeout for comprehensive metrics collection
       handler: 'index.handler',
-      entry: path.join(__dirname, '/../src/get-user-queue-lambda/index.ts'),
+      code: lambda.Code.fromAsset(path.join(__dirname, '/../src/get-user-queue-lambda')),
       logRetention: this.LOG_RETENTION,
       environment: {
         REGION: this.REGION,
-      },
-      bundling: {
-        minify: true,
-        sourceMap: true,
-        nodeModules: ['@squidcup/shared-lambda-utils', '@squidcup/types']
       }
     });
 
-    const getAllQueuesFunction = new NodejsFunction(this, "get-all-queues-function", {
+    const getAllQueuesFunction = new lambda.Function(this, "get-all-queues-function", {
       runtime: this.RUNTIME,
       memorySize: this.MEMORY_SIZE,
       timeout: this.TIMEOUT,
       handler: 'index.handler',
-      entry: path.join(__dirname, '/../src/get-all-queues-lambda/index.ts'),
+      code: lambda.Code.fromAsset(path.join(__dirname, '/../src/get-all-queues-lambda')),
       logRetention: this.LOG_RETENTION,
       environment: {
         REGION: this.REGION,
-      },
-      bundling: {
-        minify: true,
-        sourceMap: true,
-        nodeModules: ['@squidcup/shared-lambda-utils', '@squidcup/types']
       }
     });
 
-    const leaveQueueFunction = new NodejsFunction(this, "leave-queue-function", {
+    const leaveQueueFunction = new lambda.Function(this, "leave-queue-function", {
       runtime: this.RUNTIME,
       memorySize: this.MEMORY_SIZE,
       timeout: this.TIMEOUT,
       handler: 'index.handler',
-      entry: path.join(__dirname, '/../src/leave-queue-lambda/index.ts'),
+      code: lambda.Code.fromAsset(path.join(__dirname, '/../src/leave-queue-lambda')),
       logRetention: this.LOG_RETENTION,
       environment: {
         REGION: this.REGION,
-      },
-      bundling: {
-        minify: true,
-        sourceMap: true,
-        nodeModules: ['@squidcup/shared-lambda-utils', '@squidcup/types']
       }
     });
 
-    const joinQueueFunction = new NodejsFunction(this, "join-queue-function", {
+    const joinQueueFunction = new lambda.Function(this, "join-queue-function", {
       runtime: this.RUNTIME,
       memorySize: this.MEMORY_SIZE,
       timeout: this.TIMEOUT,
       handler: 'index.handler',
-      entry: path.join(__dirname, '/../src/join-queue-lambda/index.ts'),
+      code: lambda.Code.fromAsset(path.join(__dirname, '/../src/join-queue-lambda')),
       logRetention: this.LOG_RETENTION,
       environment: {
         REGION: this.REGION,
-      },
-      bundling: {
-        minify: true,
-        sourceMap: true,
-        nodeModules: ['@squidcup/shared-lambda-utils', '@squidcup/types']
       }
     });
 
-    const getQueueHistoryFunction = new NodejsFunction(this, "get-queue-history-function", {
+    const getQueueHistoryFunction = new lambda.Function(this, "get-queue-history-function", {
       runtime: this.RUNTIME,
       memorySize: this.MEMORY_SIZE,
       timeout: this.TIMEOUT,
       handler: 'index.handler',
-      entry: path.join(__dirname, '/../src/get-queue-history-lambda/index.ts'),
+      code: lambda.Code.fromAsset(path.join(__dirname, '/../src/get-queue-history-lambda')),
       logRetention: this.LOG_RETENTION,
       environment: {
         REGION: this.REGION,
-      },
-      bundling: {
-        minify: true,
-        sourceMap: true,
-        nodeModules: ['@squidcup/shared-lambda-utils', '@squidcup/types']
       }
     });
 
-    const getActiveQueuesFunction = new NodejsFunction(this, "get-active-queues-function", {
+    const getActiveQueuesFunction = new lambda.Function(this, "get-active-queues-function", {
       runtime: this.RUNTIME,
       memorySize: this.MEMORY_SIZE,
       timeout: this.TIMEOUT,
       handler: 'index.handler',
-      entry: path.join(__dirname, '/../src/get-active-queues-lambda/index.ts'),
+      code: lambda.Code.fromAsset(path.join(__dirname, '/../src/get-active-queues-lambda')),
       logRetention: this.LOG_RETENTION,
       environment: {
         REGION: this.REGION,
-      },
-      bundling: {
-        minify: true,
-        sourceMap: true,
-        nodeModules: ['@squidcup/shared-lambda-utils', '@squidcup/types']
       }
     });
 
-    const queueCleanupFunction = new NodejsFunction(this, "queue-cleanup-function", {
+    const queueCleanupFunction = new lambda.Function(this, "queue-cleanup-function", {
       runtime: this.RUNTIME,
       memorySize: this.MEMORY_SIZE,
       timeout: cdk.Duration.seconds(30), // Longer timeout for cleanup operations
       handler: 'index.handler',
-      entry: path.join(__dirname, '/../src/queue-cleanup-lambda/index.ts'),
+      code: lambda.Code.fromAsset(path.join(__dirname, '/../src/queue-cleanup-lambda')),
       logRetention: this.LOG_RETENTION,
       environment: {
         REGION: this.REGION,
         QUEUE_TIMEOUT_MINUTES: '10', // 10 minutes of inactivity before cleanup
-      },
-      bundling: {
-        minify: true,
-        sourceMap: true,
-        nodeModules: ['@squidcup/shared-lambda-utils', '@squidcup/types']
       }
     });
 
-    const createLobbyFunction = new NodejsFunction(this, "create-lobby-function", {
+    const createLobbyFunction = new lambda.Function(this, "create-lobby-function", {
       runtime: this.RUNTIME,
       memorySize: this.MEMORY_SIZE,
       timeout: cdk.Duration.seconds(10), // Longer timeout for lobby operations
       handler: 'index.handler',
-      entry: path.join(__dirname, '/../src/create-lobby-lambda/index.ts'),
+      code: lambda.Code.fromAsset(path.join(__dirname, '/../src/create-lobby-lambda')),
       logRetention: this.LOG_RETENTION,
       environment: {
         REGION: this.REGION,
-      },
-      bundling: {
-        minify: true,
-        sourceMap: true,
-        nodeModules: ['@squidcup/shared-lambda-utils', '@squidcup/types']
       }
     });
 
-    const leaveLobbyFunction = new NodejsFunction(this, "leave-lobby-function", {
+    const leaveLobbyFunction = new lambda.Function(this, "leave-lobby-function", {
       runtime: this.RUNTIME,
       memorySize: this.MEMORY_SIZE,
       timeout: this.TIMEOUT,
       handler: 'index.handler',
-      entry: path.join(__dirname, '/../src/leave-lobby-lambda/index.ts'),
+      code: lambda.Code.fromAsset(path.join(__dirname, '/../src/leave-lobby-lambda')),
       logRetention: this.LOG_RETENTION,
       environment: {
         REGION: this.REGION,
-      },
-      bundling: {
-        minify: true,
-        sourceMap: true,
-        nodeModules: ['@squidcup/shared-lambda-utils', '@squidcup/types']
       }
     });
 
-    const selectMapFunction = new NodejsFunction(this, "select-map-function", {
+    const selectMapFunction = new lambda.Function(this, "select-map-function", {
       runtime: this.RUNTIME,
       memorySize: this.MEMORY_SIZE,
       timeout: this.TIMEOUT,
       handler: 'index.handler',
-      entry: path.join(__dirname, '/../src/select-map-lambda/index.ts'),
+      code: lambda.Code.fromAsset(path.join(__dirname, '/../src/select-map-lambda')),
       logRetention: this.LOG_RETENTION,
       environment: {
         REGION: this.REGION,
-      },
-      bundling: {
-        minify: true,
-        sourceMap: true,
-        nodeModules: ['@squidcup/shared-lambda-utils', '@squidcup/types']
       }
     });
 
