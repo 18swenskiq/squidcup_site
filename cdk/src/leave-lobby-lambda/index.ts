@@ -1,60 +1,20 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
-import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda';
 import * as crypto from 'crypto';
-
-const lambdaClient = new LambdaClient({ region: process.env.REGION });
-
-interface LobbyPlayer {
-  player_steam_id: string;
-  team?: number;
-  joined_at?: string;
-}
-
-interface LobbyData {
-  id: string;
-  host_steam_id: string;
-  game_mode: string;
-  map_selection_mode: string;
-  server_id: string;
-  password?: string;
-  ranked: boolean;
-  players: LobbyPlayer[];
-  created_at: string;
-  updated_at: string;
-}
-
-// Function to call database service
-async function callDatabaseService(operation: string, params?: any[], data?: any): Promise<any> {
-  const payload = {
-    operation,
-    params,
-    data
-  };
-
-  const command = new InvokeCommand({
-    FunctionName: process.env.DATABASE_SERVICE_FUNCTION_NAME,
-    Payload: new TextEncoder().encode(JSON.stringify(payload)),
-  });
-
-  const response = await lambdaClient.send(command);
-  const result = JSON.parse(new TextDecoder().decode(response.Payload));
-
-  if (!result.success) {
-    throw new Error(result.error || 'Database operation failed');
-  }
-
-  return result.data;
-}
+import { 
+  getSession, 
+  getLobbyWithPlayers, 
+  storeLobbyHistoryEvent, 
+  deleteLobby,
+  createCorsHeaders,
+  LobbyPlayer,
+  LobbyData
+} from '@squidcup/shared-lambda-utils';
 
 export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   console.log('Leave lobby handler started');
   console.log('Event:', JSON.stringify(event, null, 2));
   
-  const corsHeaders = {
-    'Access-Control-Allow-Origin': 'https://squidcup.spkymnr.xyz',
-    'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token',
-    'Access-Control-Allow-Methods': 'DELETE,OPTIONS',
-  };
+  const corsHeaders = createCorsHeaders();
 
   try {
     // Handle preflight OPTIONS request
@@ -80,8 +40,8 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
     const sessionToken = authHeader.substring(7);
     console.log('Extracted session token:', sessionToken);
     
-    // Validate session using database service
-    const session = await callDatabaseService('getSession', [sessionToken]);
+    // Validate session using shared utilities
+    const session = await getSession(sessionToken);
     console.log('Session result:', session);
     
     if (!session) {
@@ -106,8 +66,8 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
       };
     }
 
-    // Get the lobby with players from database service
-    const lobbyData: LobbyData = await callDatabaseService('getLobbyWithPlayers', [lobbyId]);
+    // Get the lobby with players from shared utilities
+    const lobbyData: LobbyData = await getLobbyWithPlayers(lobbyId);
 
     if (!lobbyData) {
       return {
@@ -138,7 +98,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
     // Store disband events for all players
     for (const player of lobbyData.players) {
       const eventId = crypto.randomUUID();
-      await callDatabaseService('storeLobbyHistoryEvent', [], {
+      await storeLobbyHistoryEvent({
         id: eventId,
         lobbyId: lobbyData.id,
         playerSteamId: player.player_steam_id,
@@ -152,8 +112,8 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
       });
     }
     
-    // Delete the lobby using database service
-    await callDatabaseService('deleteLobby', [lobbyData.id]);
+    // Delete the lobby using shared utilities
+    await deleteLobby(lobbyData.id);
 
     console.log('Lobby disbanded successfully');
     return {
