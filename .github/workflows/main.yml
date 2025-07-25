@@ -114,10 +114,12 @@ jobs:
               cp "$dir"/tsconfig.json "$TEMP_DIR/" 2>/dev/null || true
               
               # Create a completely new package.json in temp directory using jq
+              # Use absolute paths to tarballs since we're in a temp directory
+              ABSOLUTE_TARBALLS_DIR="$(pwd)/tarballs"
               echo '{}' | jq \
                 --arg name "${LAMBDA_NAME}" \
-                --arg types_tarball "file:../../tarballs/squidcup-types-1.0.0.tgz" \
-                --arg utils_tarball "file:../../tarballs/squidcup-shared-lambda-utils-1.0.0.tgz" \
+                --arg types_tarball "file:${ABSOLUTE_TARBALLS_DIR}/squidcup-types-1.0.0.tgz" \
+                --arg utils_tarball "file:${ABSOLUTE_TARBALLS_DIR}/squidcup-shared-lambda-utils-1.0.0.tgz" \
                 '{
                   name: $name,
                   version: "1.0.0",
@@ -153,7 +155,33 @@ jobs:
               rm -rf "$dir/node_modules" "$dir/package-lock.json"
               cp -r "$TEMP_DIR/node_modules" "$dir/"
               cp "$TEMP_DIR/package-lock.json" "$dir/" 2>/dev/null || true
-              cp "$TEMP_DIR/package.json" "$dir/"
+              
+              # Create final package.json with relative paths for the Lambda directory
+              echo '{}' | jq \
+                --arg name "${LAMBDA_NAME}" \
+                --arg types_tarball "file:../../tarballs/squidcup-types-1.0.0.tgz" \
+                --arg utils_tarball "file:../../tarballs/squidcup-shared-lambda-utils-1.0.0.tgz" \
+                '{
+                  name: $name,
+                  version: "1.0.0",
+                  description: "Lambda function",
+                  main: "index.js",
+                  scripts: {
+                    build: "tsc",
+                    test: "echo \"Error: no test specified\" && exit 1"
+                  },
+                  dependencies: {
+                    "@squidcup/types": $types_tarball,
+                    "@squidcup/shared-lambda-utils": $utils_tarball
+                  },
+                  devDependencies: {
+                    "@aws-sdk/client-lambda": "^3.0.0",
+                    "@aws-sdk/client-ssm": "^3.0.0",
+                    "@types/aws-lambda": "^8.10.0",
+                    "@types/node": "^18.0.0",
+                    "typescript": "^4.9.0"
+                  }
+                }' > "$dir/package.json"
               
               # Clean up temp directory
               rm -rf "$TEMP_DIR"
