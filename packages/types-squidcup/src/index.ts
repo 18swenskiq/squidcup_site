@@ -274,3 +274,32 @@ export type PlayerName = {
 };
 
 export type PlayerNameMap = Record<string, string>;
+
+// ===== STEAM API TYPES =====
+
+export interface SteamPlayer {
+  steamid: string;
+  communityvisibilitystate: number;
+  profilestate: number;
+  personaname: string;
+  profileurl: string;
+  avatar: string;
+  avatarmedium: string;
+  avatarfull: string;
+  avatarhash: string;
+  lastlogoff: number;
+  personastate: number;
+  realname?: string;
+  primaryclanid?: string;
+  timecreated?: number;
+  personastateflags?: number;
+  loccountrycode?: string;
+  locstatecode?: string;
+  loccityid?: number;
+}
+
+export interface SteamUserResponse {
+  response: {
+    players: SteamPlayer[];
+  };
+}
