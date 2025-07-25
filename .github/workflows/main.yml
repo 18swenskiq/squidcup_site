@@ -67,19 +67,8 @@ jobs:
             if [ -d "$dir" ]; then
               echo "Copying shared packages to $dir/node_modules"
               mkdir -p "$dir/node_modules/@squidcup"
-              cp -r ../packages/shared-lambda-utils "$dir/node_modules/@squidcup/shared-lambda-utils"
-              cp -r ../packages/types-squidcup "$dir/node_modules/@squidcup/types"
-            fi
-          done
-
-      - name: Copy Shared Packages to CDK Output Directory
-        run: |
-          for asset_dir in ./cdk/cdk.out/asset.*; do
-            if [ -d "$asset_dir" ]; then
-              echo "Copying shared packages to $asset_dir/node_modules"
-              mkdir -p "$asset_dir/node_modules/@squidcup"
-              cp -r ../packages/shared-lambda-utils "$asset_dir/node_modules/@squidcup/shared-lambda-utils"
-              cp -r ../packages/types-squidcup "$asset_dir/node_modules/@squidcup/types"
+              rsync -a --exclude "$dir/node_modules/@squidcup/shared-lambda-utils" ../packages/shared-lambda-utils "$dir/node_modules/@squidcup/shared-lambda-utils"
+              rsync -a --exclude "$dir/node_modules/@squidcup/types" ../packages/types-squidcup "$dir/node_modules/@squidcup/types"
             fi
           done
 
