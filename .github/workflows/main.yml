@@ -98,15 +98,18 @@ jobs:
               (cd "$dir" && \
                 # Clean any previous installs
                 rm -rf node_modules package-lock.json && \
-                # Add @squidcup/types as a dependency if it doesn't exist
+                # Add @squidcup/types as a dependency if it doesn't exist, using the correct tarball path
                 if ! grep -q '"@squidcup/types"' package.json; then
-                  jq '.dependencies["@squidcup/types"] = "file:../../../packages/types-squidcup"' package.json > package.tmp.json && mv package.tmp.json package.json
+                  jq --arg tarball_path "file:${{ env.TYPES_TARBALL_REL }}" '.dependencies["@squidcup/types"] = $tarball_path' package.json > package.tmp.json && mv package.tmp.json package.json
                 fi && \
                 echo "Before replacement:" && cat package.json | grep -E "(types|shared-lambda-utils)" && \
                 # Update package.json to use relative tarball paths
                 sed -i.bak "s|file:../../../packages/types-squidcup|file:${{ env.TYPES_TARBALL_REL }}|g" package.json && \
                 sed -i.bak "s|file:../../../packages/shared-lambda-utils|file:${{ env.UTILS_TARBALL_REL }}|g" package.json && \
                 echo "After replacement:" && cat package.json | grep -E "(types|shared-lambda-utils)" && \
+                # Verify the tarball files exist before installing
+                echo "Checking if tarball files exist:" && \
+                ls -la ../../tarballs/ && \
                 # Install packages so CDK can resolve dependencies
                 npm install)
             fi
