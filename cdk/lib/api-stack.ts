@@ -259,20 +259,17 @@ export class ApiStack extends cdk.Stack {
     queueCleanupFunction.addToRolePolicy(ssmPolicy);
     selectMapFunction.addToRolePolicy(ssmPolicy);
     startQueueFunction.addToRolePolicy(ssmPolicy);
+    steamLoginFunction.addToRolePolicy(ssmPolicy);
 
     // Grant Lambda invoke permissions for lobby system
     createLobbyFunction.grantInvoke(joinQueueFunction); // Allow join-queue to invoke create-lobby
     
     // Grant database service invoke permissions to all lambdas that need it
-    // addServerFunction, createLobbyFunction, deleteServerFunction, getActiveQueuesFunction, getAllQueuesFunction, getMapsFunction, getQueueHistoryFunction, getServersFunction, joinQueueFunction, leaveLobbyFunction, leaveQueueFunction, queueCleanupFunction, selectMapFunction, and startQueueFunction now use shared-lambda-utils directly
-    databaseServiceFunction.grantInvoke(steamLoginFunction);
+    // All lambdas now use shared-lambda-utils directly
     // Note: We'll add more functions here as we convert them
 
     // Add environment variable to join queue function for create lobby function name
     joinQueueFunction.addEnvironment('CREATE_LOBBY_FUNCTION_NAME', createLobbyFunction.functionName);
-    
-    // Add database service function name to steam login function
-    steamLoginFunction.addEnvironment('DATABASE_SERVICE_FUNCTION_NAME', databaseServiceFunction.functionName);
 
     // Create CloudWatch log group for API Gateway
     const apiLogGroup = new logs.LogGroup(this, 'ApiGatewayLogGroup', {
