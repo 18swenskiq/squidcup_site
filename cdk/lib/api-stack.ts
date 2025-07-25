@@ -127,7 +127,6 @@ export class ApiStack extends cdk.Stack {
       logRetention: this.LOG_RETENTION,
       environment: {
         REGION: this.REGION,
-        DATABASE_SERVICE_FUNCTION_NAME: databaseServiceFunction.functionName,
       }
     });
 
@@ -262,7 +261,6 @@ export class ApiStack extends cdk.Stack {
     getUserProfileFunction.addToRolePolicy(ssmPolicy);
 
     // Grant database service permissions to Lambda functions
-    databaseServiceFunction.grantInvoke(getUserQueueFunction);
     databaseServiceFunction.grantInvoke(queueCleanupFunction);
 
     // Grant Lambda invoke permissions for lobby system
