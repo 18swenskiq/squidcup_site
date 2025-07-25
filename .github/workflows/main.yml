@@ -80,6 +80,8 @@ jobs:
       - name: Copy Tarballs to CDK Directory
         run: |
           echo "Copying tarballs to CDK directory for Docker bundling..."
+          # Create tarballs directory if it doesn't exist
+          mkdir -p ./tarballs
           cp ${{ env.TYPES_TARBALL }} ./tarballs/
           cp ${{ env.UTILS_TARBALL }} ./tarballs/
           # Update environment variables to use relative paths
@@ -90,8 +92,6 @@ jobs:
 
       - name: Update Lambda Dependencies and Install Packages
         run: |
-          # Create tarballs directory if it doesn't exist
-          mkdir -p ./tarballs
           for dir in ./src/*/; do
             if [ -d "$dir" ]; then
               echo "Updating dependencies for Lambda in $dir"
