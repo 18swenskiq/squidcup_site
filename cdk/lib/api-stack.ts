@@ -103,7 +103,6 @@ export class ApiStack extends cdk.Stack {
       logRetention: this.LOG_RETENTION,
       environment: {
         REGION: this.REGION,
-        DATABASE_SERVICE_FUNCTION_NAME: databaseServiceFunction.functionName,
       }
     });
 
@@ -260,6 +259,7 @@ export class ApiStack extends cdk.Stack {
     getUserQueueFunction.addToRolePolicy(ssmPolicy);
     createLobbyFunction.addToRolePolicy(ssmPolicy);
     getQueueHistoryFunction.addToRolePolicy(ssmPolicy);
+    getServersFunction.addToRolePolicy(ssmPolicy);
 
     // Grant database service permissions to Lambda functions
     databaseServiceFunction.grantInvoke(getUserProfileFunction);
@@ -270,8 +270,7 @@ export class ApiStack extends cdk.Stack {
     createLobbyFunction.grantInvoke(joinQueueFunction); // Allow join-queue to invoke create-lobby
     
     // Grant database service invoke permissions to all lambdas that need it
-    // addServerFunction, createLobbyFunction, deleteServerFunction, getActiveQueuesFunction, getAllQueuesFunction, getMapsFunction, and getQueueHistoryFunction now use shared-lambda-utils directly
-    databaseServiceFunction.grantInvoke(getServersFunction);
+    // addServerFunction, createLobbyFunction, deleteServerFunction, getActiveQueuesFunction, getAllQueuesFunction, getMapsFunction, getQueueHistoryFunction, and getServersFunction now use shared-lambda-utils directly
     databaseServiceFunction.grantInvoke(joinQueueFunction);
     databaseServiceFunction.grantInvoke(leaveLobbyFunction);
     databaseServiceFunction.grantInvoke(leaveQueueFunction);
