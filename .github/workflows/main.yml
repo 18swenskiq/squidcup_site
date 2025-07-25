@@ -35,148 +35,12 @@ jobs:
           echo "Building shared-lambda-utils package..."
           (cd ../packages/shared-lambda-utils && npm install && npm run build)
 
-      - name: Pack Shared Packages
+      - name: Build Local Lambda Projects
         run: |
-          echo "Packing types-squidcup package..."
-          (cd ../packages/types-squidcup && npm pack)
-          echo "Packing shared-lambda-utils package..."
-          (cd ../packages/shared-lambda-utils && npm pack)
-          echo "Capturing tarball absolute paths..."
-          TYPES_TARBALL=$(realpath ../packages/types-squidcup/*.tgz)
-          UTILS_TARBALL=$(realpath ../packages/shared-lambda-utils/*.tgz)
-          echo "TYPES_TARBALL=$TYPES_TARBALL" >> $GITHUB_ENV
-          echo "UTILS_TARBALL=$UTILS_TARBALL" >> $GITHUB_ENV
-
-      - name: Update Shared-Lambda-Utils Dependencies
-        run: |
-          echo "Updating shared-lambda-utils to reference types tarball..."
-          sed -i.bak "s|file:../types-squidcup|file:${{ env.TYPES_TARBALL }}|" ../packages/shared-lambda-utils/package.json
-
-      - name: Install Types in Shared-Lambda-Utils
-        run: |
-          echo "Installing types tarball in shared-lambda-utils..."
-          (cd ../packages/shared-lambda-utils && npm install ${{ env.TYPES_TARBALL }})
-
-      - name: Verify TypeScript Configuration in Shared-Lambda-Utils
-        run: |
-          echo "Ensuring TypeScript resolves types correctly in shared-lambda-utils..."
-          (cd ../packages/shared-lambda-utils && \
-            jq '.compilerOptions.baseUrl = "./" | .compilerOptions.paths["@squidcup/types"] = ["node_modules/@squidcup/types"]' tsconfig.json > tsconfig.tmp.json && \
-            mv tsconfig.tmp.json tsconfig.json)
-
-      - name: Rebuild Shared-Lambda-Utils
-        run: |
-          echo "Rebuilding shared-lambda-utils package with updated TypeScript configuration..."
-          (cd ../packages/shared-lambda-utils && npm run clean && npm install && npm run build)
-
-      - name: Repack Updated Shared-Lambda-Utils
-        run: |
-          echo "Repacking shared-lambda-utils with the types included..."
-          (cd ../packages/shared-lambda-utils && npm pack)
-          echo "Updating UTILS_TARBALL path..."
-          UTILS_TARBALL=$(realpath ../packages/shared-lambda-utils/*.tgz)
-          echo "UTILS_TARBALL=$UTILS_TARBALL" >> $GITHUB_ENV
-
-      - name: Copy Tarballs to CDK Directory
-        run: |
-          echo "Copying tarballs to CDK directory for Docker bundling..."
-          # Create tarballs directory if it doesn't exist
-          mkdir -p ./tarballs
-          cp ${{ env.TYPES_TARBALL }} ./tarballs/
-          cp ${{ env.UTILS_TARBALL }} ./tarballs/
-          # Update environment variables to use relative paths from Lambda directories
-          TYPES_TARBALL_NAME=$(basename ${{ env.TYPES_TARBALL }})
-          UTILS_TARBALL_NAME=$(basename ${{ env.UTILS_TARBALL }})
-          echo "TYPES_TARBALL_REL=../../tarballs/$TYPES_TARBALL_NAME" >> $GITHUB_ENV
-          echo "UTILS_TARBALL_REL=../../tarballs/$UTILS_TARBALL_NAME" >> $GITHUB_ENV
-
-      - name: Update Lambda Dependencies and Install Packages
-        run: |
-          # Clear npm cache globally to ensure no stale data
-          npm cache clean --force
-          # Remove any global npm cache directories
-          rm -rf ~/.npm
           for dir in ./src/*/; do
             if [ -d "$dir" ]; then
-              echo "Updating dependencies for Lambda in $dir"
-              # Get the directory name for debugging
-              LAMBDA_NAME=$(basename "$dir")
-              echo "Processing Lambda: $LAMBDA_NAME"
-              
-              # Create a completely fresh working directory
-              TEMP_DIR="/tmp/${LAMBDA_NAME}_temp"
-              rm -rf "$TEMP_DIR"
-              mkdir -p "$TEMP_DIR"
-              
-              # Copy only the necessary files to temp directory
-              cp "$dir"/*.ts "$TEMP_DIR/" 2>/dev/null || true
-              cp "$dir"/*.js "$TEMP_DIR/" 2>/dev/null || true
-              cp "$dir"/tsconfig.json "$TEMP_DIR/" 2>/dev/null || true
-              
-              # Create a simple package.json without file dependencies
-              # Use absolute paths to tarballs since we're in a temp directory
-              ABSOLUTE_TARBALLS_DIR="$(pwd)/tarballs"
-              echo '{}' | jq \
-                --arg name "${LAMBDA_NAME}" \
-                '{
-                  name: $name,
-                  version: "1.0.0",
-                  description: "Lambda function",
-                  main: "index.js",
-                  scripts: {
-                    build: "tsc",
-                    test: "echo \"Error: no test specified\" && exit 1"
-                  },
-                  dependencies: {},
-                  devDependencies: {}
-                }' > "$TEMP_DIR/package.json"
-              
-              echo "Created fresh package.json for $LAMBDA_NAME:"
-              cat "$TEMP_DIR/package.json"
-              
-              # Install in temp directory using direct tarball installation
-              (cd "$TEMP_DIR" && \
-                echo "Installing packages in temp directory..." && \
-                # Install regular dev dependencies first
-                npm install @aws-sdk/client-lambda@^3.0.0 @aws-sdk/client-ssm@^3.0.0 @types/aws-lambda@^8.10.0 @types/node@^18.0.0 typescript@^4.9.0 --save-dev && \
-                # Install tarballs directly
-                npm install "${ABSOLUTE_TARBALLS_DIR}/squidcup-types-1.0.0.tgz" "${ABSOLUTE_TARBALLS_DIR}/squidcup-shared-lambda-utils-1.0.0.tgz")
-              
-              # Copy the successful installation back to original directory
-              echo "Copying successful installation back to $dir"
-              rm -rf "$dir/node_modules" "$dir/package-lock.json"
-              cp -r "$TEMP_DIR/node_modules" "$dir/"
-              cp "$TEMP_DIR/package-lock.json" "$dir/" 2>/dev/null || true
-              
-              # Create final package.json with relative paths for the Lambda directory
-              echo '{}' | jq \
-                --arg name "${LAMBDA_NAME}" \
-                --arg types_tarball "file:../../tarballs/squidcup-types-1.0.0.tgz" \
-                --arg utils_tarball "file:../../tarballs/squidcup-shared-lambda-utils-1.0.0.tgz" \
-                '{
-                  name: $name,
-                  version: "1.0.0",
-                  description: "Lambda function",
-                  main: "index.js",
-                  scripts: {
-                    build: "tsc",
-                    test: "echo \"Error: no test specified\" && exit 1"
-                  },
-                  dependencies: {
-                    "@squidcup/types": $types_tarball,
-                    "@squidcup/shared-lambda-utils": $utils_tarball
-                  },
-                  devDependencies: {
-                    "@aws-sdk/client-lambda": "^3.0.0",
-                    "@aws-sdk/client-ssm": "^3.0.0",
-                    "@types/aws-lambda": "^8.10.0",
-                    "@types/node": "^18.0.0",
-                    "typescript": "^4.9.0"
-                  }
-                }' > "$dir/package.json"
-              
-              # Clean up temp directory
-              rm -rf "$TEMP_DIR"
+              echo "Building Lambda in $dir"
+              (cd "$dir" && npm install && npm run build)
             fi
           done
 
@@ -200,15 +64,6 @@ jobs:
       # Deploy API stack first
       - name: Deploy API stack
         run: cdk deploy SquidCupSite-ApiStack --require-approval never
-
-      - name: Build Local Lambda Projects
-        run: |
-          for dir in ./src/*/; do
-            if [ -d "$dir" ]; then
-              echo "Building Lambda in $dir"
-              (cd "$dir" && npm install && npm run build)
-            fi
-          done
 
       - name: Extract API Gateway URL
         id: get_api_url
