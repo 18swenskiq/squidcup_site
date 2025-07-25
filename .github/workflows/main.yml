@@ -77,8 +77,21 @@ jobs:
           UTILS_TARBALL=$(realpath ../packages/shared-lambda-utils/*.tgz)
           echo "UTILS_TARBALL=$UTILS_TARBALL" >> $GITHUB_ENV
 
+      - name: Copy Tarballs to CDK Directory
+        run: |
+          echo "Copying tarballs to CDK directory for Docker bundling..."
+          cp ${{ env.TYPES_TARBALL }} ./tarballs/
+          cp ${{ env.UTILS_TARBALL }} ./tarballs/
+          # Update environment variables to use relative paths
+          TYPES_TARBALL_NAME=$(basename ${{ env.TYPES_TARBALL }})
+          UTILS_TARBALL_NAME=$(basename ${{ env.UTILS_TARBALL }})
+          echo "TYPES_TARBALL_REL=./tarballs/$TYPES_TARBALL_NAME" >> $GITHUB_ENV
+          echo "UTILS_TARBALL_REL=./tarballs/$UTILS_TARBALL_NAME" >> $GITHUB_ENV
+
       - name: Update Lambda Dependencies and Install Packages
         run: |
+          # Create tarballs directory if it doesn't exist
+          mkdir -p ./tarballs
           for dir in ./src/*/; do
             if [ -d "$dir" ]; then
               echo "Updating dependencies for Lambda in $dir"
@@ -87,9 +100,9 @@ jobs:
                 if ! grep -q '"@squidcup/types"' package.json; then
                   jq '.dependencies["@squidcup/types"] = "file:../../../packages/types-squidcup"' package.json > package.tmp.json && mv package.tmp.json package.json
                 fi && \
-                # Update package.json to use tarballs
-                sed -i.bak "s|file:../../../packages/types-squidcup|file:${{ env.TYPES_TARBALL }}|" package.json && \
-                sed -i.bak "s|file:../../../packages/shared-lambda-utils|file:${{ env.UTILS_TARBALL }}|" package.json && \
+                # Update package.json to use relative tarball paths
+                sed -i.bak "s|file:../../../packages/types-squidcup|file:${{ env.TYPES_TARBALL_REL }}|" package.json && \
+                sed -i.bak "s|file:../../../packages/shared-lambda-utils|file:${{ env.UTILS_TARBALL_REL }}|" package.json && \
                 # Install packages so CDK can resolve dependencies
                 npm install)
             fi
