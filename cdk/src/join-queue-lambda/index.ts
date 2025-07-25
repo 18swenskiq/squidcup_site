@@ -1,75 +1,23 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda';
+import { 
+  getSession, 
+  getQueueWithPlayers, 
+  addPlayerToQueue, 
+  storeQueueHistoryEvent,
+  createCorsHeaders,
+  extractSteamIdFromOpenId,
+  getMaxPlayersForGamemode
+} from '@squidcup/shared-lambda-utils';
 
 const lambdaClient = new LambdaClient({ region: process.env.REGION });
-
-// Function to call the database service
-async function callDatabaseService(operation: string, params?: any[], data?: any): Promise<any> {
-  const payload = {
-    operation,
-    params,
-    data
-  };
-
-  const command = new InvokeCommand({
-    FunctionName: process.env.DATABASE_SERVICE_FUNCTION_NAME!,
-    Payload: JSON.stringify(payload),
-  });
-
-  const response = await lambdaClient.send(command);
-  const result = JSON.parse(new TextDecoder().decode(response.Payload));
-  
-  if (!result.success) {
-    throw new Error(result.error || 'Database service call failed');
-  }
-  
-  return result.data;
-}
-
-// Function to extract numeric Steam ID from OpenID URL
-function extractSteamIdFromOpenId(steamId: string): string {
-  // If it's already a numeric Steam ID, return as is
-  if (/^\d+$/.test(steamId)) {
-    return steamId;
-  }
-  
-  // Extract from OpenID URL format: https://steamcommunity.com/openid/id/76561198041569692
-  const match = steamId.match(/\/id\/(\d+)$/);
-  if (match && match[1]) {
-    return match[1];
-  }
-  
-  // If no match found, return the original value
-  console.warn('Could not extract Steam ID from:', steamId);
-  return steamId;
-}
-
-// Function to get the maximum players for a gamemode
-function getMaxPlayersForGamemode(gameMode: string): number {
-  switch (gameMode) {
-    case '5v5':
-      return 10;
-    case 'wingman':
-      return 4;
-    case '3v3':
-      return 6;
-    case '1v1':
-      return 2;
-    default:
-      return 10;
-  }
-}
 
 export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
   console.log('Join queue event received');
   console.log('Headers:', JSON.stringify(event.headers, null, 2));
   console.log('Body:', event.body);
 
-  const corsHeaders = {
-    'Access-Control-Allow-Origin': 'https://squidcup.spkymnr.xyz',
-    'Access-Control-Allow-Headers': 'Content-Type,Authorization',
-    'Access-Control-Allow-Methods': 'POST,OPTIONS',
-  };
+  const corsHeaders = createCorsHeaders();
 
   try {
     // Get session token from Authorization header
@@ -85,8 +33,8 @@ export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayPr
     const sessionToken = authHeader.substring(7);
     console.log('Extracted session token:', sessionToken);
     
-    // Validate session using database service
-    const sessionData = await callDatabaseService('getSession', [sessionToken]);
+    // Validate session using shared utilities
+    const sessionData = await getSession(sessionToken);
     
     if (!sessionData) {
       return {
@@ -111,8 +59,8 @@ export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayPr
       };
     }
 
-    // Get the queue with players from database service
-    const queueData = await callDatabaseService('getQueueWithPlayers', [queueId]);
+    // Get the queue with players from shared utilities
+    const queueData = await getQueueWithPlayers(queueId);
     
     if (!queueData) {
       return {
@@ -162,7 +110,7 @@ export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayPr
       };
     }
 
-    // Add user to the queue using database service
+    // Add user to the queue using shared utilities
     const now = new Date().toISOString();
     const playerData = {
       steamId: userSteamId,
@@ -170,9 +118,9 @@ export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayPr
       isHost: false
     };
 
-    await callDatabaseService('addPlayerToQueue', [queueId], playerData);
+    await addPlayerToQueue(queueId, playerData);
 
-    // Store queue history event using database service
+    // Store queue history event using shared utilities
     const historyEventData = {
       queueId,
       userSteamId,
@@ -184,10 +132,10 @@ export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayPr
       }
     };
 
-    await callDatabaseService('storeQueueHistoryEvent', undefined, historyEventData);
+    await storeQueueHistoryEvent(historyEventData);
 
     // Get updated queue data to check if it's full
-    const updatedQueueData = await callDatabaseService('getQueueWithPlayers', [queueId]);
+    const updatedQueueData = await getQueueWithPlayers(queueId);
     
     // Check if queue is now full and should be converted to lobby
     const maxPlayers = getMaxPlayersForGamemode(queueData.game_mode);
