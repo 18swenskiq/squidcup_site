@@ -92,12 +92,15 @@ jobs:
 
       - name: Update Lambda Dependencies and Install Packages
         run: |
+          # Clear npm cache globally to ensure no stale data
+          npm cache clean --force
           for dir in ./src/*/; do
             if [ -d "$dir" ]; then
               echo "Updating dependencies for Lambda in $dir"
               (cd "$dir" && \
-                # Clean any previous installs
-                rm -rf node_modules package-lock.json && \
+                # Clean any previous installs and caches
+                rm -rf node_modules package-lock.json .npm && \
+                npm cache clean --force && \
                 # Add @squidcup/types as a dependency if it doesn't exist, using the correct tarball path
                 if ! grep -q '"@squidcup/types"' package.json; then
                   jq --arg tarball_path "file:${{ env.TYPES_TARBALL_REL }}" '.dependencies["@squidcup/types"] = $tarball_path' package.json > package.tmp.json && mv package.tmp.json package.json
@@ -110,8 +113,8 @@ jobs:
                 # Verify the tarball files exist before installing
                 echo "Checking if tarball files exist:" && \
                 ls -la ../../tarballs/ && \
-                # Install packages so CDK can resolve dependencies
-                npm install)
+                # Force a fresh install with no cache
+                npm install --no-cache --prefer-offline=false)
             fi
           done
 
