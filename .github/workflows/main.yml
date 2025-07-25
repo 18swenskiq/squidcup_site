@@ -77,15 +77,14 @@ jobs:
           UTILS_TARBALL=$(realpath ../packages/shared-lambda-utils/*.tgz)
           echo "UTILS_TARBALL=$UTILS_TARBALL" >> $GITHUB_ENV
 
-      - name: Build Local Lambda Projects
+      - name: Update Lambda Dependencies
         run: |
           for dir in ./src/*/; do
             if [ -d "$dir" ]; then
-              echo "Building Lambda in $dir"
+              echo "Updating dependencies for Lambda in $dir"
               (cd "$dir" && \
                 sed -i.bak "s|file:../../../packages/types-squidcup|file:${{ env.TYPES_TARBALL }}|" package.json && \
-                sed -i.bak "s|file:../../../packages/shared-lambda-utils|file:${{ env.UTILS_TARBALL }}|" package.json && \
-                npm install && npm run build)
+                sed -i.bak "s|file:../../../packages/shared-lambda-utils|file:${{ env.UTILS_TARBALL }}|" package.json)
             fi
           done
 
@@ -109,6 +108,15 @@ jobs:
       # Deploy API stack first
       - name: Deploy API stack
         run: cdk deploy SquidCupSite-ApiStack --require-approval never
+
+      - name: Build Local Lambda Projects
+        run: |
+          for dir in ./src/*/; do
+            if [ -d "$dir" ]; then
+              echo "Building Lambda in $dir"
+              (cd "$dir" && npm install && npm run build)
+            fi
+          done
 
       - name: Extract API Gateway URL
         id: get_api_url
