@@ -64,6 +64,13 @@ jobs:
             jq '.compilerOptions.paths["@squidcup/types-squidcup"] = ["node_modules/@squidcup/types-squidcup"]' tsconfig.json > tsconfig.tmp.json && \
             mv tsconfig.tmp.json tsconfig.json)
 
+      - name: Set BaseUrl in Shared-Lambda-Utils
+        run: |
+          echo "Setting baseUrl in tsconfig.json for shared-lambda-utils..."
+          (cd ../packages/shared-lambda-utils && \
+            jq '.compilerOptions.baseUrl = "./"' tsconfig.json > tsconfig.tmp.json && \
+            mv tsconfig.tmp.json tsconfig.json)
+
       - name: Rebuild Shared-Lambda-Utils
         run: |
           echo "Rebuilding shared-lambda-utils package with updated TypeScript configuration..."
