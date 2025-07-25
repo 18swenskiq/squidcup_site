@@ -52,6 +52,11 @@ jobs:
           echo "Updating shared-lambda-utils to reference types-squidcup tarball..."
           sed -i.bak "s|file:../types-squidcup|file:${{ env.TYPES_TARBALL }}|" ../packages/shared-lambda-utils/package.json
 
+      - name: Install Types-Squidcup in Shared-Lambda-Utils
+        run: |
+          echo "Installing types-squidcup tarball in shared-lambda-utils..."
+          (cd ../packages/shared-lambda-utils && npm install ${{ env.TYPES_TARBALL }})
+
       - name: Rebuild Shared-Lambda-Utils
         run: |
           echo "Rebuilding shared-lambda-utils package..."
