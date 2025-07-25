@@ -38,6 +38,15 @@ export type MapSelectionMode = 'All Pick' | 'Host Pick' | 'Random Map';
 export type QueueStatus = 'waiting' | 'matched' | 'cancelled';
 export type LobbyStatus = 'active' | 'in_game' | 'completed' | 'cancelled';
 
+// ===== MAP TYPES =====
+
+export interface MapResponseObj {
+  name: string;
+  id: string;
+  thumbnailUrl: string;
+  gameModes: GameMode[];
+}
+
 // ===== QUEUE TYPES =====
 
 export interface QueuePlayer {

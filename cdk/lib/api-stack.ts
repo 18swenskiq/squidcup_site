@@ -67,7 +67,6 @@ export class ApiStack extends cdk.Stack {
       logRetention: this.LOG_RETENTION,
       environment: {
         REGION: this.REGION,
-        DATABASE_SERVICE_FUNCTION_NAME: databaseServiceFunction.functionName,
       }
     });
 
@@ -271,8 +270,7 @@ export class ApiStack extends cdk.Stack {
     createLobbyFunction.grantInvoke(joinQueueFunction); // Allow join-queue to invoke create-lobby
     
     // Grant database service invoke permissions to all lambdas that need it
-    // addServerFunction, createLobbyFunction, deleteServerFunction, getActiveQueuesFunction, and getAllQueuesFunction now use shared-lambda-utils directly
-    databaseServiceFunction.grantInvoke(getMapsFunction);
+    // addServerFunction, createLobbyFunction, deleteServerFunction, getActiveQueuesFunction, getAllQueuesFunction, and getMapsFunction now use shared-lambda-utils directly
     databaseServiceFunction.grantInvoke(getQueueHistoryFunction);
     databaseServiceFunction.grantInvoke(getServersFunction);
     databaseServiceFunction.grantInvoke(joinQueueFunction);
