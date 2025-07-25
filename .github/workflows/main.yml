@@ -61,17 +61,6 @@ jobs:
       - name: Synthesize CDK
         run: cdk synth SquidCupSite-ApiStack
 
-      - name: Copy Shared Packages to Lambda Node Modules
-        run: |
-          for dir in ./src/*/; do
-            if [ -d "$dir" ]; then
-              echo "Copying shared packages to $dir/node_modules"
-              mkdir -p "$dir/node_modules/@squidcup"
-              rsync -a --exclude "$dir/node_modules/@squidcup/shared-lambda-utils" ../packages/shared-lambda-utils "$dir/node_modules/@squidcup/shared-lambda-utils"
-              rsync -a --exclude "$dir/node_modules/@squidcup/types" ../packages/types-squidcup "$dir/node_modules/@squidcup/types"
-            fi
-          done
-
       # Deploy API stack first
       - name: Deploy API stack
         run: cdk deploy SquidCupSite-ApiStack --require-approval never
