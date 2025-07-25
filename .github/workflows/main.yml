@@ -84,11 +84,11 @@ jobs:
           mkdir -p ./tarballs
           cp ${{ env.TYPES_TARBALL }} ./tarballs/
           cp ${{ env.UTILS_TARBALL }} ./tarballs/
-          # Update environment variables to use relative paths
+          # Update environment variables to use relative paths from Lambda directories
           TYPES_TARBALL_NAME=$(basename ${{ env.TYPES_TARBALL }})
           UTILS_TARBALL_NAME=$(basename ${{ env.UTILS_TARBALL }})
-          echo "TYPES_TARBALL_REL=./tarballs/$TYPES_TARBALL_NAME" >> $GITHUB_ENV
-          echo "UTILS_TARBALL_REL=./tarballs/$UTILS_TARBALL_NAME" >> $GITHUB_ENV
+          echo "TYPES_TARBALL_REL=../../tarballs/$TYPES_TARBALL_NAME" >> $GITHUB_ENV
+          echo "UTILS_TARBALL_REL=../../tarballs/$UTILS_TARBALL_NAME" >> $GITHUB_ENV
 
       - name: Update Lambda Dependencies and Install Packages
         run: |
