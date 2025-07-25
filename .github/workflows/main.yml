@@ -55,11 +55,27 @@ jobs:
               
               # Remove the problematic file: dependency from shared-lambda-utils package.json
               echo "Fixing shared-lambda-utils package.json dependencies..."
-              sed -i 's/"@squidcup\/types": "file:..\/types-squidcup"//' "$dir/node_modules/@squidcup/shared-lambda-utils/package.json"
-              sed -i '/^[[:space:]]*"@squidcup\/types":/d' "$dir/node_modules/@squidcup/shared-lambda-utils/package.json"
+              
+              # First, let's see what we're working with
+              echo "Original shared-lambda-utils package.json:"
+              cat "$dir/node_modules/@squidcup/shared-lambda-utils/package.json"
+              
+              # Remove any lines containing @squidcup/types file dependency
+              sed -i '/"@squidcup\/types".*"file:/d' "$dir/node_modules/@squidcup/shared-lambda-utils/package.json"
+              
+              # Also remove any standalone @squidcup/types lines
+              sed -i '/"@squidcup\/types"/d' "$dir/node_modules/@squidcup/shared-lambda-utils/package.json"
               
               # Clean up any trailing commas that might be left
+              sed -i 's/,[[:space:]]*$//' "$dir/node_modules/@squidcup/shared-lambda-utils/package.json"
               sed -i 's/,[[:space:]]*}/}/' "$dir/node_modules/@squidcup/shared-lambda-utils/package.json"
+              sed -i 's/,[[:space:]]*]/]/' "$dir/node_modules/@squidcup/shared-lambda-utils/package.json"
+              
+              # Remove any package-lock.json that might have cached the file dependency
+              rm -f "$dir/node_modules/@squidcup/shared-lambda-utils/package-lock.json"
+              
+              echo "Fixed shared-lambda-utils package.json:"
+              cat "$dir/node_modules/@squidcup/shared-lambda-utils/package.json"
               
               # Install dependencies and build
               (cd "$dir" && npm install && npm run build)
