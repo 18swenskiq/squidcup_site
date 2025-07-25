@@ -53,6 +53,14 @@ jobs:
               cp -r "../packages/shared-lambda-utils/dist" "$dir/node_modules/@squidcup/shared-lambda-utils"
               cp "../packages/shared-lambda-utils/package.json" "$dir/node_modules/@squidcup/shared-lambda-utils/"
               
+              # Remove the problematic file: dependency from shared-lambda-utils package.json
+              echo "Fixing shared-lambda-utils package.json dependencies..."
+              sed -i 's/"@squidcup\/types": "file:..\/types-squidcup"//' "$dir/node_modules/@squidcup/shared-lambda-utils/package.json"
+              sed -i '/^[[:space:]]*"@squidcup\/types":/d' "$dir/node_modules/@squidcup/shared-lambda-utils/package.json"
+              
+              # Clean up any trailing commas that might be left
+              sed -i 's/,[[:space:]]*}/}/' "$dir/node_modules/@squidcup/shared-lambda-utils/package.json"
+              
               # Install dependencies and build
               (cd "$dir" && npm install && npm run build)
             fi
