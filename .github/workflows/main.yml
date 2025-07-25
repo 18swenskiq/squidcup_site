@@ -57,9 +57,16 @@ jobs:
           echo "Installing types-squidcup tarball in shared-lambda-utils..."
           (cd ../packages/shared-lambda-utils && npm install ${{ env.TYPES_TARBALL }})
 
+      - name: Verify TypeScript Configuration in Shared-Lambda-Utils
+        run: |
+          echo "Ensuring TypeScript resolves types-squidcup correctly in shared-lambda-utils..."
+          (cd ../packages/shared-lambda-utils && \
+            jq '.compilerOptions.paths["@squidcup/types-squidcup"] = ["node_modules/@squidcup/types-squidcup"]' tsconfig.json > tsconfig.tmp.json && \
+            mv tsconfig.tmp.json tsconfig.json)
+
       - name: Rebuild Shared-Lambda-Utils
         run: |
-          echo "Rebuilding shared-lambda-utils package..."
+          echo "Rebuilding shared-lambda-utils package with updated TypeScript configuration..."
           (cd ../packages/shared-lambda-utils && npm install && npm run build)
 
       - name: Build Local Lambda Projects
