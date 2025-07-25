@@ -32,7 +32,9 @@ export class ApiStack extends cdk.Stack {
         FRONTEND_URL: 'https://squidcup.spkymnr.xyz', // Your actual domain
       },
       bundling: {
-        externalModules: ['@squidcup/shared-lambda-utils', '@squidcup/types']
+        minify: true,
+        sourceMap: true,
+        nodeModules: ['@squidcup/shared-lambda-utils', '@squidcup/types']
       }
     });
 
@@ -47,7 +49,9 @@ export class ApiStack extends cdk.Stack {
         REGION: this.REGION,
       },
       bundling: {
-        externalModules: ['@squidcup/shared-lambda-utils', '@squidcup/types']
+        minify: true,
+        sourceMap: true,
+        nodeModules: ['@squidcup/shared-lambda-utils', '@squidcup/types']
       }
     });
 
@@ -62,7 +66,9 @@ export class ApiStack extends cdk.Stack {
         REGION: this.REGION,
       },
       bundling: {
-        externalModules: ['@squidcup/shared-lambda-utils', '@squidcup/types']
+        minify: true,
+        sourceMap: true,
+        nodeModules: ['@squidcup/shared-lambda-utils', '@squidcup/types']
       }
     });
 
@@ -77,7 +83,9 @@ export class ApiStack extends cdk.Stack {
         REGION: this.REGION,
       },
       bundling: {
-        externalModules: ['@squidcup/shared-lambda-utils', '@squidcup/types']
+        minify: true,
+        sourceMap: true,
+        nodeModules: ['@squidcup/shared-lambda-utils', '@squidcup/types']
       }
     });
 
@@ -92,7 +100,9 @@ export class ApiStack extends cdk.Stack {
         REGION: this.REGION,
       },
       bundling: {
-        externalModules: ['@squidcup/shared-lambda-utils', '@squidcup/types']
+        minify: true,
+        sourceMap: true,
+        nodeModules: ['@squidcup/shared-lambda-utils', '@squidcup/types']
       }
     });
 
@@ -107,7 +117,9 @@ export class ApiStack extends cdk.Stack {
         REGION: this.REGION,
       },
       bundling: {
-        externalModules: ['@squidcup/shared-lambda-utils', '@squidcup/types']
+        minify: true,
+        sourceMap: true,
+        nodeModules: ['@squidcup/shared-lambda-utils', '@squidcup/types']
       }
     });
 
@@ -122,7 +134,9 @@ export class ApiStack extends cdk.Stack {
         REGION: this.REGION,
       },
       bundling: {
-        externalModules: ['@squidcup/shared-lambda-utils', '@squidcup/types']
+        minify: true,
+        sourceMap: true,
+        nodeModules: ['@squidcup/shared-lambda-utils', '@squidcup/types']
       }
     });
 
@@ -137,7 +151,9 @@ export class ApiStack extends cdk.Stack {
         REGION: this.REGION,
       },
       bundling: {
-        externalModules: ['@squidcup/shared-lambda-utils', '@squidcup/types']
+        minify: true,
+        sourceMap: true,
+        nodeModules: ['@squidcup/shared-lambda-utils', '@squidcup/types']
       }
     });
 
@@ -152,7 +168,9 @@ export class ApiStack extends cdk.Stack {
         REGION: this.REGION,
       },
       bundling: {
-        externalModules: ['@squidcup/shared-lambda-utils', '@squidcup/types']
+        minify: true,
+        sourceMap: true,
+        nodeModules: ['@squidcup/shared-lambda-utils', '@squidcup/types']
       }
     });
 
@@ -167,7 +185,9 @@ export class ApiStack extends cdk.Stack {
         REGION: this.REGION,
       },
       bundling: {
-        externalModules: ['@squidcup/shared-lambda-utils', '@squidcup/types']
+        minify: true,
+        sourceMap: true,
+        nodeModules: ['@squidcup/shared-lambda-utils', '@squidcup/types']
       }
     });
 
@@ -182,7 +202,9 @@ export class ApiStack extends cdk.Stack {
         REGION: this.REGION,
       },
       bundling: {
-        externalModules: ['@squidcup/shared-lambda-utils', '@squidcup/types']
+        minify: true,
+        sourceMap: true,
+        nodeModules: ['@squidcup/shared-lambda-utils', '@squidcup/types']
       }
     });
 
@@ -197,7 +219,9 @@ export class ApiStack extends cdk.Stack {
         REGION: this.REGION,
       },
       bundling: {
-        externalModules: ['@squidcup/shared-lambda-utils', '@squidcup/types']
+        minify: true,
+        sourceMap: true,
+        nodeModules: ['@squidcup/shared-lambda-utils', '@squidcup/types']
       }
     });
 
@@ -212,7 +236,9 @@ export class ApiStack extends cdk.Stack {
         REGION: this.REGION,
       },
       bundling: {
-        externalModules: ['@squidcup/shared-lambda-utils', '@squidcup/types']
+        minify: true,
+        sourceMap: true,
+        nodeModules: ['@squidcup/shared-lambda-utils', '@squidcup/types']
       }
     });
 
@@ -228,7 +254,9 @@ export class ApiStack extends cdk.Stack {
         QUEUE_TIMEOUT_MINUTES: '10', // 10 minutes of inactivity before cleanup
       },
       bundling: {
-        externalModules: ['@squidcup/shared-lambda-utils', '@squidcup/types']
+        minify: true,
+        sourceMap: true,
+        nodeModules: ['@squidcup/shared-lambda-utils', '@squidcup/types']
       }
     });
 
@@ -243,7 +271,9 @@ export class ApiStack extends cdk.Stack {
         REGION: this.REGION,
       },
       bundling: {
-        externalModules: ['@squidcup/shared-lambda-utils', '@squidcup/types']
+        minify: true,
+        sourceMap: true,
+        nodeModules: ['@squidcup/shared-lambda-utils', '@squidcup/types']
       }
     });
 
@@ -258,7 +288,9 @@ export class ApiStack extends cdk.Stack {
         REGION: this.REGION,
       },
       bundling: {
-        externalModules: ['@squidcup/shared-lambda-utils', '@squidcup/types']
+        minify: true,
+        sourceMap: true,
+        nodeModules: ['@squidcup/shared-lambda-utils', '@squidcup/types']
       }
     });
 
@@ -273,7 +305,9 @@ export class ApiStack extends cdk.Stack {
         REGION: this.REGION,
       },
       bundling: {
-        externalModules: ['@squidcup/shared-lambda-utils', '@squidcup/types']
+        minify: true,
+        sourceMap: true,
+        nodeModules: ['@squidcup/shared-lambda-utils', '@squidcup/types']
       }
     });
 
