@@ -41,6 +41,9 @@ jobs:
           (cd ../packages/types-squidcup && npm pack)
           echo "Packing shared-lambda-utils package..."
           (cd ../packages/shared-lambda-utils && npm pack)
+          echo "Capturing tarball names..."
+          echo "TYPES_TARBALL=$(ls ../packages/types-squidcup/*.tgz)" >> $GITHUB_ENV
+          echo "UTILS_TARBALL=$(ls ../packages/shared-lambda-utils/*.tgz)" >> $GITHUB_ENV
 
       - name: Build Local Lambda Projects
         run: |
@@ -48,8 +51,8 @@ jobs:
             if [ -d "$dir" ]; then
               echo "Building Lambda in $dir"
               (cd "$dir" && \
-                sed -i.bak 's|file:../../../packages/types-squidcup|file:../../../packages/types-squidcup/types-squidcup-*.tgz|' package.json && \
-                sed -i.bak 's|file:../../../packages/shared-lambda-utils|file:../../../packages/shared-lambda-utils/shared-lambda-utils-*.tgz|' package.json && \
+                sed -i.bak "s|file:../../../packages/types-squidcup|file:${{ env.TYPES_TARBALL }}|" package.json && \
+                sed -i.bak "s|file:../../../packages/shared-lambda-utils|file:${{ env.UTILS_TARBALL }}|" package.json && \
                 npm install && npm run build)
             fi
           done
