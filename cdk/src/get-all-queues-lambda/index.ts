@@ -1,52 +1,6 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
-import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda';
-
-const lambdaClient = new LambdaClient({ region: process.env.REGION });
-
-interface QueueWithUserInfo {
-  id: string;
-  hostSteamId: string;
-  hostName: string;
-  gameMode: string;
-  mapSelectionMode: string;
-  serverId: string;
-  serverName: string;
-  hasPassword: boolean;
-  ranked: boolean;
-  startTime: string;
-  joiners: Array<{
-    steamId: string;
-    name: string;
-    joinTime: string;
-  }>;
-  createdAt: string;
-  updatedAt: string;
-  players: number;
-  maxPlayers: number;
-}
-
-// Function to call the database service
-async function callDatabaseService(operation: string, params?: any[], data?: any): Promise<any> {
-  const payload = {
-    operation,
-    params,
-    data
-  };
-
-  const command = new InvokeCommand({
-    FunctionName: process.env.DATABASE_SERVICE_FUNCTION_NAME!,
-    Payload: JSON.stringify(payload),
-  });
-
-  const response = await lambdaClient.send(command);
-  const result = JSON.parse(new TextDecoder().decode(response.Payload));
-  
-  if (!result.success) {
-    throw new Error(result.error || 'Database service call failed');
-  }
-  
-  return result.data;
-}
+import { getSession, getUser, getActiveQueuesWithDetails } from '@squidcup/shared-lambda-utils';
+import { ActiveQueueWithDetails, Session, User, QueueWithUserInfo } from '@squidcup/types-squidcup';
 
 export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   console.log('Get all queues handler started');
@@ -87,9 +41,9 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
     const sessionToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : authHeader;
     console.log('Session token extracted:', sessionToken.substring(0, 10) + '...');
 
-    // Validate session using database service
+    // Validate session using shared utilities
     console.log('Validating session token');
-    const sessionData = await callDatabaseService('getSession', [sessionToken]);
+    const sessionData: Session | null = await getSession(sessionToken);
     
     if (!sessionData) {
       console.log('Invalid session token - no session found');
@@ -119,9 +73,9 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
 
     // Get user data to check admin status
     console.log('Checking admin status for Steam ID:', sessionData.steamId);
-    const userData = await callDatabaseService('getUser', [sessionData.steamId]);
+    const userData: User | null = await getUser(sessionData.steamId);
     
-    if (!userData || !userData.is_admin) {
+    if (!userData || !(userData.is_admin === true || userData.is_admin === 1)) {
       console.log('User is not admin, access denied');
       return {
         statusCode: 403,
@@ -130,14 +84,14 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
       };
     }
 
-    // Get all active queues with details using the database service
+    // Get all active queues with details using shared utilities
     console.log('Getting all active queues with details');
-    const activeQueues = await callDatabaseService('getActiveQueuesWithDetails');
+    const activeQueues: ActiveQueueWithDetails[] = await getActiveQueuesWithDetails();
     
     console.log('Retrieved', activeQueues.length, 'active queues');
 
     // Convert to the format expected by the admin interface
-    const queuesWithUserInfo: QueueWithUserInfo[] = activeQueues.map((queue: any) => ({
+    const queuesWithUserInfo: QueueWithUserInfo[] = activeQueues.map((queue: ActiveQueueWithDetails) => ({
       id: queue.queueId,
       hostSteamId: queue.hostSteamId,
       hostName: queue.hostName,

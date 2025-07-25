@@ -97,6 +97,29 @@ export interface ActiveQueueWithDetails {
   lastActivity: string;
 }
 
+// Interface for admin queue management (frontend-specific format)
+export interface QueueWithUserInfo {
+  id: string;
+  hostSteamId: string;
+  hostName: string;
+  gameMode: string;
+  mapSelectionMode: string;
+  serverId: string;
+  serverName: string;
+  hasPassword: boolean;
+  ranked: boolean;
+  startTime: string;
+  joiners: Array<{
+    steamId: string;
+    name: string;
+    joinTime: string;
+  }>;
+  createdAt: string;
+  updatedAt: string;
+  players: number;
+  maxPlayers: number;
+}
+
 // ===== LOBBY TYPES =====
 
 export interface LobbyPlayer {
