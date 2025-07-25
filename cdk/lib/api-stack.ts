@@ -199,7 +199,6 @@ export class ApiStack extends cdk.Stack {
       logRetention: this.LOG_RETENTION,
       environment: {
         REGION: this.REGION,
-        DATABASE_SERVICE_FUNCTION_NAME: databaseServiceFunction.functionName,
         QUEUE_TIMEOUT_MINUTES: '10', // 10 minutes of inactivity before cleanup
       }
     });
@@ -259,9 +258,7 @@ export class ApiStack extends cdk.Stack {
     joinQueueFunction.addToRolePolicy(ssmPolicy);
     leaveLobbyFunction.addToRolePolicy(ssmPolicy);
     leaveQueueFunction.addToRolePolicy(ssmPolicy);
-
-    // Grant database service permissions to Lambda functions
-    databaseServiceFunction.grantInvoke(queueCleanupFunction);
+    queueCleanupFunction.addToRolePolicy(ssmPolicy);
 
     // Grant Lambda invoke permissions for lobby system
     createLobbyFunction.grantInvoke(joinQueueFunction); // Allow join-queue to invoke create-lobby

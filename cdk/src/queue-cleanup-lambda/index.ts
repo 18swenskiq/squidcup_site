@@ -1,30 +1,10 @@
-import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda';
 import * as crypto from 'crypto';
-
-const lambdaClient = new LambdaClient({ region: process.env.REGION });
-
-// Function to call database service
-async function callDatabaseService(operation: string, params?: any[], data?: any): Promise<any> {
-  const payload = {
-    operation,
-    params,
-    data
-  };
-
-  const command = new InvokeCommand({
-    FunctionName: process.env.DATABASE_SERVICE_FUNCTION_NAME,
-    Payload: new TextEncoder().encode(JSON.stringify(payload)),
-  });
-
-  const response = await lambdaClient.send(command);
-  const result = JSON.parse(new TextDecoder().decode(response.Payload));
-
-  if (!result.success) {
-    throw new Error(result.error || 'Database operation failed');
-  }
-
-  return result.data;
-}
+import { 
+  getActiveQueuesForCleanup,
+  getQueuePlayers,
+  storeQueueHistoryEvent,
+  deleteQueue
+} from '@squidcup/shared-lambda-utils';
 
 export async function handler(event: any): Promise<any> {
   console.log('Queue cleanup handler started');
@@ -36,8 +16,8 @@ export async function handler(event: any): Promise<any> {
     
     console.log(`Checking for queues with no activity since ${cutoffTime}`);
     
-    // Get all active queues from database service
-    const activeQueues = await callDatabaseService('getActiveQueuesForCleanup');
+    // Get all active queues using shared utilities
+    const activeQueues = await getActiveQueuesForCleanup();
     
     if (!activeQueues || activeQueues.length === 0) {
       console.log('No active queues found');
@@ -52,8 +32,8 @@ export async function handler(event: any): Promise<any> {
     for (const queue of activeQueues) {
       const queueId = queue.id;
       
-      // Get queue players to check for recent activity
-      const players = await callDatabaseService('getQueuePlayers', [queueId]);
+      // Get queue players to check for recent activity using shared utilities
+      const players = await getQueuePlayers(queueId);
       
       // Determine the last activity time
       // This is either the queue start time or the most recent joiner time
@@ -76,8 +56,8 @@ export async function handler(event: any): Promise<any> {
       if (lastActivityTime < cutoffTime) {
         console.log(`Queue ${queueId} has been inactive for ${timeoutMinutes}+ minutes (last activity: ${lastActivityTime})`);
         
-        // Store timeout event for host
-        await callDatabaseService('storeQueueHistoryEvent', undefined, {
+        // Store timeout event for host using shared utilities
+        await storeQueueHistoryEvent({
           id: crypto.randomUUID(),
           queueId: queueId,
           playerSteamId: queue.host_steam_id,
@@ -91,10 +71,10 @@ export async function handler(event: any): Promise<any> {
           }
         });
 
-        // Store timeout events for all players (excluding host)
+        // Store timeout events for all players (excluding host) using shared utilities
         for (const player of players) {
           if (player.player_steam_id !== queue.host_steam_id) {
-            await callDatabaseService('storeQueueHistoryEvent', undefined, {
+            await storeQueueHistoryEvent({
               id: crypto.randomUUID(),
               queueId: queueId,
               playerSteamId: player.player_steam_id,
@@ -110,8 +90,8 @@ export async function handler(event: any): Promise<any> {
           }
         }
         
-        // Delete the expired queue (this will also cascade delete players)
-        await callDatabaseService('deleteQueue', [queueId]);
+        // Delete the expired queue using shared utilities (this will also cascade delete players)
+        await deleteQueue(queueId);
         
         expiredCount++;
         console.log(`Deleted inactive queue ${queueId} (${players.length + 1} players affected)`);
@@ -135,6 +115,3 @@ export async function handler(event: any): Promise<any> {
     throw error;
   }
 }
-
-// Export using CommonJS for maximum compatibility
-exports.handler = handler;

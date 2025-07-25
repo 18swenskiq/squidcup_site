@@ -8,9 +8,11 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {
-    "@aws-sdk/client-lambda": "^3.0.0"
+    "@squidcup/shared-lambda-utils": "file:../../../packages/shared-lambda-utils",
+    "@squidcup/types": "file:../../../packages/types-squidcup"
   },
   "devDependencies": {
+    "@aws-sdk/client-lambda": "^3.0.0",
     "typescript": "^4.0.0",
     "@types/aws-lambda": "^8.10.0",
     "@types/node": "^20.0.0"
