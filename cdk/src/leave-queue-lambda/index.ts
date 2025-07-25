@@ -1,63 +1,21 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
-import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda';
 import * as crypto from 'crypto';
-
-const lambdaClient = new LambdaClient({ region: process.env.REGION });
-
-interface QueueData {
-  id: string;
-  host_steam_id: string;
-  game_mode: string;
-  map_selection_mode: string;
-  server_id: string;
-  password?: string;
-  ranked: boolean;
-  start_time: string;
-  max_players: number;
-  current_players: number;
-  status: string;
-  players: Array<{
-    player_steam_id: string;
-    team?: number;
-    joined_at: string;
-  }>;
-  isHost?: boolean;
-  created_at: string;
-  updated_at: string;
-}
-
-// Function to call database service
-async function callDatabaseService(operation: string, params?: any[], data?: any): Promise<any> {
-  const payload = {
-    operation,
-    params,
-    data
-  };
-
-  const command = new InvokeCommand({
-    FunctionName: process.env.DATABASE_SERVICE_FUNCTION_NAME,
-    Payload: new TextEncoder().encode(JSON.stringify(payload)),
-  });
-
-  const response = await lambdaClient.send(command);
-  const result = JSON.parse(new TextDecoder().decode(response.Payload));
-
-  if (!result.success) {
-    throw new Error(result.error || 'Database operation failed');
-  }
-
-  return result.data;
-}
+import { 
+  getSession, 
+  getUserActiveQueue, 
+  storeQueueHistoryEvent, 
+  deleteQueue, 
+  removePlayerFromQueue, 
+  updateQueue,
+  createCorsHeaders,
+  QueueData
+} from '@squidcup/shared-lambda-utils';
 
 export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   console.log('Leave queue handler started');
   console.log('Event:', JSON.stringify(event, null, 2));
   
-  const corsHeaders = {
-    'Access-Control-Allow-Origin': 'https://squidcup.spkymnr.xyz',
-    'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token',
-    'Access-Control-Allow-Methods': 'POST,OPTIONS',
-  };
+  const corsHeaders = createCorsHeaders();
 
   try {
     // Handle preflight OPTIONS request
@@ -85,8 +43,8 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
     const sessionToken = authHeader.substring(7);
     console.log('Extracted session token:', sessionToken.substring(0, 10) + '...');
     
-    // Validate session using database service
-    const session = await callDatabaseService('getSession', [sessionToken]);
+    // Validate session using shared utilities
+    const session = await getSession(sessionToken);
     console.log('Session result:', session);
     
     if (!session) {
@@ -101,8 +59,8 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
     const userSteamId = session.steamId;
     console.log('User Steam ID:', userSteamId);
 
-    // Find the user's active queue using database service
-    const userQueue: QueueData = await callDatabaseService('getUserActiveQueue', [userSteamId]);
+    // Find the user's active queue using shared utilities
+    const userQueue = await getUserActiveQueue(userSteamId);
     if (!userQueue) {
       console.log('User is not in any queue');
       return {
@@ -122,7 +80,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
       
       // Store disband event for the host
       const hostEventId = crypto.randomUUID();
-      await callDatabaseService('storeQueueHistoryEvent', [], {
+      await storeQueueHistoryEvent({
         id: hostEventId,
         queueId: userQueue.id,
         playerSteamId: userSteamId,
@@ -139,7 +97,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
         for (const player of userQueue.players) {
           if (player.player_steam_id !== userSteamId) { // Don't duplicate for host
             const playerEventId = crypto.randomUUID();
-            await callDatabaseService('storeQueueHistoryEvent', [], {
+            await storeQueueHistoryEvent({
               id: playerEventId,
               queueId: userQueue.id,
               playerSteamId: player.player_steam_id,
@@ -154,8 +112,8 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
         }
       }
       
-      // Delete the entire queue using database service
-      await callDatabaseService('deleteQueue', [userQueue.id]);
+      // Delete the entire queue using shared utilities
+      await deleteQueue(userQueue.id);
 
       console.log('Queue disbanded successfully');
       return {
@@ -173,7 +131,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
       
       // Store leave event
       const eventId = crypto.randomUUID();
-      await callDatabaseService('storeQueueHistoryEvent', [], {
+      await storeQueueHistoryEvent({
         id: eventId,
         queueId: userQueue.id,
         playerSteamId: userSteamId,
@@ -185,12 +143,12 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
         }
       });
       
-      // Remove player from queue using database service
-      await callDatabaseService('removePlayerFromQueue', [userQueue.id, userSteamId]);
+      // Remove player from queue using shared utilities
+      await removePlayerFromQueue(userQueue.id, userSteamId);
 
       // Update queue current_players count
       const newPlayerCount = Math.max(0, (userQueue.current_players || 1) - 1);
-      await callDatabaseService('updateQueue', [userQueue.id], {
+      await updateQueue(userQueue.id, {
         currentPlayers: newPlayerCount
       });
 

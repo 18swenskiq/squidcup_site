@@ -1,41 +1,5 @@
-import { LambdaClient, InvokeCommand } from "@aws-sdk/client-lambda";
-
-// Initialize Lambda client
-const lambdaClient = new LambdaClient({ region: process.env.REGION });
-
-export interface DatabaseRequest {
-  operation: string;
-  data?: any;
-  params?: any[];
-}
-
-export interface DatabaseResponse {
-  success: boolean;
-  data?: any;
-  error?: string;
-}
-
-// Function to call database service
-async function callDatabaseService(request: DatabaseRequest): Promise<DatabaseResponse> {
-  try {
-    const command = new InvokeCommand({
-      FunctionName: process.env.DATABASE_SERVICE_FUNCTION_NAME,
-      Payload: JSON.stringify(request)
-    });
-
-    const response = await lambdaClient.send(command);
-    
-    if (!response.Payload) {
-      throw new Error('No response from database service');
-    }
-
-    const responseData = JSON.parse(Buffer.from(response.Payload).toString());
-    return responseData;
-  } catch (error) {
-    console.error('Error calling database service:', error);
-    throw error;
-  }
-}
+import { getSession, getUser, deleteServer } from '@squidcup/shared-lambda-utils';
+import { Session, User } from '@squidcup/types-squidcup';
 
 // Function to extract numeric Steam ID from OpenID URL
 function extractSteamIdFromOpenId(steamId: string): string {
@@ -48,8 +12,14 @@ function extractSteamIdFromOpenId(steamId: string): string {
 // Function to check if user is admin
 async function isAdmin(steamId: string): Promise<boolean> {
   const numericSteamId = extractSteamIdFromOpenId(steamId);
-  const adminSteamId = '76561198041569692';
-  return numericSteamId === adminSteamId;
+  const user = await getUser(numericSteamId);
+  
+  if (!user) {
+    return false;
+  }
+  
+  // Handle MySQL boolean compatibility (could be 0/1 or true/false)
+  return user.is_admin === true || user.is_admin === 1;
 }
 
 export async function handler(event: any): Promise<any> {
@@ -85,13 +55,10 @@ export async function handler(event: any): Promise<any> {
     const sessionToken = authHeader.substring(7);
     console.log('Extracted session token:', sessionToken);
     
-    // Get session from database service
-    const sessionResponse = await callDatabaseService({
-      operation: 'getSession',
-      params: [sessionToken]
-    });
+    // Get session from database
+    const session = await getSession(sessionToken);
 
-    if (!sessionResponse.success || !sessionResponse.data) {
+    if (!session) {
       return {
         statusCode: 401,
         headers: {
@@ -101,7 +68,6 @@ export async function handler(event: any): Promise<any> {
       };
     }
 
-    const session = sessionResponse.data;
     console.log('Session found:', session);
 
     // Check if user is admin
@@ -116,15 +82,13 @@ export async function handler(event: any): Promise<any> {
       };
     }
 
-    // Check if server exists and delete it using database service
-    const deleteServerResponse = await callDatabaseService({
-      operation: 'deleteServer',
-      params: [serverId]
-    });
-
-    if (!deleteServerResponse.success) {
+    // Delete the server
+    try {
+      await deleteServer(serverId);
+      console.log('Server deleted successfully:', serverId);
+    } catch (error: any) {
       // Check if it's a server not found error
-      if (deleteServerResponse.error?.includes('not found')) {
+      if (error.message?.includes('not found')) {
         return {
           statusCode: 404,
           headers: {
@@ -134,10 +98,8 @@ export async function handler(event: any): Promise<any> {
         };
       }
       
-      throw new Error(deleteServerResponse.error || 'Failed to delete server');
+      throw error;
     }
-
-    console.log('Server deleted successfully:', serverId);
 
     return {
       statusCode: 200,

@@ -1,29 +1,12 @@
-import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda';
 import * as crypto from 'crypto';
-
-const lambdaClient = new LambdaClient({ region: process.env.REGION });
-
-async function callDatabaseService(operation: string, params?: any[], data?: any): Promise<any> {
-  const payload = {
-    operation,
-    params,
-    data
-  };
-
-  const command = new InvokeCommand({
-    FunctionName: process.env.DATABASE_SERVICE_FUNCTION_NAME,
-    Payload: new TextEncoder().encode(JSON.stringify(payload)),
-  });
-
-  const response = await lambdaClient.send(command);
-  const result = JSON.parse(new TextDecoder().decode(response.Payload));
-  
-  if (result.errorMessage) {
-    throw new Error(result.errorMessage);
-  }
-  
-  return result;
-}
+import { 
+  getSession,
+  createQueue,
+  storeQueueHistoryEvent,
+  createCorsHeaders,
+  getMaxPlayersForGamemode,
+  extractSteamIdFromOpenId
+} from '@squidcup/shared-lambda-utils';
 
 export interface ActiveQueue {
   id: string;
@@ -42,53 +25,29 @@ export interface ActiveQueue {
   updatedAt: string;
 }
 
-function getMaxPlayersForGamemode(gameMode: string): number {
-  switch (gameMode) {
-    case '5v5':
-      return 10;
-    case 'wingman':
-      return 4;
-    case '3v3':
-      return 6;
-    case '1v1':
-      return 2;
-    default:
-      return 10;
-  }
-}
-
-// Function to extract numeric Steam ID from OpenID URL
-function extractSteamIdFromOpenId(steamId: string): string {
-  // If it's already a numeric Steam ID, return as is
-  if (/^\d+$/.test(steamId)) {
-    return steamId;
-  }
-  
-  // Extract from OpenID URL format: https://steamcommunity.com/openid/id/76561198041569692
-  const match = steamId.match(/\/id\/(\d+)$/);
-  if (match && match[1]) {
-    return match[1];
-  }
-  
-  // If no match found, return the original value
-  console.warn('Could not extract Steam ID from:', steamId);
-  return steamId;
-}
-
 export async function handler(event: any): Promise<any> {
   console.log('Start queue event received');
   console.log('Headers:', JSON.stringify(event.headers, null, 2));
   console.log('Body:', event.body);
 
+  const corsHeaders = createCorsHeaders();
+
   try {
+    // Handle preflight OPTIONS request
+    if (event.httpMethod === 'OPTIONS') {
+      return {
+        statusCode: 200,
+        headers: corsHeaders,
+        body: '',
+      };
+    }
+
     // Get session token from Authorization header
     const authHeader = event.headers.authorization || event.headers.Authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return {
         statusCode: 401,
-        headers: {
-          'Access-Control-Allow-Origin': 'https://squidcup.spkymnr.xyz',
-        },
+        headers: corsHeaders,
         body: JSON.stringify({ error: 'Missing or invalid authorization header' }),
       };
     }
@@ -96,22 +55,20 @@ export async function handler(event: any): Promise<any> {
     const sessionToken = authHeader.substring(7);
     console.log('Extracted session token:', sessionToken);
     
-    // Validate session via database service
-    const sessionResult = await callDatabaseService('getSession', [sessionToken]);
-    console.log('Session result:', sessionResult);
+    // Validate session using shared utilities
+    const session = await getSession(sessionToken);
+    console.log('Session result:', session);
     
-    if (!sessionResult.success || !sessionResult.data || !sessionResult.data.steamId) {
+    if (!session) {
       return {
         statusCode: 401,
-        headers: {
-          'Access-Control-Allow-Origin': 'https://squidcup.spkymnr.xyz',
-        },
+        headers: corsHeaders,
         body: JSON.stringify({ error: 'Invalid or expired session' }),
       };
     }
 
     // Extract Steam ID from session
-    const hostSteamId = extractSteamIdFromOpenId(sessionResult.data.steamId);
+    const hostSteamId = extractSteamIdFromOpenId(session.steamId);
     console.log('Host Steam ID:', hostSteamId);
 
     // Parse request body
@@ -122,9 +79,7 @@ export async function handler(event: any): Promise<any> {
     if (!gameMode || !mapSelectionMode || !server) {
       return {
         statusCode: 400,
-        headers: {
-          'Access-Control-Allow-Origin': 'https://squidcup.spkymnr.xyz',
-        },
+        headers: corsHeaders,
         body: JSON.stringify({ error: 'Missing required fields: gameMode, mapSelectionMode, server' }),
       };
     }
@@ -148,8 +103,8 @@ export async function handler(event: any): Promise<any> {
       updatedAt: now
     };
 
-    // Create queue via database service
-    const queueResult = await callDatabaseService('createQueue', undefined, {
+    // Create queue using shared utilities
+    await createQueue({
       id: queueId,
       gameMode: gameMode,
       mapSelectionMode: mapSelectionMode,
@@ -161,42 +116,34 @@ export async function handler(event: any): Promise<any> {
       maxPlayers: getMaxPlayersForGamemode(gameMode)
     });
 
-    // Store queue history event
-    await callDatabaseService('storeQueueHistoryEvent', undefined, {
+    // Store queue history event using shared utilities
+    await storeQueueHistoryEvent({
       id: crypto.randomUUID(),
       queueId: queueId,
       playerSteamId: hostSteamId,
-      eventType: 'start',
+      eventType: 'join', // Host joining their own queue
       eventData: {
         gameMode,
         mapSelectionMode,
         serverId: server,
         ranked,
+        isHost: true
       }
     });
 
-    console.log('Queue created successfully:', queueResult);
+    console.log('Queue created successfully:', activeQueue);
 
     return {
       statusCode: 201,
-      headers: {
-        'Access-Control-Allow-Origin': 'https://squidcup.spkymnr.xyz',
-        'Access-Control-Allow-Headers': 'Content-Type,Authorization',
-        'Access-Control-Allow-Methods': 'POST,OPTIONS',
-      },
-      body: JSON.stringify(queueResult.queue || activeQueue),
+      headers: corsHeaders,
+      body: JSON.stringify(activeQueue),
     };
   } catch (error) {
     console.error('Error starting queue:', error);
     return {
       statusCode: 500,
-      headers: {
-        'Access-Control-Allow-Origin': 'https://squidcup.spkymnr.xyz',
-      },
+      headers: corsHeaders,
       body: JSON.stringify({ error: 'Failed to start queue' }),
     };
   }
 }
-
-// Also export using CommonJS for maximum compatibility
-exports.handler = handler;

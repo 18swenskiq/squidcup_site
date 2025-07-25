@@ -1,55 +1,5 @@
-import { LambdaClient, InvokeCommand } from "@aws-sdk/client-lambda";
+import { getSession, getUser, addServer, GameServer, User, Session } from '@squidcup/shared-lambda-utils';
 import * as crypto from 'crypto';
-
-// Initialize Lambda client
-const lambdaClient = new LambdaClient({ region: process.env.REGION });
-
-export interface GameServer {
-  id: string;
-  ip: string;
-  port: number;
-  location: string;
-  rconPassword: string;
-  defaultPassword: string;
-  maxPlayers: number;
-  nickname: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface DatabaseRequest {
-  operation: string;
-  data?: any;
-  params?: any[];
-}
-
-export interface DatabaseResponse {
-  success: boolean;
-  data?: any;
-  error?: string;
-}
-
-// Function to call database service
-async function callDatabaseService(request: DatabaseRequest): Promise<DatabaseResponse> {
-  try {
-    const command = new InvokeCommand({
-      FunctionName: process.env.DATABASE_SERVICE_FUNCTION_NAME,
-      Payload: JSON.stringify(request)
-    });
-
-    const response = await lambdaClient.send(command);
-    
-    if (!response.Payload) {
-      throw new Error('No response from database service');
-    }
-
-    const responseData = JSON.parse(Buffer.from(response.Payload).toString());
-    return responseData;
-  } catch (error) {
-    console.error('Error calling database service:', error);
-    throw error;
-  }
-}
 
 // Function to extract numeric Steam ID from OpenID URL
 function extractSteamIdFromOpenId(steamId: string): string {
@@ -74,22 +24,14 @@ async function isAdmin(steamId: string): Promise<boolean> {
   try {
     const numericSteamId = extractSteamIdFromOpenId(steamId);
     
-    const response = await callDatabaseService({
-      operation: 'getUser',
-      params: [numericSteamId]
-    });
+    const user = await getUser(numericSteamId);
 
-    if (!response.success) {
-      // Fallback to hardcoded admin check for initial setup
-      return numericSteamId === '76561198041569692';
-    }
-
-    if (!response.data) {
+    if (!user) {
       // User doesn't exist, fallback to hardcoded admin check
       return numericSteamId === '76561198041569692';
     }
 
-    return response.data.is_admin === 1;
+    return user.is_admin === true || user.is_admin === 1;
   } catch (error) {
     console.error('Error checking admin status:', error);
     // Fallback to hardcoded admin check
@@ -120,12 +62,9 @@ export async function handler(event: any): Promise<any> {
     console.log('Extracted session token:', sessionToken);
     
     // Get session from database service
-    const sessionResponse = await callDatabaseService({
-      operation: 'getSession',
-      params: [sessionToken]
-    });
+    const session = await getSession(sessionToken);
 
-    if (!sessionResponse.success || !sessionResponse.data) {
+    if (!session) {
       return {
         statusCode: 401,
         headers: {
@@ -135,7 +74,6 @@ export async function handler(event: any): Promise<any> {
       };
     }
 
-    const session = sessionResponse.data;
     console.log('Session result:', session);
     
     if (!(await isAdmin(session.steamId))) {
@@ -149,15 +87,31 @@ export async function handler(event: any): Promise<any> {
     }
 
     const serverData = JSON.parse(event.body);
-    const { ip, port, location, rconPassword, defaultPassword, maxPlayers, nickname } = serverData;
+    const { 
+      ip, 
+      port, 
+      location, 
+      rconPassword, 
+      rcon_password = rconPassword, // Support both camelCase and snake_case
+      defaultPassword, 
+      default_password = defaultPassword, // Support both camelCase and snake_case
+      maxPlayers, 
+      max_players = maxPlayers, // Support both camelCase and snake_case
+      nickname 
+    } = serverData;
     
-    if (!ip || !port || !location || !rconPassword || !maxPlayers || !nickname) {
+    // Use the resolved values (prefer snake_case from database schema)
+    const finalRconPassword = rcon_password || rconPassword;
+    const finalDefaultPassword = default_password || defaultPassword;
+    const finalMaxPlayers = max_players || maxPlayers;
+    
+    if (!ip || !port || !location || !finalRconPassword || !finalMaxPlayers || !nickname) {
       return {
         statusCode: 400,
         headers: {
           'Access-Control-Allow-Origin': 'https://squidcup.spkymnr.xyz',
         },
-        body: JSON.stringify({ error: 'Missing required fields: ip, port, location, rconPassword, maxPlayers, nickname' }),
+        body: JSON.stringify({ error: 'Missing required fields: ip, port, location, rcon_password, max_players, nickname' }),
       };
     }
 
@@ -169,23 +123,21 @@ export async function handler(event: any): Promise<any> {
       ip,
       port: Number(port),
       location,
-      rconPassword,
-      defaultPassword: defaultPassword || '',
-      maxPlayers: Number(maxPlayers),
+      rcon_password: finalRconPassword,
+      default_password: finalDefaultPassword || '',
+      max_players: Number(finalMaxPlayers),
       nickname,
-      createdAt: now,
-      updatedAt: now
+      created_at: now,
+      updated_at: now
     };
 
     // Add server using database service
-    const addServerResponse = await callDatabaseService({
-      operation: 'addServer',
-      data: server
-    });
-
-    if (!addServerResponse.success) {
+    try {
+      await addServer(server);
+      console.log('Server added successfully:', server);
+    } catch (error: any) {
       // Check if it's a duplicate entry error
-      if (addServerResponse.error?.includes('Duplicate entry') || addServerResponse.error?.includes('unique_ip_port')) {
+      if (error.message?.includes('Duplicate entry') || error.code === 'ER_DUP_ENTRY') {
         return {
           statusCode: 409,
           headers: {
@@ -195,10 +147,8 @@ export async function handler(event: any): Promise<any> {
         };
       }
       
-      throw new Error(addServerResponse.error || 'Failed to add server');
+      throw error;
     }
-
-    console.log('Server added successfully:', server);
 
     return {
       statusCode: 201,

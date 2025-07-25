@@ -7,7 +7,10 @@
     "build": "tsc",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "dependencies": {},
+  "dependencies": {
+    "@squidcup/shared-lambda-utils": "file:../../../packages/shared-lambda-utils",
+    "@squidcup/types": "file:../../../packages/types-squidcup"
+  },
   "devDependencies": {
     "@aws-sdk/client-lambda": "^3.0.0",
     "@types/aws-lambda": "^8.10.0",

@@ -32,19 +32,6 @@ export class ApiStack extends cdk.Stack {
       }
     });
 
-    // Database service lambda - centralized MySQL operations
-    const databaseServiceFunction = new lambda.Function(this, "database-service-function", {
-      runtime: this.RUNTIME,
-      memorySize: this.MEMORY_SIZE,
-      timeout: cdk.Duration.seconds(30), // Longer timeout for database operations
-      handler: 'index.handler',
-      code: lambda.Code.fromAsset(path.join(__dirname, '/../src/database-service-lambda')),
-      logRetention: this.LOG_RETENTION,
-      environment: {
-        REGION: this.REGION,
-      }
-    });
-
     const getUserProfileFunction = new lambda.Function(this, "get-user-profile-function", {
       runtime: this.RUNTIME,
       memorySize: this.MEMORY_SIZE,
@@ -54,7 +41,6 @@ export class ApiStack extends cdk.Stack {
       logRetention: this.LOG_RETENTION,
       environment: {
         REGION: this.REGION,
-        DATABASE_SERVICE_FUNCTION_NAME: databaseServiceFunction.functionName,
       }
     });
 
@@ -67,7 +53,6 @@ export class ApiStack extends cdk.Stack {
       logRetention: this.LOG_RETENTION,
       environment: {
         REGION: this.REGION,
-        DATABASE_SERVICE_FUNCTION_NAME: databaseServiceFunction.functionName,
       }
     });
 
@@ -80,7 +65,6 @@ export class ApiStack extends cdk.Stack {
       logRetention: this.LOG_RETENTION,
       environment: {
         REGION: this.REGION,
-        DATABASE_SERVICE_FUNCTION_NAME: databaseServiceFunction.functionName,
       }
     });
 
@@ -93,7 +77,6 @@ export class ApiStack extends cdk.Stack {
       logRetention: this.LOG_RETENTION,
       environment: {
         REGION: this.REGION,
-        DATABASE_SERVICE_FUNCTION_NAME: databaseServiceFunction.functionName,
       }
     });
 
@@ -106,7 +89,6 @@ export class ApiStack extends cdk.Stack {
       logRetention: this.LOG_RETENTION,
       environment: {
         REGION: this.REGION,
-        DATABASE_SERVICE_FUNCTION_NAME: databaseServiceFunction.functionName,
       }
     });
 
@@ -119,7 +101,6 @@ export class ApiStack extends cdk.Stack {
       logRetention: this.LOG_RETENTION,
       environment: {
         REGION: this.REGION,
-        DATABASE_SERVICE_FUNCTION_NAME: databaseServiceFunction.functionName,
       }
     });
 
@@ -132,7 +113,6 @@ export class ApiStack extends cdk.Stack {
       logRetention: this.LOG_RETENTION,
       environment: {
         REGION: this.REGION,
-        DATABASE_SERVICE_FUNCTION_NAME: databaseServiceFunction.functionName,
       }
     });
 
@@ -145,7 +125,6 @@ export class ApiStack extends cdk.Stack {
       logRetention: this.LOG_RETENTION,
       environment: {
         REGION: this.REGION,
-        DATABASE_SERVICE_FUNCTION_NAME: databaseServiceFunction.functionName,
       }
     });
 
@@ -158,7 +137,6 @@ export class ApiStack extends cdk.Stack {
       logRetention: this.LOG_RETENTION,
       environment: {
         REGION: this.REGION,
-        DATABASE_SERVICE_FUNCTION_NAME: databaseServiceFunction.functionName,
       }
     });
 
@@ -171,7 +149,6 @@ export class ApiStack extends cdk.Stack {
       logRetention: this.LOG_RETENTION,
       environment: {
         REGION: this.REGION,
-        DATABASE_SERVICE_FUNCTION_NAME: databaseServiceFunction.functionName,
       }
     });
 
@@ -184,7 +161,6 @@ export class ApiStack extends cdk.Stack {
       logRetention: this.LOG_RETENTION,
       environment: {
         REGION: this.REGION,
-        DATABASE_SERVICE_FUNCTION_NAME: databaseServiceFunction.functionName,
       }
     });
 
@@ -197,7 +173,6 @@ export class ApiStack extends cdk.Stack {
       logRetention: this.LOG_RETENTION,
       environment: {
         REGION: this.REGION,
-        DATABASE_SERVICE_FUNCTION_NAME: databaseServiceFunction.functionName,
       }
     });
 
@@ -210,7 +185,6 @@ export class ApiStack extends cdk.Stack {
       logRetention: this.LOG_RETENTION,
       environment: {
         REGION: this.REGION,
-        DATABASE_SERVICE_FUNCTION_NAME: databaseServiceFunction.functionName,
         QUEUE_TIMEOUT_MINUTES: '10', // 10 minutes of inactivity before cleanup
       }
     });
@@ -224,7 +198,6 @@ export class ApiStack extends cdk.Stack {
       logRetention: this.LOG_RETENTION,
       environment: {
         REGION: this.REGION,
-        DATABASE_SERVICE_FUNCTION_NAME: databaseServiceFunction.functionName,
       }
     });
 
@@ -237,7 +210,6 @@ export class ApiStack extends cdk.Stack {
       logRetention: this.LOG_RETENTION,
       environment: {
         REGION: this.REGION,
-        DATABASE_SERVICE_FUNCTION_NAME: databaseServiceFunction.functionName,
       }
     });
 
@@ -250,7 +222,6 @@ export class ApiStack extends cdk.Stack {
       logRetention: this.LOG_RETENTION,
       environment: {
         REGION: this.REGION,
-        DATABASE_SERVICE_FUNCTION_NAME: databaseServiceFunction.functionName,
       }
     });
 
@@ -261,42 +232,30 @@ export class ApiStack extends cdk.Stack {
     });
 
     // Add the SSM policy to all Lambda functions
-    databaseServiceFunction.addToRolePolicy(ssmPolicy);
     addServerFunction.addToRolePolicy(ssmPolicy);
     deleteServerFunction.addToRolePolicy(ssmPolicy);
     getUserQueueFunction.addToRolePolicy(ssmPolicy);
     createLobbyFunction.addToRolePolicy(ssmPolicy);
-
-    // Grant database service permissions to Lambda functions
-    databaseServiceFunction.grantInvoke(getUserProfileFunction);
-    databaseServiceFunction.grantInvoke(getUserQueueFunction);
-    databaseServiceFunction.grantInvoke(queueCleanupFunction);
+    getQueueHistoryFunction.addToRolePolicy(ssmPolicy);
+    getServersFunction.addToRolePolicy(ssmPolicy);
+    getUserProfileFunction.addToRolePolicy(ssmPolicy);
+    joinQueueFunction.addToRolePolicy(ssmPolicy);
+    leaveLobbyFunction.addToRolePolicy(ssmPolicy);
+    leaveQueueFunction.addToRolePolicy(ssmPolicy);
+    queueCleanupFunction.addToRolePolicy(ssmPolicy);
+    selectMapFunction.addToRolePolicy(ssmPolicy);
+    startQueueFunction.addToRolePolicy(ssmPolicy);
+    steamLoginFunction.addToRolePolicy(ssmPolicy);
 
     // Grant Lambda invoke permissions for lobby system
     createLobbyFunction.grantInvoke(joinQueueFunction); // Allow join-queue to invoke create-lobby
     
     // Grant database service invoke permissions to all lambdas that need it
-    databaseServiceFunction.grantInvoke(addServerFunction);
-    databaseServiceFunction.grantInvoke(createLobbyFunction);
-    databaseServiceFunction.grantInvoke(deleteServerFunction);
-    databaseServiceFunction.grantInvoke(getActiveQueuesFunction);
-    databaseServiceFunction.grantInvoke(getAllQueuesFunction);
-    databaseServiceFunction.grantInvoke(getMapsFunction);
-    databaseServiceFunction.grantInvoke(getQueueHistoryFunction);
-    databaseServiceFunction.grantInvoke(getServersFunction);
-    databaseServiceFunction.grantInvoke(joinQueueFunction);
-    databaseServiceFunction.grantInvoke(leaveLobbyFunction);
-    databaseServiceFunction.grantInvoke(leaveQueueFunction);
-    databaseServiceFunction.grantInvoke(selectMapFunction);
-    databaseServiceFunction.grantInvoke(startQueueFunction);
-    databaseServiceFunction.grantInvoke(steamLoginFunction);
+    // All lambdas now use shared-lambda-utils directly
     // Note: We'll add more functions here as we convert them
 
     // Add environment variable to join queue function for create lobby function name
     joinQueueFunction.addEnvironment('CREATE_LOBBY_FUNCTION_NAME', createLobbyFunction.functionName);
-    
-    // Add database service function name to steam login function
-    steamLoginFunction.addEnvironment('DATABASE_SERVICE_FUNCTION_NAME', databaseServiceFunction.functionName);
 
     // Create CloudWatch log group for API Gateway
     const apiLogGroup = new logs.LogGroup(this, 'ApiGatewayLogGroup', {

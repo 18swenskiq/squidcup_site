@@ -1,16 +1,5 @@
-import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda';
-
-// Initialize the Lambda client for database service calls
-const lambdaClient = new LambdaClient({ region: process.env.REGION });
-
-type GameMode = "5v5" | "wingman" | "3v3" | "1v1";
-
-type MapResponseObj = {
-  "name": string,
-  "id": string,
-  "thumbnailUrl": string,
-  "gameModes": GameMode[]
-}
+import { getSsmParameter } from '@squidcup/shared-lambda-utils';
+import { GameMode, MapResponseObj } from '@squidcup/types-squidcup';
 
 const steamCollectionIds: {"gameMode": GameMode, "id": string}[] = [
   { gameMode: "5v5", id: '2753947063'},
@@ -18,39 +7,6 @@ const steamCollectionIds: {"gameMode": GameMode, "id": string}[] = [
   { gameMode: "3v3", id: "2752973478"},
   { gameMode: "1v1", id: "3517834095"} // Use 3529142840 when approved
 ]
-
-// Function to call the database service
-async function callDatabaseService(operation: string, params?: any[], data?: any): Promise<any> {
-  const payload = {
-    operation,
-    params,
-    data
-  };
-
-  const command = new InvokeCommand({
-    FunctionName: process.env.DATABASE_SERVICE_FUNCTION_NAME!,
-    Payload: JSON.stringify(payload),
-  });
-
-  const response = await lambdaClient.send(command);
-  const result = JSON.parse(new TextDecoder().decode(response.Payload));
-  
-  if (!result.success) {
-    throw new Error(result.error || 'Database service call failed');
-  }
-  
-  return result.data;
-}
-
-// Function to get parameter from SSM Parameter Store via database service
-async function getParameterValue(parameterName: string): Promise<string> {
-  try {
-    return await callDatabaseService('getSsmParameter', undefined, { parameterName });
-  } catch (error) {
-    console.error(`Error getting parameter ${parameterName}:`, error);
-    throw error;
-  }
-}
 
 async function getMapsFromSteamAPI(steamApiKey: string, gameModes: GameMode[]): Promise<MapResponseObj[]>
 {
@@ -167,7 +123,7 @@ export async function handler(event: any): Promise<any> {
   // Get Steam API key from Parameter Store
   let steamApiKey = '';
   try {
-    steamApiKey = await getParameterValue('/unencrypted/SteamApiKey');
+    steamApiKey = await getSsmParameter('/unencrypted/SteamApiKey');
     console.log('Successfully retrieved Steam API key');
   } catch (error) {
     console.error('Failed to retrieve Steam API key:', JSON.stringify(error, null, 2));

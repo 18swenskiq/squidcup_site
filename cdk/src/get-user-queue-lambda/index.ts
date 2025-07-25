@@ -1,166 +1,12 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
-import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda';
-
-const lambdaClient = new LambdaClient({ 
-  region: process.env.REGION,
-  maxAttempts: 3, // Retry failed requests
-});
-
-interface QueueData {
-  id: string;
-  host_steam_id: string;
-  game_mode: string;
-  map_selection_mode: string;
-  server_id: string;
-  password?: string;
-  ranked: boolean;
-  start_time: string;
-  max_players: number;
-  current_players: number;
-  status: string;
-  players: Array<{
-    player_steam_id: string;
-    team?: number;
-    joined_at: string;
-  }>;
-  isHost?: boolean;
-  created_at: string;
-  updated_at: string;
-}
-
-interface LobbyData {
-  id: string;
-  host_steam_id: string;
-  game_mode: string;
-  map_selection_mode: string;
-  server_id: string;
-  password?: string;
-  ranked: boolean;
-  status: string;
-  players: Array<{
-    player_steam_id: string;
-    team?: number;
-    joined_at: string;
-  }>;
-  isHost?: boolean;
-  created_at: string;
-  updated_at: string;
-}
-
-// Function to call database service with timeout protection
-async function callDatabaseService(operation: string, params?: any[], data?: any): Promise<any> {
-  const startTime = Date.now();
-  console.log(`[DB Service] Starting ${operation} operation with params:`, params?.length || 0, 'data keys:', data ? Object.keys(data).length : 0);
-  
-  const payload = {
-    operation,
-    params,
-    data
-  };
-
-  try {
-    const command = new InvokeCommand({
-      FunctionName: process.env.DATABASE_SERVICE_FUNCTION_NAME,
-      Payload: new TextEncoder().encode(JSON.stringify(payload)),
-    });
-
-    // Add timeout protection (8 seconds to leave buffer for overall 10s lambda timeout)
-    const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error(`Database operation ${operation} timed out after 8000ms`)), 8000);
-    });
-
-    const lambdaInvokeStart = Date.now();
-    const response = await Promise.race([
-      lambdaClient.send(command),
-      timeoutPromise
-    ]) as any;
-    const lambdaInvokeTime = Date.now() - lambdaInvokeStart;
-    console.log(`[DB Service] Lambda invocation for ${operation} took ${lambdaInvokeTime}ms`);
-    
-    const parseStart = Date.now();
-    const result = JSON.parse(new TextDecoder().decode(response.Payload));
-    const parseTime = Date.now() - parseStart;
-    console.log(`[DB Service] Response parsing for ${operation} took ${parseTime}ms`);
-
-    if (!result.success) {
-      const totalTime = Date.now() - startTime;
-      console.error(`[DB Service] ${operation} failed after ${totalTime}ms:`, result.error);
-      throw new Error(result.error || 'Database operation failed');
-    }
-
-    const totalTime = Date.now() - startTime;
-    console.log(`[DB Service] ${operation} completed successfully in ${totalTime}ms, returned ${Array.isArray(result.data) ? result.data.length : typeof result.data} items`);
-    
-    return result.data;
-    
-  } catch (error) {
-    const totalTime = Date.now() - startTime;
-    console.error(`[DB Service] ${operation} failed after ${totalTime}ms:`, error);
-    throw error;
-  }
-}
-
-// Function to get player names by Steam IDs
-async function getPlayerNames(steamIds: string[]): Promise<Map<string, string>> {
-  const startTime = Date.now();
-  console.log(`[Player Names] Starting lookup for ${steamIds.length} Steam IDs:`, steamIds);
-  
-  const playerNames = new Map<string, string>();
-  
-  if (steamIds.length === 0) {
-    console.log('[Player Names] No Steam IDs provided, returning empty map');
-    return playerNames;
-  }
-
-  try {
-    const dbCallStart = Date.now();
-    const users = await callDatabaseService('getUsersBySteamIds', [steamIds]);
-    const dbCallTime = Date.now() - dbCallStart;
-    console.log(`[Player Names] Database call completed in ${dbCallTime}ms, found ${users.length} users`);
-    
-    const processingStart = Date.now();
-    for (const user of users) {
-      playerNames.set(user.steam_id, user.username || `Player ${user.steam_id.slice(-4)}`);
-    }
-
-    // For any Steam IDs that weren't found in the database, use a fallback name
-    for (const steamId of steamIds) {
-      if (!playerNames.has(steamId)) {
-        playerNames.set(steamId, `Player ${steamId.slice(-4)}`);
-      }
-    }
-    const processingTime = Date.now() - processingStart;
-    console.log(`[Player Names] Name processing completed in ${processingTime}ms`);
-
-    const totalTime = Date.now() - startTime;
-    console.log(`[Player Names] Total lookup completed in ${totalTime}ms, resolved ${playerNames.size} names`);
-    console.log('[Player Names] Retrieved player names:', Object.fromEntries(playerNames));
-    return playerNames;
-    
-  } catch (error) {
-    const totalTime = Date.now() - startTime;
-    console.error(`[Player Names] Error after ${totalTime}ms:`, error);
-    
-    // Fallback: create names for all Steam IDs
-    for (const steamId of steamIds) {
-      playerNames.set(steamId, `Player ${steamId.slice(-4)}`);
-    }
-    
-    console.log(`[Player Names] Using fallback names for ${playerNames.size} Steam IDs`);
-    return playerNames;
-  }
-}
+import { getUserCompleteStatus, createCorsHeaders } from '@squidcup/shared-lambda-utils';
 
 export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   const startTime = Date.now();
   console.log('Get user queue handler started at:', new Date().toISOString());
   console.log('Event:', JSON.stringify(event, null, 2));
   
-  const corsHeaders = {
-    'Access-Control-Allow-Origin': 'https://squidcup.spkymnr.xyz',
-    'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token',
-    'Access-Control-Allow-Methods': 'GET,OPTIONS',
-  };
+  const corsHeaders = createCorsHeaders();
 
   try {
     // Handle preflight OPTIONS request
@@ -196,7 +42,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
     const statusCheckStart = Date.now();
     console.log(`Starting consolidated status check for token: ${sessionToken.substring(0, 8)}...`);
     
-    const userStatus = await callDatabaseService('getUserCompleteStatus', undefined, { sessionToken });
+    const userStatus = await getUserCompleteStatus(sessionToken);
     
     const statusCheckTime = Date.now() - statusCheckStart;
     console.log(`Consolidated status check completed in ${statusCheckTime}ms`);
@@ -242,10 +88,10 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
             hostSteamId: lobby.host_steam_id,
             hostName: lobby.playerNames[lobby.host_steam_id] || `Player ${lobby.host_steam_id.slice(-4)}`,
             gameMode: lobby.game_mode,
-            mapSelectionMode: lobby.map_selection_mode,
+            mapSelectionMode: 'Host Pick', // Default since lobbies don't store this
             serverId: lobby.server_id,
-            hasPassword: !!lobby.password,
-            ranked: !!lobby.ranked,
+            hasPassword: false, // Lobbies don't have passwords
+            ranked: false, // Default for lobbies
             players: enrichedPlayers,
             createdAt: lobby.created_at,
             updatedAt: lobby.updated_at,

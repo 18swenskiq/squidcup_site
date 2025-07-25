@@ -11,7 +11,7 @@ export interface QueueHistoryEntry {
   ranked: boolean;
   startTime: string;
   endTime: string;
-  status: 'completed' | 'cancelled' | 'disbanded' | 'timeout' | 'error';
+  status: 'completed' | 'cancelled' | 'disbanded' | 'timeout' | 'error' | 'active';
   statusDescription: string;
   wasHost: boolean;
   finalPlayerCount: number;

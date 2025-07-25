@@ -1,10 +1,38 @@
-import { SSMClient, GetParameterCommand } from "@aws-sdk/client-ssm";
 import * as mysql from 'mysql2/promise';
+import { SSMClient, GetParameterCommand } from '@aws-sdk/client-ssm';
+import { 
+  User, 
+  Session, 
+  GameServer, 
+  ActiveQueueWithDetails,
+  DatabaseQueue,
+  DatabaseLobby,
+  QueuePlayerRecord,
+  LobbyPlayerRecord,
+  QueueHistoryRecord,
+  LobbyHistoryRecord,
+  EnrichedQueueWithPlayers,
+  EnrichedLobbyWithPlayers,
+  UserCompleteStatus,
+  UserWithSteamData,
+  QueueCleanupRecord,
+  CreateQueueInput,
+  UpdateQueueInput,
+  CreateLobbyInput,
+  UpdateLobbyInput,
+  AddPlayerToQueueInput,
+  UpdateServerInput,
+  UpsertUserInput,
+  QueueHistoryEventInput,
+  LobbyHistoryEventInput,
+  AddLobbyPlayerInput
+} from '@squidcup/types';
 
 // Initialize SSM client
-const ssmClient = new SSMClient({ region: process.env.REGION });
+const ssmClient = new SSMClient({ region: process.env.AWS_REGION || 'us-east-1' });
 
-export interface DatabaseConfig {
+// Database configuration interface
+interface DatabaseConfig {
   host: string;
   port: number;
   user: string;
@@ -13,29 +41,12 @@ export interface DatabaseConfig {
   caCert: string;
 }
 
-export interface DatabaseRequest {
-  operation: string;
-  table?: string;
-  data?: any;
-  query?: string;
-  params?: any[];
-  conditions?: any;
-}
-
-export interface DatabaseResponse {
-  success: boolean;
-  data?: any;
-  error?: string;
-  insertId?: number;
-  affectedRows?: number;
-}
-
-// Cache for database configuration to avoid repeated SSM calls
-// Uses Promise-based caching to prevent race conditions in concurrent Lambda executions
+// Cache for database configuration and connection promise
 let cachedConfig: DatabaseConfig | null = null;
 let configPromise: Promise<DatabaseConfig> | null = null;
+let cachedConnection: mysql.Connection | null = null;
 
-// Function to get parameter from SSM Parameter Store
+// Function to get a parameter from SSM Parameter Store
 async function getParameterValue(parameterName: string): Promise<string> {
   try {
     const command = new GetParameterCommand({
@@ -121,8 +132,25 @@ async function createConnection(): Promise<mysql.Connection> {
   };
   
   const connection = await mysql.createConnection(connectionConfig);
-
   return connection;
+}
+
+// Function to get or create reusable database connection
+export async function getDatabaseConnection(): Promise<mysql.Connection> {
+  if (cachedConnection) {
+    // Test if connection is still alive
+    try {
+      await cachedConnection.ping();
+      return cachedConnection;
+    } catch (error) {
+      console.log('Cached connection lost, creating new connection');
+      cachedConnection = null;
+    }
+  }
+  
+  cachedConnection = await createConnection();
+  await ensureTablesExist(cachedConnection);
+  return cachedConnection;
 }
 
 // Function to ensure database tables exist
@@ -314,8 +342,9 @@ async function executeQuery(connection: mysql.Connection, query: string, params:
   }
 }
 
-// Function to get session
-async function getSession(connection: mysql.Connection, sessionToken: string): Promise<any> {
+// Session management functions
+export async function getSession(sessionToken: string): Promise<Session | null> {
+  const connection = await getDatabaseConnection();
   const rows = await executeQuery(
     connection,
     'SELECT user_steam_id as steamId, expires_at as expiresAt FROM squidcup_sessions WHERE session_token = ? AND expires_at > NOW()',
@@ -324,8 +353,9 @@ async function getSession(connection: mysql.Connection, sessionToken: string): P
   return rows.length > 0 ? rows[0] : null;
 }
 
-// Function to create session
-async function createSession(connection: mysql.Connection, sessionToken: string, steamId: string, expiresAt: string): Promise<void> {
+export async function createSession(sessionToken: string, steamId: string, expiresAt: string): Promise<void> {
+  const connection = await getDatabaseConnection();
+  
   // Debug logging to see what data we're trying to insert
   console.log('createSession called with:');
   console.log('- sessionToken length:', sessionToken?.length, 'value:', sessionToken);
@@ -348,8 +378,8 @@ async function createSession(connection: mysql.Connection, sessionToken: string,
   );
 }
 
-// Function to delete session
-async function deleteSession(connection: mysql.Connection, sessionToken: string): Promise<void> {
+export async function deleteSession(sessionToken: string): Promise<void> {
+  const connection = await getDatabaseConnection();
   await executeQuery(
     connection,
     'DELETE FROM squidcup_sessions WHERE session_token = ?',
@@ -357,8 +387,9 @@ async function deleteSession(connection: mysql.Connection, sessionToken: string)
   );
 }
 
-// Function to get or create user
-async function upsertUser(connection: mysql.Connection, userData: any): Promise<void> {
+// User management functions
+export async function upsertUser(userData: UpsertUserInput): Promise<void> {
+  const connection = await getDatabaseConnection();
   await executeQuery(
     connection,
     `INSERT INTO squidcup_users (steam_id, username, avatar, avatar_medium, avatar_full, country_code, state_code, is_admin)
@@ -384,8 +415,8 @@ async function upsertUser(connection: mysql.Connection, userData: any): Promise<
   );
 }
 
-// Function to get user
-async function getUser(connection: mysql.Connection, steamId: string): Promise<any> {
+export async function getUser(steamId: string): Promise<User | null> {
+  const connection = await getDatabaseConnection();
   const rows = await executeQuery(
     connection,
     'SELECT * FROM squidcup_users WHERE steam_id = ?',
@@ -394,10 +425,10 @@ async function getUser(connection: mysql.Connection, steamId: string): Promise<a
   return rows.length > 0 ? rows[0] : null;
 }
 
-// Function to get users by steam IDs
-async function getUsersBySteamIds(connection: mysql.Connection, steamIds: string[]): Promise<any[]> {
+export async function getUsersBySteamIds(steamIds: string[]): Promise<UserWithSteamData[]> {
   if (steamIds.length === 0) return [];
   
+  const connection = await getDatabaseConnection();
   const placeholders = steamIds.map(() => '?').join(',');
   const rows = await executeQuery(
     connection,
@@ -407,8 +438,9 @@ async function getUsersBySteamIds(connection: mysql.Connection, steamIds: string
   return rows;
 }
 
-// Function to add server
-async function addServer(connection: mysql.Connection, serverData: any): Promise<void> {
+// Server management functions
+export async function addServer(serverData: GameServer): Promise<void> {
+  const connection = await getDatabaseConnection();
   await executeQuery(
     connection,
     `INSERT INTO squidcup_servers (id, ip, port, location, rcon_password, default_password, max_players, nickname)
@@ -418,16 +450,16 @@ async function addServer(connection: mysql.Connection, serverData: any): Promise
       serverData.ip,
       serverData.port,
       serverData.location,
-      serverData.rconPassword,
-      serverData.defaultPassword || '',
-      serverData.maxPlayers,
+      serverData.rcon_password,
+      serverData.default_password || '',
+      serverData.max_players,
       serverData.nickname
     ]
   );
 }
 
-// Function to get all servers
-async function getServers(connection: mysql.Connection, minPlayers?: number): Promise<any[]> {
+export async function getServers(minPlayers?: number): Promise<GameServer[]> {
+  const connection = await getDatabaseConnection();
   let query = 'SELECT * FROM squidcup_servers';
   const params: any[] = [];
   
@@ -441,8 +473,8 @@ async function getServers(connection: mysql.Connection, minPlayers?: number): Pr
   return await executeQuery(connection, query, params);
 }
 
-// Function to update server
-async function updateServer(connection: mysql.Connection, serverId: string, serverData: any): Promise<void> {
+export async function updateServer(serverId: string, serverData: UpdateServerInput): Promise<void> {
+  const connection = await getDatabaseConnection();
   const fields = [];
   const values = [];
   
@@ -464,13 +496,14 @@ async function updateServer(connection: mysql.Connection, serverId: string, serv
   );
 }
 
-// Function to delete server
-async function deleteServer(connection: mysql.Connection, serverId: string): Promise<void> {
+export async function deleteServer(serverId: string): Promise<void> {
+  const connection = await getDatabaseConnection();
   await executeQuery(connection, 'DELETE FROM squidcup_servers WHERE id = ?', [serverId]);
 }
 
-// Function to get queue by ID
-async function getQueue(connection: mysql.Connection, queueId: string): Promise<any> {
+// Queue management functions
+export async function getQueue(queueId: string): Promise<DatabaseQueue | null> {
+  const connection = await getDatabaseConnection();
   const rows = await executeQuery(
     connection,
     'SELECT * FROM squidcup_queues WHERE id = ?',
@@ -479,62 +512,20 @@ async function getQueue(connection: mysql.Connection, queueId: string): Promise<
   return rows.length > 0 ? rows[0] : null;
 }
 
-// Function to get queue with players by ID
-async function getQueueWithPlayers(connection: mysql.Connection, queueId: string): Promise<any> {
-  const queue = await getQueue(connection, queueId);
+export async function getQueueWithPlayers(queueId: string): Promise<EnrichedQueueWithPlayers | null> {
+  const queue = await getQueue(queueId);
   if (!queue) return null;
   
-  const players = await getQueuePlayers(connection, queueId);
+  const players = await getQueuePlayers(queueId);
   return {
     ...queue,
     players
   };
 }
 
-// Function to get user's active lobby (where they are host or player)
-async function getUserActiveLobby(connection: mysql.Connection, steamId: string): Promise<any> {
-  // First check if user is hosting a lobby
-  const hostLobby = await executeQuery(
-    connection,
-    'SELECT * FROM squidcup_lobbies WHERE host_steam_id = ? AND status = "waiting"',
-    [steamId]
-  );
+export async function getUserActiveQueue(steamId: string): Promise<EnrichedQueueWithPlayers | null> {
+  const connection = await getDatabaseConnection();
   
-  if (hostLobby.length > 0) {
-    const players = await getLobbyPlayers(connection, hostLobby[0].id);
-    return {
-      ...hostLobby[0],
-      players,
-      isHost: true
-    };
-  }
-  
-  // Check if user is a player in any lobby
-  const playerLobby = await executeQuery(
-    connection,
-    `SELECT l.*, lp.joined_at, lp.team
-     FROM squidcup_lobbies l
-     INNER JOIN squidcup_lobby_players lp ON l.id = lp.lobby_id
-     WHERE lp.player_steam_id = ? AND l.status = "waiting"`,
-    [steamId]
-  );
-  
-  if (playerLobby.length > 0) {
-    const players = await getLobbyPlayers(connection, playerLobby[0].id);
-    return {
-      ...playerLobby[0],
-      players,
-      isHost: false,
-      userJoinedAt: playerLobby[0].joined_at,
-      userTeam: playerLobby[0].team
-    };
-  }
-  
-  return null;
-}
-
-// Function to get user's active queue (where they are host or player)
-async function getUserActiveQueue(connection: mysql.Connection, steamId: string): Promise<any> {
   // First check if user is hosting a queue
   const hostQueue = await executeQuery(
     connection,
@@ -543,7 +534,7 @@ async function getUserActiveQueue(connection: mysql.Connection, steamId: string)
   );
   
   if (hostQueue.length > 0) {
-    const players = await getQueuePlayers(connection, hostQueue[0].id);
+    const players = await getQueuePlayers(hostQueue[0].id);
     return {
       ...hostQueue[0],
       players,
@@ -562,7 +553,7 @@ async function getUserActiveQueue(connection: mysql.Connection, steamId: string)
   );
   
   if (playerQueue.length > 0) {
-    const players = await getQueuePlayers(connection, playerQueue[0].id);
+    const players = await getQueuePlayers(playerQueue[0].id);
     return {
       ...playerQueue[0],
       players,
@@ -575,8 +566,8 @@ async function getUserActiveQueue(connection: mysql.Connection, steamId: string)
   return null;
 }
 
-// Function to get queue players
-async function getQueuePlayers(connection: mysql.Connection, queueId: string): Promise<any[]> {
+export async function getQueuePlayers(queueId: string): Promise<QueuePlayerRecord[]> {
+  const connection = await getDatabaseConnection();
   return await executeQuery(
     connection,
     'SELECT * FROM squidcup_queue_players WHERE queue_id = ? ORDER BY joined_at',
@@ -584,8 +575,8 @@ async function getQueuePlayers(connection: mysql.Connection, queueId: string): P
   );
 }
 
-// Function to create queue
-async function createQueue(connection: mysql.Connection, queueData: any): Promise<void> {
+export async function createQueue(queueData: CreateQueueInput): Promise<void> {
+  const connection = await getDatabaseConnection();
   await executeQuery(
     connection,
     `INSERT INTO squidcup_queues (id, game_mode, map, map_selection_mode, host_steam_id, server_id, password, ranked, start_time, max_players)
@@ -605,8 +596,8 @@ async function createQueue(connection: mysql.Connection, queueData: any): Promis
   );
 }
 
-// Function to update queue
-async function updateQueue(connection: mysql.Connection, queueId: string, queueData: any): Promise<void> {
+export async function updateQueue(queueId: string, queueData: UpdateQueueInput): Promise<void> {
+  const connection = await getDatabaseConnection();
   const fields = [];
   const values = [];
   
@@ -624,8 +615,8 @@ async function updateQueue(connection: mysql.Connection, queueId: string, queueD
   );
 }
 
-// Function to add player to queue
-async function addPlayerToQueue(connection: mysql.Connection, queueId: string, playerData: any): Promise<void> {
+export async function addPlayerToQueue(queueId: string, playerData: AddPlayerToQueueInput): Promise<void> {
+  const connection = await getDatabaseConnection();
   await executeQuery(
     connection,
     `INSERT INTO squidcup_queue_players (queue_id, player_steam_id, team, joined_at)
@@ -639,8 +630,8 @@ async function addPlayerToQueue(connection: mysql.Connection, queueId: string, p
   );
 }
 
-// Function to remove player from queue
-async function removePlayerFromQueue(connection: mysql.Connection, queueId: string, steamId: string): Promise<void> {
+export async function removePlayerFromQueue(queueId: string, steamId: string): Promise<void> {
+  const connection = await getDatabaseConnection();
   await executeQuery(
     connection,
     'DELETE FROM squidcup_queue_players WHERE queue_id = ? AND player_steam_id = ?',
@@ -648,8 +639,60 @@ async function removePlayerFromQueue(connection: mysql.Connection, queueId: stri
   );
 }
 
-// Function to create lobby
-async function createLobby(connection: mysql.Connection, lobbyData: any): Promise<void> {
+export async function deleteQueue(queueId: string): Promise<void> {
+  const connection = await getDatabaseConnection();
+  // Delete queue players first (due to foreign key constraints)
+  await executeQuery(connection, 'DELETE FROM squidcup_queue_players WHERE queue_id = ?', [queueId]);
+  // Delete the queue
+  await executeQuery(connection, 'DELETE FROM squidcup_queues WHERE id = ?', [queueId]);
+}
+
+// Lobby management functions
+export async function getUserActiveLobby(steamId: string): Promise<EnrichedLobbyWithPlayers | null> {
+  const connection = await getDatabaseConnection();
+  
+  // First check if user is hosting a lobby
+  const hostLobby = await executeQuery(
+    connection,
+    'SELECT * FROM squidcup_lobbies WHERE host_steam_id = ? AND status = "waiting"',
+    [steamId]
+  );
+  
+  if (hostLobby.length > 0) {
+    const players = await getLobbyPlayers(hostLobby[0].id);
+    return {
+      ...hostLobby[0],
+      players,
+      isHost: true
+    };
+  }
+  
+  // Check if user is a player in any lobby
+  const playerLobby = await executeQuery(
+    connection,
+    `SELECT l.*, lp.joined_at, lp.team
+     FROM squidcup_lobbies l
+     INNER JOIN squidcup_lobby_players lp ON l.id = lp.lobby_id
+     WHERE lp.player_steam_id = ? AND l.status = "waiting"`,
+    [steamId]
+  );
+  
+  if (playerLobby.length > 0) {
+    const players = await getLobbyPlayers(playerLobby[0].id);
+    return {
+      ...playerLobby[0],
+      players,
+      isHost: false,
+      userJoinedAt: playerLobby[0].joined_at,
+      userTeam: playerLobby[0].team
+    };
+  }
+  
+  return null;
+}
+
+export async function createLobby(lobbyData: CreateLobbyInput): Promise<void> {
+  const connection = await getDatabaseConnection();
   await executeQuery(
     connection,
     `INSERT INTO squidcup_lobbies (id, queue_id, game_mode, map, host_steam_id, server_id, status)
@@ -666,8 +709,8 @@ async function createLobby(connection: mysql.Connection, lobbyData: any): Promis
   );
 }
 
-// Function to get lobby by ID
-async function getLobby(connection: mysql.Connection, lobbyId: string): Promise<any> {
+export async function getLobby(lobbyId: string): Promise<DatabaseLobby | null> {
+  const connection = await getDatabaseConnection();
   const rows = await executeQuery(
     connection,
     'SELECT * FROM squidcup_lobbies WHERE id = ?',
@@ -676,20 +719,19 @@ async function getLobby(connection: mysql.Connection, lobbyId: string): Promise<
   return rows.length > 0 ? rows[0] : null;
 }
 
-// Function to get lobby with players by ID
-async function getLobbyWithPlayers(connection: mysql.Connection, lobbyId: string): Promise<any> {
-  const lobby = await getLobby(connection, lobbyId);
+export async function getLobbyWithPlayers(lobbyId: string): Promise<EnrichedLobbyWithPlayers | null> {
+  const lobby = await getLobby(lobbyId);
   if (!lobby) return null;
   
-  const players = await getLobbyPlayers(connection, lobbyId);
+  const players = await getLobbyPlayers(lobbyId);
   return {
     ...lobby,
     players
   };
 }
 
-// Function to get lobby players
-async function getLobbyPlayers(connection: mysql.Connection, lobbyId: string): Promise<any[]> {
+export async function getLobbyPlayers(lobbyId: string): Promise<LobbyPlayerRecord[]> {
+  const connection = await getDatabaseConnection();
   return await executeQuery(
     connection,
     'SELECT * FROM squidcup_lobby_players WHERE lobby_id = ? ORDER BY joined_at',
@@ -697,8 +739,8 @@ async function getLobbyPlayers(connection: mysql.Connection, lobbyId: string): P
   );
 }
 
-// Function to update lobby
-async function updateLobby(connection: mysql.Connection, lobbyId: string, lobbyData: any): Promise<void> {
+export async function updateLobby(lobbyId: string, lobbyData: UpdateLobbyInput): Promise<void> {
+  const connection = await getDatabaseConnection();
   const fields = [];
   const values = [];
   
@@ -717,10 +759,10 @@ async function updateLobby(connection: mysql.Connection, lobbyId: string, lobbyD
   );
 }
 
-// Function to add lobby players
-async function addLobbyPlayers(connection: mysql.Connection, lobbyId: string, players: any[]): Promise<void> {
+export async function addLobbyPlayers(lobbyId: string, players: AddLobbyPlayerInput[]): Promise<void> {
   if (players.length === 0) return;
   
+  const connection = await getDatabaseConnection();
   const values = players.map(player => [lobbyId, player.steamId, player.team || 0]);
   const placeholders = values.map(() => '(?, ?, ?)').join(', ');
   
@@ -731,24 +773,17 @@ async function addLobbyPlayers(connection: mysql.Connection, lobbyId: string, pl
   );
 }
 
-// Function to delete lobby and its players
-async function deleteLobby(connection: mysql.Connection, lobbyId: string): Promise<void> {
+export async function deleteLobby(lobbyId: string): Promise<void> {
+  const connection = await getDatabaseConnection();
   // Delete lobby players first (due to foreign key constraints)
   await executeQuery(connection, 'DELETE FROM squidcup_lobby_players WHERE lobby_id = ?', [lobbyId]);
   // Delete the lobby
   await executeQuery(connection, 'DELETE FROM squidcup_lobbies WHERE id = ?', [lobbyId]);
 }
 
-// Function to delete queue and its players
-async function deleteQueue(connection: mysql.Connection, queueId: string): Promise<void> {
-  // Delete queue players first (due to foreign key constraints)
-  await executeQuery(connection, 'DELETE FROM squidcup_queue_players WHERE queue_id = ?', [queueId]);
-  // Delete the queue
-  await executeQuery(connection, 'DELETE FROM squidcup_queues WHERE id = ?', [queueId]);
-}
-
-// Function to store lobby history event
-async function storeLobbyHistoryEvent(connection: mysql.Connection, eventData: any): Promise<void> {
+// History functions
+export async function storeLobbyHistoryEvent(eventData: LobbyHistoryEventInput): Promise<void> {
+  const connection = await getDatabaseConnection();
   await executeQuery(
     connection,
     `INSERT INTO squidcup_lobby_history (id, lobby_id, player_steam_id, event_type, event_data)
@@ -763,8 +798,8 @@ async function storeLobbyHistoryEvent(connection: mysql.Connection, eventData: a
   );
 }
 
-// Function to store queue history event
-async function storeQueueHistoryEvent(connection: mysql.Connection, eventData: any): Promise<void> {
+export async function storeQueueHistoryEvent(eventData: QueueHistoryEventInput): Promise<void> {
+  const connection = await getDatabaseConnection();
   await executeQuery(
     connection,
     `INSERT INTO squidcup_queue_history (id, queue_id, player_steam_id, event_type, event_data)
@@ -779,8 +814,8 @@ async function storeQueueHistoryEvent(connection: mysql.Connection, eventData: a
   );
 }
 
-// Function to get queue history for a user
-async function getUserQueueHistory(connection: mysql.Connection, steamId: string, limit: number = 50): Promise<any[]> {
+export async function getUserQueueHistory(steamId: string, limit: number = 50): Promise<QueueHistoryRecord[]> {
+  const connection = await getDatabaseConnection();
   console.log('getUserQueueHistory called with steamId:', steamId, 'limit:', limit, 'limit type:', typeof limit);
   
   // Ensure limit is a positive integer
@@ -800,7 +835,8 @@ async function getUserQueueHistory(connection: mysql.Connection, steamId: string
 }
 
 // Consolidated function to get user's complete status (session + queue + lobby + player names)
-async function getUserCompleteStatus(connection: mysql.Connection, sessionToken: string): Promise<any> {
+export async function getUserCompleteStatus(sessionToken: string): Promise<UserCompleteStatus> {
+  const connection = await getDatabaseConnection();
   console.log('getUserCompleteStatus called with token:', sessionToken.substring(0, 8) + '...');
   
   // Step 1: Validate session
@@ -974,24 +1010,14 @@ async function getUserCompleteStatus(connection: mysql.Connection, sessionToken:
   };
 }
 
-// Function to get SSM parameter value
-async function getSsmParameter(parameterName: string): Promise<string> {
-  try {
-    const command = new GetParameterCommand({
-      Name: parameterName,
-      WithDecryption: true,
-    });
-    
-    const response = await ssmClient.send(command);
-    return response.Parameter?.Value || '';
-  } catch (error) {
-    console.error(`Error getting parameter ${parameterName}:`, error);
-    throw error;
-  }
+// Function to get SSM parameter value (for external use)
+export async function getSsmParameter(parameterName: string): Promise<string> {
+  return await getParameterValue(parameterName);
 }
 
 // Function to get active queues for cleanup (simple format)
-async function getActiveQueuesForCleanup(connection: mysql.Connection): Promise<any[]> {
+export async function getActiveQueuesForCleanup(): Promise<QueueCleanupRecord[]> {
+  const connection = await getDatabaseConnection();
   return await executeQuery(
     connection,
     `SELECT 
@@ -1009,7 +1035,9 @@ async function getActiveQueuesForCleanup(connection: mysql.Connection): Promise<
 }
 
 // Function to get active queues with user and server details
-async function getActiveQueuesWithDetails(connection: mysql.Connection): Promise<any[]> {
+export async function getActiveQueuesWithDetails(): Promise<ActiveQueueWithDetails[]> {
+  const connection = await getDatabaseConnection();
+  
   // Get all active queues with host information and server details
   const queues = await executeQuery(
     connection,
@@ -1084,189 +1112,8 @@ async function getActiveQueuesWithDetails(connection: mysql.Connection): Promise
   return result;
 }
 
-// Main handler function
-export async function handler(event: DatabaseRequest): Promise<DatabaseResponse> {
-  console.log('Database service invoked with operation:', event.operation);
-
-  let connection: mysql.Connection | null = null;
-
-  try {
-    // Create database connection
-    connection = await createConnection();
-    
-    // Ensure tables exist on first call
-    await ensureTablesExist(connection);
-
-    // Route to appropriate operation
-    switch (event.operation) {
-      case 'getSession':
-        const session = await getSession(connection, event.params![0]);
-        return { success: true, data: session };
-
-      case 'createSession':
-        await createSession(connection, event.params![0], event.params![1], event.params![2]);
-        return { success: true };
-
-      case 'deleteSession':
-        await deleteSession(connection, event.params![0]);
-        return { success: true };
-
-      case 'upsertUser':
-        await upsertUser(connection, event.data);
-        return { success: true };
-
-      case 'getUser':
-        const user = await getUser(connection, event.params![0]);
-        return { success: true, data: user };
-
-      case 'getUsersBySteamIds':
-        const users = await getUsersBySteamIds(connection, event.params![0]);
-        return { success: true, data: users };
-
-      case 'addServer':
-        await addServer(connection, event.data);
-        return { success: true };
-
-      case 'getServers':
-        const minPlayers = event.data?.minPlayers;
-        const servers = await getServers(connection, minPlayers);
-        return { success: true, data: servers };
-
-      case 'updateServer':
-        await updateServer(connection, event.params![0], event.data);
-        return { success: true };
-
-      case 'deleteServer':
-        await deleteServer(connection, event.params![0]);
-        return { success: true };
-
-      case 'getQueue':
-        const queue = await getQueue(connection, event.params![0]);
-        return { success: true, data: queue };
-
-      case 'getQueueWithPlayers':
-        const queueWithPlayers = await getQueueWithPlayers(connection, event.params![0]);
-        return { success: true, data: queueWithPlayers };
-
-      case 'getUserActiveQueue':
-        const userQueue = await getUserActiveQueue(connection, event.params![0]);
-        return { success: true, data: userQueue };
-
-      case 'getUserActiveLobby':
-        const userLobby = await getUserActiveLobby(connection, event.params![0]);
-        return { success: true, data: userLobby };
-
-      case 'getQueuePlayers':
-        const queuePlayers = await getQueuePlayers(connection, event.params![0]);
-        return { success: true, data: queuePlayers };
-
-      case 'createLobby':
-        await createLobby(connection, event.data);
-        return { success: true };
-
-      case 'getLobby':
-        const lobby = await getLobby(connection, event.params![0]);
-        return { success: true, data: lobby };
-
-      case 'getLobbyWithPlayers':
-        const lobbyWithPlayers = await getLobbyWithPlayers(connection, event.params![0]);
-        return { success: true, data: lobbyWithPlayers };
-
-      case 'getLobbyPlayers':
-        const lobbyPlayers = await getLobbyPlayers(connection, event.params![0]);
-        return { success: true, data: lobbyPlayers };
-
-      case 'addLobbyPlayers':
-        await addLobbyPlayers(connection, event.params![0], event.data);
-        return { success: true };
-
-      case 'updateLobby':
-        await updateLobby(connection, event.params![0], event.data);
-        return { success: true };
-
-      case 'deleteLobby':
-        await deleteLobby(connection, event.params![0]);
-        return { success: true };
-
-      case 'deleteQueue':
-        await deleteQueue(connection, event.params![0]);
-        return { success: true };
-
-      case 'storeLobbyHistoryEvent':
-        await storeLobbyHistoryEvent(connection, event.data);
-        return { success: true };
-
-      case 'storeQueueHistoryEvent':
-        await storeQueueHistoryEvent(connection, event.data);
-        return { success: true };
-
-      case 'getUserCompleteStatus':
-        console.log('Handling getUserCompleteStatus operation');
-        const completeStatus = await getUserCompleteStatus(connection, event.data.sessionToken);
-        return { success: true, data: completeStatus };
-
-      case 'getUserQueueHistory':
-        const queueHistory = await getUserQueueHistory(connection, event.data.steamId, event.data.limit);
-        return { success: true, data: queueHistory };
-
-      case 'getSsmParameter':
-        const parameterValue = await getSsmParameter(event.data.parameterName);
-        return { success: true, data: parameterValue };
-
-      case 'getActiveQueuesForCleanup':
-        const queuesForCleanup = await getActiveQueuesForCleanup(connection);
-        return { success: true, data: queuesForCleanup };
-
-      case 'getActiveQueuesWithDetails':
-        const activeQueues = await getActiveQueuesWithDetails(connection);
-        return { success: true, data: activeQueues };
-
-      case 'createQueue':
-        await createQueue(connection, event.data);
-        return { success: true };
-
-      case 'updateQueue':
-        await updateQueue(connection, event.params![0], event.data);
-        return { success: true };
-
-      case 'addPlayerToQueue':
-        await addPlayerToQueue(connection, event.params![0], event.data);
-        return { success: true };
-
-      case 'removePlayerFromQueue':
-        await removePlayerFromQueue(connection, event.params![0], event.params![1]);
-        return { success: true };
-
-      case 'rawQuery':
-        const result = await executeQuery(connection, event.query!, event.params || []);
-        return { success: true, data: result };
-
-      default:
-        return { success: false, error: `Unknown operation: ${event.operation}` };
-    }
-  } catch (error) {
-    console.error('Database service error:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error'
-    };
-  } finally {
-    if (connection) {
-      await connection.end();
-    }
-  }
+// Raw query execution function
+export async function executeRawQuery(query: string, params: any[] = []): Promise<any> {
+  const connection = await getDatabaseConnection();
+  return await executeQuery(connection, query, params);
 }
-
-// Also export using CommonJS for maximum compatibility
-exports.handler = handler;
-
-
-
-
-
-
-
-
-
-
-

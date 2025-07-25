@@ -1,107 +1,34 @@
-import { LambdaClient, InvokeCommand } from "@aws-sdk/client-lambda";
+import { 
+  getQueue, 
+  getQueuePlayers, 
+  createLobby,
+  addLobbyPlayers, 
+  deleteQueue, 
+  storeLobbyHistoryEvent,
+  getMaxPlayersForGamemode,
+  createCorsHeaders
+} from '@squidcup/shared-lambda-utils';
+import { 
+  DatabaseQueue, 
+  QueuePlayerRecord, 
+  LobbyPlayerRecord, 
+  GameMode, 
+  MapSelectionMode,
+  LobbyData,
+  CreateLobbyInput,
+  AddLobbyPlayerInput,
+  LobbyHistoryEventInput
+} from '@squidcup/types-squidcup';
 import * as crypto from 'crypto';
 
-// Initialize Lambda client
-const lambdaClient = new LambdaClient({ region: process.env.REGION });
-
-type GameMode = "5v5" | "wingman" | "3v3" | "1v1";
-type MapSelectionMode = "All Pick" | "Host Pick" | "Random Map";
-
-export interface DatabaseRequest {
-  operation: string;
-  data?: any;
-  params?: any[];
-  query?: string;
-}
-
-export interface DatabaseResponse {
-  success: boolean;
-  data?: any;
-  error?: string;
-}
-
-interface QueueData {
-  id: string;
-  game_mode: string;
-  map: string;
-  host_steam_id: string;
-  max_players: number;
-  current_players: number;
-  status: string;
-  created_at: string;
-  updated_at: string;
-}
-
-interface QueuePlayer {
-  queue_id: string;
-  player_steam_id: string;
-  team: number;
-  joined_at: string;
-}
-
-interface LobbyPlayer {
-  steamId: string;
-  team?: number; // 1 or 2 for team assignment
-  mapSelection?: string; // Selected map ID (for applicable modes)
-  hasSelectedMap?: boolean;
-}
-
-interface LobbyData {
-  id: string;
-  queueId: string;
-  hostSteamId: string;
-  gameMode: GameMode;
-  mapSelectionMode: MapSelectionMode;
-  serverId: string;
-  password?: string;
-  ranked: boolean;
-  players: LobbyPlayer[];
+// Extended response interface for API responses
+interface LobbyResponseData extends LobbyData {
   mapSelectionComplete: boolean;
-  selectedMap?: string; // Final selected map
-  createdAt: string;
-  updatedAt: string;
-}
-
-// Function to call database service
-async function callDatabaseService(request: DatabaseRequest): Promise<DatabaseResponse> {
-  try {
-    const command = new InvokeCommand({
-      FunctionName: process.env.DATABASE_SERVICE_FUNCTION_NAME,
-      Payload: JSON.stringify(request)
-    });
-
-    const response = await lambdaClient.send(command);
-    
-    if (!response.Payload) {
-      throw new Error('No response from database service');
-    }
-
-    const responseData = JSON.parse(Buffer.from(response.Payload).toString());
-    return responseData;
-  } catch (error) {
-    console.error('Error calling database service:', error);
-    throw error;
-  }
-}
-
-// Function to get the maximum players for a gamemode
-function getMaxPlayersForGamemode(gameMode: GameMode): number {
-  switch (gameMode) {
-    case '5v5':
-      return 10;
-    case 'wingman':
-      return 4;
-    case '3v3':
-      return 6;
-    case '1v1':
-      return 2;
-    default:
-      return 10;
-  }
+  selectedMap?: string;
 }
 
 // Function to balance players into teams
-function balancePlayersIntoTeams(players: LobbyPlayer[], gameMode: GameMode): LobbyPlayer[] {
+function balancePlayersIntoTeams(players: LobbyPlayerRecord[], gameMode: GameMode): LobbyPlayerRecord[] {
   const maxPlayers = getMaxPlayersForGamemode(gameMode);
   const playersPerTeam = maxPlayers / 2;
   
@@ -110,36 +37,8 @@ function balancePlayersIntoTeams(players: LobbyPlayer[], gameMode: GameMode): Lo
   
   return shuffledPlayers.map((player, index) => ({
     ...player,
-    team: Math.floor(index / playersPerTeam) + 1
+    team: Math.floor(index / playersPerTeam) + 1 // Team numbers as numbers
   }));
-}
-
-// Function to store lobby history event
-async function storeLobbyHistoryEvent(
-  lobbyId: string,
-  userSteamId: string,
-  eventType: 'created' | 'joined' | 'left' | 'disbanded' | 'map_selected' | 'game_started',
-  eventData?: any
-): Promise<void> {
-  try {
-    const eventId = crypto.randomUUID();
-
-    await callDatabaseService({
-      operation: 'storeLobbyHistoryEvent',
-      data: {
-        id: eventId,
-        lobbyId,
-        playerSteamId: userSteamId,
-        eventType,
-        eventData: eventData || {}
-      }
-    });
-
-    console.log(`Stored lobby history event: ${eventType} for user ${userSteamId} in lobby ${lobbyId}`);
-  } catch (error) {
-    console.error('Error storing lobby history event:', error);
-    // Don't fail the main operation if history storage fails
-  }
 }
 
 export const handler = async (event: any) => {
@@ -151,46 +50,24 @@ export const handler = async (event: any) => {
     if (!queueId) {
       return {
         statusCode: 400,
-        headers: {
-          'Access-Control-Allow-Origin': 'https://squidcup.spkymnr.xyz',
-          'Access-Control-Allow-Headers': 'Content-Type,Authorization',
-          'Access-Control-Allow-Methods': 'POST,OPTIONS',
-        },
+        headers: createCorsHeaders(),
         body: JSON.stringify({ error: 'Queue ID is required' })
       };
     }
 
     // Get the queue from database
-    const queueResponse = await callDatabaseService({
-      operation: 'getQueue',
-      params: [queueId]
-    });
+    const queueData = await getQueue(queueId);
 
-    if (!queueResponse.success || !queueResponse.data) {
+    if (!queueData) {
       return {
         statusCode: 404,
-        headers: {
-          'Access-Control-Allow-Origin': 'https://squidcup.spkymnr.xyz',
-          'Access-Control-Allow-Headers': 'Content-Type,Authorization',
-          'Access-Control-Allow-Methods': 'POST,OPTIONS',
-        },
+        headers: createCorsHeaders(),
         body: JSON.stringify({ error: 'Queue not found' })
       };
     }
-
-    const queueData: QueueData = queueResponse.data;
     
     // Get queue players
-    const playersResponse = await callDatabaseService({
-      operation: 'getQueuePlayers',
-      params: [queueId]
-    });
-
-    if (!playersResponse.success) {
-      throw new Error('Failed to get queue players');
-    }
-
-    const queuePlayers: QueuePlayer[] = playersResponse.data || [];
+    const queuePlayers = await getQueuePlayers(queueId);
     
     // Check if queue is full
     const maxPlayers = getMaxPlayersForGamemode(queueData.game_mode as GameMode);
@@ -199,11 +76,7 @@ export const handler = async (event: any) => {
     if (currentPlayers < maxPlayers) {
       return {
         statusCode: 400,
-        headers: {
-          'Access-Control-Allow-Origin': 'https://squidcup.spkymnr.xyz',
-          'Access-Control-Allow-Headers': 'Content-Type,Authorization',
-          'Access-Control-Allow-Methods': 'POST,OPTIONS',
-        },
+        headers: createCorsHeaders(),
         body: JSON.stringify({ error: 'Queue is not full yet' })
       };
     }
@@ -213,11 +86,18 @@ export const handler = async (event: any) => {
     const now = new Date().toISOString();
 
     // Create players array from queue data
-    const allPlayers: LobbyPlayer[] = [
-      { steamId: queueData.host_steam_id, hasSelectedMap: false },
+    const allPlayers: LobbyPlayerRecord[] = [
+      { 
+        lobby_id: lobbyId,
+        player_steam_id: queueData.host_steam_id, 
+        team: 0,
+        joined_at: new Date().toISOString() 
+      },
       ...queuePlayers.map(player => ({
-        steamId: player.player_steam_id,
-        hasSelectedMap: false
+        lobby_id: lobbyId,
+        player_steam_id: player.player_steam_id,
+        team: 0,
+        joined_at: player.joined_at
       }))
     ];
 
@@ -241,73 +121,69 @@ export const handler = async (event: any) => {
     }
 
     // Create lobby data
-    const lobbyData = {
+    const lobbyData: CreateLobbyInput = {
       id: lobbyId,
       queueId: queueId,
-      gameMode: queueData.game_mode,
+      gameMode: queueData.game_mode as GameMode,
       map: selectedMap,
       hostSteamId: queueData.host_steam_id,
-      serverId: null, // Will be assigned later
+      serverId: undefined, // Will be assigned later
       status: 'waiting'
     };
 
     // Create the lobby in database
-    await callDatabaseService({
-      operation: 'createLobby',
-      data: lobbyData
-    });
+    await createLobby(lobbyData);
 
     // Add lobby players
-    await callDatabaseService({
-      operation: 'addLobbyPlayers',
-      params: [lobbyId],
-      data: playersWithTeams.map(player => ({
-        steamId: player.steamId,
-        team: player.team || 0
-      }))
-    });
+    await addLobbyPlayers(lobbyId, playersWithTeams.map(player => ({
+      steamId: player.player_steam_id,
+      team: player.team || 0
+    })));
 
     // Delete the original queue
-    await callDatabaseService({
-      operation: 'deleteQueue',
-      params: [queueId]
-    });
+    await deleteQueue(queueId);
 
     // Store lobby creation events for all players
     for (const player of playersWithTeams) {
-      await storeLobbyHistoryEvent(lobbyId, player.steamId, 'created', {
-        gameMode: queueData.game_mode,
-        mapSelectionMode: mapSelectionMode,
-        isHost: player.steamId === queueData.host_steam_id,
-        team: player.team
+      await storeLobbyHistoryEvent({
+        id: crypto.randomUUID(),
+        lobbyId,
+        playerSteamId: player.player_steam_id,
+        eventType: 'join',
+        eventData: {
+          gameMode: queueData.game_mode,
+          mapSelectionMode: mapSelectionMode,
+          isHost: player.player_steam_id === queueData.host_steam_id,
+          team: player.team
+        }
       });
     }
 
     console.log('Lobby created successfully:', lobbyId);
 
     // Create response data matching expected format
-    const responseData: LobbyData = {
+    const responseData: LobbyResponseData = {
       id: lobbyId,
-      queueId: queueId,
-      hostSteamId: queueData.host_steam_id,
-      gameMode: queueData.game_mode as GameMode,
-      mapSelectionMode: mapSelectionMode,
-      serverId: '', // Will be assigned later
+      host_steam_id: queueData.host_steam_id,
+      game_mode: queueData.game_mode as GameMode,
+      map_selection_mode: mapSelectionMode,
+      server_id: '', // Will be assigned later
       ranked: false, // Default for now
-      players: playersWithTeams,
+      status: 'active' as any, // Temporary cast, should match LobbyStatus
+      players: playersWithTeams.map(p => ({
+        player_steam_id: p.player_steam_id,
+        team: String(p.team),
+        joined_at: p.joined_at
+      })),
       mapSelectionComplete,
       selectedMap,
-      createdAt: now,
-      updatedAt: now,
+      created_at: now,
+      updated_at: now,
     };
 
     return {
       statusCode: 201,
-      headers: {
-        'Access-Control-Allow-Origin': 'https://squidcup.spkymnr.xyz',
-        'Access-Control-Allow-Headers': 'Content-Type,Authorization',
-        'Access-Control-Allow-Methods': 'POST,OPTIONS',
-      },
+      headers: createCorsHeaders(),
       body: JSON.stringify({
         message: 'Lobby created successfully',
         lobby: responseData
@@ -319,11 +195,7 @@ export const handler = async (event: any) => {
     
     return {
       statusCode: 500,
-      headers: {
-        'Access-Control-Allow-Origin': 'https://squidcup.spkymnr.xyz',
-        'Access-Control-Allow-Headers': 'Content-Type,Authorization',
-        'Access-Control-Allow-Methods': 'POST,OPTIONS',
-      },
+      headers: createCorsHeaders(),
       body: JSON.stringify({
         error: 'Internal server error',
         message: 'Failed to create lobby'
