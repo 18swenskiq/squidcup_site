@@ -41,9 +41,9 @@ jobs:
           (cd ../packages/types-squidcup && npm pack)
           echo "Packing shared-lambda-utils package..."
           (cd ../packages/shared-lambda-utils && npm pack)
-          echo "Capturing tarball names..."
-          TYPES_TARBALL=$(ls ../packages/types-squidcup/*.tgz)
-          UTILS_TARBALL=$(ls ../packages/shared-lambda-utils/*.tgz)
+          echo "Capturing tarball absolute paths..."
+          TYPES_TARBALL=$(realpath ../packages/types-squidcup/*.tgz)
+          UTILS_TARBALL=$(realpath ../packages/shared-lambda-utils/*.tgz)
           echo "TYPES_TARBALL=$TYPES_TARBALL" >> $GITHUB_ENV
           echo "UTILS_TARBALL=$UTILS_TARBALL" >> $GITHUB_ENV
 
