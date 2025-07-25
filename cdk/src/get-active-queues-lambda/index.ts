@@ -1,5 +1,5 @@
 import { getActiveQueuesWithDetails, getMaxPlayersForGamemode } from '@squidcup/shared-lambda-utils';
-import { GameMode } from '@squidcup/types-squidcup';
+import { GameMode, ActiveQueueWithDetails } from '@squidcup/types-squidcup';
 
 type ActiveQueue = {
   queueId: string;
@@ -19,16 +19,14 @@ export const handler = async (event: any) => {
 
   try {
     // Get active queues with details from shared utilities
-    const queuesData = await getActiveQueuesWithDetails();
+    const queuesData: ActiveQueueWithDetails[] = await getActiveQueuesWithDetails();
 
     // Transform to frontend format
-    const activeQueues: ActiveQueue[] = queuesData.map((queue: any) => {
-      const gameMode = queue.gameMode as GameMode;
-      
+    const activeQueues: ActiveQueue[] = queuesData.map((queue: ActiveQueueWithDetails) => {
       return {
         queueId: queue.queueId,
         host: queue.hostName || 'Unknown',
-        gameMode: gameMode,
+        gameMode: queue.gameMode,
         players: queue.players,
         maxPlayers: queue.maxPlayers,
         server: queue.serverName || 'Unknown Server',

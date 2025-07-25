@@ -73,6 +73,30 @@ export interface QueueHistoryEvent {
   created_at: string;
 }
 
+export interface QueueJoiner {
+  steamId: string;
+  joinTime: string;
+  name: string;
+}
+
+export interface ActiveQueueWithDetails {
+  queueId: string;
+  hostSteamId: string;
+  hostName: string;
+  gameMode: GameMode;
+  mapSelectionMode: MapSelectionMode;
+  serverId: string;
+  serverName: string;
+  startTime: string;
+  players: number;
+  maxPlayers: number;
+  joiners: QueueJoiner[];
+  ranked: boolean;
+  hasPassword: boolean;
+  createdAt: string;
+  lastActivity: string;
+}
+
 // ===== LOBBY TYPES =====
 
 export interface LobbyPlayer {

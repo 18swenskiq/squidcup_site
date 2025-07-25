@@ -1,6 +1,6 @@
 import * as mysql from 'mysql2/promise';
 import { SSMClient, GetParameterCommand } from '@aws-sdk/client-ssm';
-import { User, Session, GameServer } from '@squidcup/types';
+import { User, Session, GameServer, ActiveQueueWithDetails } from '@squidcup/types';
 
 // Initialize SSM client
 const ssmClient = new SSMClient({ region: process.env.AWS_REGION || 'us-east-1' });
@@ -1009,7 +1009,7 @@ export async function getActiveQueuesForCleanup(): Promise<any[]> {
 }
 
 // Function to get active queues with user and server details
-export async function getActiveQueuesWithDetails(): Promise<any[]> {
+export async function getActiveQueuesWithDetails(): Promise<ActiveQueueWithDetails[]> {
   const connection = await getDatabaseConnection();
   
   // Get all active queues with host information and server details
