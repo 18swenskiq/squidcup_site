@@ -82,6 +82,20 @@ export interface QueueHistoryEvent {
   created_at: string;
 }
 
+export interface QueueHistoryEntry {
+  id: string;
+  gameMode: string;
+  mapSelectionMode: string;
+  ranked: boolean;
+  startTime: string;
+  endTime: string;
+  status: 'completed' | 'cancelled' | 'disbanded' | 'timeout' | 'error' | 'active';
+  statusDescription: string;
+  wasHost: boolean;
+  finalPlayerCount: number;
+  duration: string;
+}
+
 export interface QueueJoiner {
   steamId: string;
   joinTime: string;

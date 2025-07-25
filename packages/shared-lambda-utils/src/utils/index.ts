@@ -92,3 +92,20 @@ export function createErrorResponse(statusCode: number, message: string, details
 export function createSuccessResponse(data: any, statusCode = 200) {
   return createApiResponse(statusCode, data);
 }
+
+/**
+ * Formats duration in milliseconds to human-readable string
+ */
+export function formatDuration(durationMs: number): string {
+  const totalMinutes = Math.floor(durationMs / (1000 * 60));
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+
+  if (hours > 0) {
+    return minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`;
+  } else if (minutes > 0) {
+    return `${minutes}m`;
+  } else {
+    return '< 1m';
+  }
+}
