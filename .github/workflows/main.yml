@@ -96,13 +96,17 @@ jobs:
             if [ -d "$dir" ]; then
               echo "Updating dependencies for Lambda in $dir"
               (cd "$dir" && \
+                # Clean any previous installs
+                rm -rf node_modules package-lock.json && \
                 # Add @squidcup/types as a dependency if it doesn't exist
                 if ! grep -q '"@squidcup/types"' package.json; then
                   jq '.dependencies["@squidcup/types"] = "file:../../../packages/types-squidcup"' package.json > package.tmp.json && mv package.tmp.json package.json
                 fi && \
+                echo "Before replacement:" && cat package.json | grep -E "(types|shared-lambda-utils)" && \
                 # Update package.json to use relative tarball paths
-                sed -i.bak "s|file:../../../packages/types-squidcup|file:${{ env.TYPES_TARBALL_REL }}|" package.json && \
-                sed -i.bak "s|file:../../../packages/shared-lambda-utils|file:${{ env.UTILS_TARBALL_REL }}|" package.json && \
+                sed -i.bak "s|file:../../../packages/types-squidcup|file:${{ env.TYPES_TARBALL_REL }}|g" package.json && \
+                sed -i.bak "s|file:../../../packages/shared-lambda-utils|file:${{ env.UTILS_TARBALL_REL }}|g" package.json && \
+                echo "After replacement:" && cat package.json | grep -E "(types|shared-lambda-utils)" && \
                 # Install packages so CDK can resolve dependencies
                 npm install)
             fi
