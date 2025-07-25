@@ -32,19 +32,6 @@ export class ApiStack extends cdk.Stack {
       }
     });
 
-    // Database service lambda - centralized MySQL operations
-    const databaseServiceFunction = new lambda.Function(this, "database-service-function", {
-      runtime: this.RUNTIME,
-      memorySize: this.MEMORY_SIZE,
-      timeout: cdk.Duration.seconds(30), // Longer timeout for database operations
-      handler: 'index.handler',
-      code: lambda.Code.fromAsset(path.join(__dirname, '/../src/database-service-lambda')),
-      logRetention: this.LOG_RETENTION,
-      environment: {
-        REGION: this.REGION,
-      }
-    });
-
     const getUserProfileFunction = new lambda.Function(this, "get-user-profile-function", {
       runtime: this.RUNTIME,
       memorySize: this.MEMORY_SIZE,
@@ -245,7 +232,6 @@ export class ApiStack extends cdk.Stack {
     });
 
     // Add the SSM policy to all Lambda functions
-    databaseServiceFunction.addToRolePolicy(ssmPolicy);
     addServerFunction.addToRolePolicy(ssmPolicy);
     deleteServerFunction.addToRolePolicy(ssmPolicy);
     getUserQueueFunction.addToRolePolicy(ssmPolicy);
