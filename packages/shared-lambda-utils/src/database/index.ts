@@ -321,7 +321,7 @@ async function executeQuery(connection: mysql.Connection, query: string, params:
     const sanitizedParams = sanitizeParams(params);
     
     // Debug logging for data length issues
-    if (query.includes('squidcup_sessions')) {
+    if (query.includes('squidcup_')) {
       console.log('Executing sessions query:', query);
       console.log('Original params:', params);
       console.log('Sanitized params:', sanitizedParams);
