@@ -13,8 +13,7 @@
     "typescript": "^5.7.2"
   },
   "dependencies": {
-    "@squidcup/shared-lambda-utils": "file:../../../packages/shared-lambda-utils",
-    "@squidcup/types": "file:../../../packages/types-squidcup"
+    "@squidcup/shared-lambda-utils": "file:../../../packages/shared-lambda-utils"
   },
   "engines": {
     "node": ">=18.0.0"
