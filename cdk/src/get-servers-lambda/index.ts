@@ -1,5 +1,6 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
-import { getSession, getUser, getServers, updateServer, createCorsHeaders, extractSteamIdFromOpenId, getMaxPlayersForGamemode, GameServer } from '@squidcup/shared-lambda-utils';
+import { getSession, getUser, getServers, updateServer, createCorsHeaders, extractSteamIdFromOpenId, getMaxPlayersForGamemode } from '@squidcup/shared-lambda-utils';
+import { GameServer } from '@squidcup/types';
 
 export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
   console.log('Get servers event received');
