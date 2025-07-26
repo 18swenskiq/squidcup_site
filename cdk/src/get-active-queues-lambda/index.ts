@@ -17,6 +17,8 @@ export const handler = async (event: any) => {
   console.log('Event:', JSON.stringify(event, null, 2));
 
   try {
+    console.log("hi");
+
     // Get active queues with details from shared utilities
     const queuesData: ActiveQueueWithDetails[] = await getActiveQueuesWithDetails();
 
