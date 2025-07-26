@@ -27,14 +27,6 @@ jobs:
       - name: Install CDK dependencies
         run: npm install
 
-      - name: Build Shared Packages
-        run: |
-          echo "Building types-squidcup package..."
-          (cd ../packages/types-squidcup && npm install && npm run build)
-          
-          echo "Building shared-lambda-utils package..."
-          (cd ../packages/shared-lambda-utils && npm install && npm run build)
-
       - name: Build Local Lambda Projects
         run: |
           for dir in ./src/*/; do
