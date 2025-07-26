@@ -32,7 +32,8 @@ export class ApiStack extends cdk.Stack {
         FRONTEND_URL: 'https://squidcup.spkymnr.xyz', // Your actual domain
       },
       bundling: {
-        minify: true
+        minify: true,
+        externalModules: ['@squidcup/types']
       }
     });
 
@@ -47,7 +48,8 @@ export class ApiStack extends cdk.Stack {
         REGION: this.REGION,
       },
       bundling: {
-        minify: true
+        minify: true,
+        externalModules: ['@squidcup/types']
       }
     });
 
@@ -62,7 +64,8 @@ export class ApiStack extends cdk.Stack {
         REGION: this.REGION,
       },
       bundling: {
-        minify: true
+        minify: true,
+        externalModules: ['@squidcup/types']
       }
     });
 
@@ -77,7 +80,8 @@ export class ApiStack extends cdk.Stack {
         REGION: this.REGION,
       },
       bundling: {
-        minify: true
+        minify: true,
+        externalModules: ['@squidcup/types']
       }
     });
 
@@ -92,7 +96,8 @@ export class ApiStack extends cdk.Stack {
         REGION: this.REGION,
       },
       bundling: {
-        minify: true
+        minify: true,
+        externalModules: ['@squidcup/types']
       }
     });
 
@@ -107,7 +112,8 @@ export class ApiStack extends cdk.Stack {
         REGION: this.REGION,
       },
       bundling: {
-        minify: true
+        minify: true,
+        externalModules: ['@squidcup/types']
       }
     });
 
@@ -122,7 +128,8 @@ export class ApiStack extends cdk.Stack {
         REGION: this.REGION,
       },
       bundling: {
-        minify: true
+        minify: true,
+        externalModules: ['@squidcup/types']
       }
     });
 
@@ -137,7 +144,8 @@ export class ApiStack extends cdk.Stack {
         REGION: this.REGION,
       },
       bundling: {
-        minify: true
+        minify: true,
+        externalModules: ['@squidcup/types']
       }
     });
 
@@ -152,7 +160,8 @@ export class ApiStack extends cdk.Stack {
         REGION: this.REGION,
       },
       bundling: {
-        minify: true
+        minify: true,
+        externalModules: ['@squidcup/types']
       }
     });
 
@@ -167,7 +176,8 @@ export class ApiStack extends cdk.Stack {
         REGION: this.REGION,
       },
       bundling: {
-        minify: true
+        minify: true,
+        externalModules: ['@squidcup/types']
       }
     });
 
@@ -182,7 +192,8 @@ export class ApiStack extends cdk.Stack {
         REGION: this.REGION,
       },
       bundling: {
-        minify: true
+        minify: true,
+        externalModules: ['@squidcup/types']
       }
     });
 
@@ -197,7 +208,8 @@ export class ApiStack extends cdk.Stack {
         REGION: this.REGION,
       },
       bundling: {
-        minify: true
+        minify: true,
+        externalModules: ['@squidcup/types']
       }
     });
 
@@ -212,7 +224,8 @@ export class ApiStack extends cdk.Stack {
         REGION: this.REGION,
       },
       bundling: {
-        minify: true
+        minify: true,
+        externalModules: ['@squidcup/types']
       }
     });
 
@@ -228,7 +241,8 @@ export class ApiStack extends cdk.Stack {
         QUEUE_TIMEOUT_MINUTES: '10', // 10 minutes of inactivity before cleanup
       },
       bundling: {
-        minify: true
+        minify: true,
+        externalModules: ['@squidcup/types']
       }
     });
 
@@ -243,7 +257,8 @@ export class ApiStack extends cdk.Stack {
         REGION: this.REGION,
       },
       bundling: {
-        minify: true
+        minify: true,
+        externalModules: ['@squidcup/types']
       }
     });
 
@@ -258,7 +273,8 @@ export class ApiStack extends cdk.Stack {
         REGION: this.REGION,
       },
       bundling: {
-        minify: true
+        minify: true,
+        externalModules: ['@squidcup/types']
       }
     });
 
@@ -273,7 +289,8 @@ export class ApiStack extends cdk.Stack {
         REGION: this.REGION,
       },
       bundling: {
-        minify: true
+        minify: true,
+        externalModules: ['@squidcup/types']
       }
     });
 
