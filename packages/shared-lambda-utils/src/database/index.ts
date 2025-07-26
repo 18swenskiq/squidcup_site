@@ -830,7 +830,7 @@ export async function getUserQueueHistory(steamId: string, limit: number = 50): 
      WHERE qh.player_steam_id = ?
      ORDER BY qh.created_at DESC
      LIMIT ?`,
-    [steamId, sanitizedLimit]
+    [steamId, Number(sanitizedLimit)]
   );
 }
 
