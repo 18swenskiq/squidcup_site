@@ -61,6 +61,12 @@ jobs:
       - name: Synthesize CDK
         run: cdk synth SquidCupSite-ApiStack
 
+      # Loop over each asset folder and view structure
+      - name: Inspect File Structure
+        run: |
+          echo "CDK assets directory:"
+          ls -R ./home/runner/work/squidcup_site/squidcup_site/cdk/cdk.out
+
       # Deploy API stack first
       - name: Deploy API stack
         run: cdk deploy SquidCupSite-ApiStack --require-approval never
