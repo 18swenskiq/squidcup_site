@@ -827,7 +827,7 @@ export async function getUserQueueHistory(steamId: string, limit: number = 50): 
     `SELECT qh.*, q.game_mode, q.map_selection_mode
      FROM squidcup_queue_history qh
      LEFT JOIN squidcup_queues q ON qh.queue_id = q.id
-     WHERE qh.player_steam_id = ?
+     WHERE qh.player_steam_id = '?'
      ORDER BY qh.created_at DESC
      LIMIT ?`,
     [steamId, Number(sanitizedLimit)]
