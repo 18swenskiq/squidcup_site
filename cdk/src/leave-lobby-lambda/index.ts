@@ -6,8 +6,6 @@ import {
   storeLobbyHistoryEvent, 
   deleteLobby,
   createCorsHeaders,
-  LobbyPlayer,
-  LobbyData
 } from '@squidcup/shared-lambda-utils';
 
 export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
