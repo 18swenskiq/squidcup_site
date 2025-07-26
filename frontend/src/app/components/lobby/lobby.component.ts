@@ -229,7 +229,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
     
     if (this.lobby.mapSelectionMode === 'Host Pick') {
       return this.isHost;
-    } else if (this.lobby.mapSelectionMode === 'All Pick' || this.lobby.mapSelectionMode === 'all-pick') {
+    } else if (this.lobby.mapSelectionMode === 'all-pick') {
       const currentPlayer = this.lobby.players?.find(p => p.steamId === userSteamId);
       return currentPlayer ? !currentPlayer.hasSelectedMap : false;
     }

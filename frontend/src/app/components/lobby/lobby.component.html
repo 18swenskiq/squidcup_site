@@ -16,7 +16,7 @@
         <div class="player" *ngFor="let player of getTeamPlayers(teamNum)">
           <span class="player-name">{{ getPlayerDisplayName(player.steamId) }}</span>
           <span class="host-badge" *ngIf="player.steamId === lobby.hostSteamId">Host</span>
-          <span class="map-status" *ngIf="lobby.mapSelectionMode === 'All Pick'">
+          <span class="map-status" *ngIf="lobby.mapSelectionMode === 'all-pickk'">
             {{ player.hasSelectedMap ? '✓ Selected' : '⏳ Selecting...' }}
           </span>
         </div>
@@ -71,7 +71,7 @@
     </div>
 
     <!-- All Pick Mode -->
-    <div *ngIf="lobby.mapSelectionMode === 'All Pick' || lobby.mapSelectionMode === 'all-pick'" class="map-picker">
+    <div *ngIf="lobby.mapSelectionMode === 'all-pick'" class="map-picker">
       <div *ngIf="canSelectMap()">
         <p>Please select your preferred map:</p>
         

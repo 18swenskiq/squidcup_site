@@ -34,7 +34,7 @@ export interface Session {
 // ===== GAME TYPES =====
 
 export type GameMode = '5v5' | 'wingman' | '3v3' | '1v1';
-export type MapSelectionMode = 'All Pick' | 'Host Pick' | 'Random Map';
+export type MapSelectionMode = 'all-pick' | 'host-pick' | 'random-map';
 export type QueueStatus = 'waiting' | 'matched' | 'cancelled';
 export type LobbyStatus = 'active' | 'in_game' | 'completed' | 'cancelled';
 

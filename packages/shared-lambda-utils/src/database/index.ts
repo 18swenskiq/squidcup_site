@@ -208,7 +208,7 @@ async function ensureTablesExist(connection: mysql.Connection): Promise<void> {
         id VARCHAR(36) PRIMARY KEY,
         game_mode VARCHAR(20) NOT NULL,
         map VARCHAR(100),
-        map_selection_mode ENUM('All Pick', 'Host Pick', 'Random Map') NOT NULL,
+        map_selection_mode ENUM('all-pick', 'host-pick', 'random-map') NOT NULL,
         host_steam_id VARCHAR(50) NOT NULL,
         server_id VARCHAR(36),
         password VARCHAR(255),

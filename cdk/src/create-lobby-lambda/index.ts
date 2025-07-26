@@ -100,15 +100,13 @@ export const handler = async (event: any) => {
       ? balancePlayersIntoTeams(allPlayers, queueData.game_mode as GameMode)
       : allPlayers;
 
-    // For now, we'll use default map selection mode since it's not stored in queue yet
-    // TODO: Add mapSelectionMode to queue schema
-    let mapSelectionMode = 'Host Pick' as MapSelectionMode; 
-    const needsMapSelection = mapSelectionMode === 'All Pick' || mapSelectionMode === 'Host Pick';
+    let mapSelectionMode = queueData.map_selection_mode;
+    const needsMapSelection = mapSelectionMode === 'all-pick' || mapSelectionMode === 'host-pick';
     let selectedMap: string | undefined;
     let mapSelectionComplete = false;
 
     // Handle Random Map selection immediately
-    if (mapSelectionMode === 'Random Map') {
+    if (mapSelectionMode === 'random-map') {
       // TODO: Get random map from maps table based on gameMode
       // For now, we'll leave it undefined and handle it later
       mapSelectionComplete = true;
