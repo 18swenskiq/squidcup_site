@@ -1,5 +1,4 @@
-import { getActiveQueuesWithDetails } from '@squidcup/shared-lambda-utils';
-import { GameMode, ActiveQueueWithDetails } from '@squidcup/types';
+import { getActiveQueuesWithDetails, GameMode, ActiveQueueWithDetails } from '@squidcup/shared-lambda-utils';
 
 type ActiveQueue = {
   queueId: string;

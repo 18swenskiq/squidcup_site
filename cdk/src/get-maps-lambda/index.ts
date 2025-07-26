@@ -1,5 +1,4 @@
-import { getSsmParameter } from '@squidcup/shared-lambda-utils';
-import { GameMode, MapResponseObj } from '@squidcup/types';
+import { getSsmParameter, GameMode, MapResponseObj } from '@squidcup/shared-lambda-utils';
 
 const steamCollectionIds: {"gameMode": GameMode, "id": string}[] = [
   { gameMode: "5v5", id: '2753947063'},

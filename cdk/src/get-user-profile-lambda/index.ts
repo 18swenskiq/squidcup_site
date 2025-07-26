@@ -1,8 +1,6 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import fetch from 'node-fetch';
-import { getSession, getSsmParameter, upsertUser, createCorsHeaders, extractSteamIdFromOpenId } from '@squidcup/shared-lambda-utils';
-import { SteamUserResponse, SteamPlayer } from '@squidcup/types';
-
+import { getSession, getSsmParameter, upsertUser, createCorsHeaders, extractSteamIdFromOpenId, SteamUserResponse, SteamPlayer } from '@squidcup/shared-lambda-utils';
 // Function to get Steam user profile
 async function getSteamUserProfile(steamApiKey: string, steamId: string): Promise<SteamPlayer | null> {
   try {

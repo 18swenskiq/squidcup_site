@@ -6,19 +6,13 @@ import {
   deleteQueue, 
   storeLobbyHistoryEvent,
   getMaxPlayersForGamemode,
-  createCorsHeaders
-} from '@squidcup/shared-lambda-utils';
-import { 
-  DatabaseQueue, 
-  QueuePlayerRecord, 
+  createCorsHeaders,
   LobbyPlayerRecord, 
   GameMode, 
   MapSelectionMode,
   LobbyData,
   CreateLobbyInput,
-  AddLobbyPlayerInput,
-  LobbyHistoryEventInput
-} from '@squidcup/types';
+} from '@squidcup/shared-lambda-utils';
 import * as crypto from 'crypto';
 
 // Extended response interface for API responses

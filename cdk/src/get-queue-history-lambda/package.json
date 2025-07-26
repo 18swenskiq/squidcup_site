@@ -8,8 +8,7 @@
     "clean": "rm -rf dist && rm -rf *.js && rm -rf *.d.ts"
   },
   "dependencies": {
-    "@squidcup/shared-lambda-utils": "file:../../../packages/shared-lambda-utils",
-    "@squidcup/types": "file:../../../packages/types-squidcup"
+    "@squidcup/shared-lambda-utils": "file:../../../packages/shared-lambda-utils"
   },
   "devDependencies": {
     "@aws-sdk/client-lambda": "^3.693.0",

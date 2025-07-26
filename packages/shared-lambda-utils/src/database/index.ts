@@ -26,7 +26,7 @@ import {
   QueueHistoryEventInput,
   LobbyHistoryEventInput,
   AddLobbyPlayerInput
-} from '@squidcup/types';
+} from '../types';
 
 // Initialize SSM client
 const ssmClient = new SSMClient({ region: process.env.AWS_REGION || 'us-east-1' });

@@ -1,5 +1,4 @@
-import { getSession, getUser, addServer } from '@squidcup/shared-lambda-utils';
-import { GameServer, User, Session } from '@squidcup/types';
+import { getSession, getUser, addServer, GameServer } from '@squidcup/shared-lambda-utils';
 import * as crypto from 'crypto';
 
 // Function to extract numeric Steam ID from OpenID URL
@@ -29,7 +28,7 @@ async function isAdmin(steamId: string): Promise<boolean> {
 
     if (!user) {
       // User doesn't exist, fallback to hardcoded admin check
-      return numericSteamId === '76561198041569692';
+      return numericSteamId === '76561198041569692';  
     }
 
     return user.is_admin === true || user.is_admin === 1;

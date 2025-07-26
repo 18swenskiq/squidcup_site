@@ -12,8 +12,7 @@
   },
   "dependencies": {
     "node-fetch": "^2.6.7",
-    "@squidcup/shared-lambda-utils": "file:../../../packages/shared-lambda-utils",
-    "@squidcup/types": "file:../../../packages/types-squidcup"
+    "@squidcup/shared-lambda-utils": "file:../../../packages/shared-lambda-utils"
   },
   "devDependencies": {
     "@aws-sdk/client-lambda": "^3.759.0",

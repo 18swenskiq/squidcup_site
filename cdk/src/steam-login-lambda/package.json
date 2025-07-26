@@ -12,8 +12,7 @@
   },
   "dependencies": {
     "openid": "^2.0.13",
-    "@squidcup/shared-lambda-utils": "file:../../../packages/shared-lambda-utils",
-    "@squidcup/types": "file:../../../packages/types-squidcup"
+    "@squidcup/shared-lambda-utils": "file:../../../packages/shared-lambda-utils"
   },
   "devDependencies": {
     "@aws-sdk/client-lambda": "^3.0.0",
