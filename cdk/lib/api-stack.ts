@@ -7,6 +7,7 @@ import * as logs from 'aws-cdk-lib/aws-logs';
 import * as events from 'aws-cdk-lib/aws-events';
 import * as targets from 'aws-cdk-lib/aws-events-targets';
 import * as path from 'path';
+import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 
 export class ApiStack extends cdk.Stack {
   // Constants for Lambda configuration
@@ -19,7 +20,7 @@ export class ApiStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
-    const steamLoginFunction = new lambda.Function(this, "steam-login-function", {
+    const steamLoginFunction = new NodejsFunction(this, "steam-login-function", {
       runtime: this.RUNTIME,
       memorySize: this.MEMORY_SIZE,
       timeout: cdk.Duration.seconds(10), // Slightly longer for OAuth operations
@@ -29,6 +30,9 @@ export class ApiStack extends cdk.Stack {
       environment: {
         REGION: this.REGION,
         FRONTEND_URL: 'https://squidcup.spkymnr.xyz', // Your actual domain
+      },
+      bundling: {
+        ''
       }
     });
 

@@ -1,4 +1,5 @@
-import { getSession, getUser, addServer, GameServer, User, Session } from '@squidcup/shared-lambda-utils';
+import { getSession, getUser, addServer } from '@squidcup/shared-lambda-utils';
+import { GameServer, User, Session } from '@squidcup/types';
 import * as crypto from 'crypto';
 
 // Function to extract numeric Steam ID from OpenID URL
