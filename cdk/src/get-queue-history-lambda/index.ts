@@ -1,5 +1,6 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
-import { getSession, getUserQueueHistory, createCorsHeaders, extractSteamIdFromOpenId, formatDuration, QueueHistoryEntry } from '@squidcup/shared-lambda-utils';
+import { getSession, getUserQueueHistory, createCorsHeaders, extractSteamIdFromOpenId, formatDuration } from '@squidcup/shared-lambda-utils';
+import { QueueHistoryEntry } from '@squidcup/types';
 
 export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   console.log('Get queue history handler invoked');
