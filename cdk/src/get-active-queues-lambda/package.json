@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@squidcup/shared-lambda-utils": "file:../../../packages/shared-lambda-utils",
-    "@squidcup/types-squidcup": "file:../../../packages/types-squidcup"
+    "@squidcup/types": "file:../../../packages/types-squidcup"
   },
   "devDependencies": {
     "@aws-sdk/client-lambda": "^3.0.0",

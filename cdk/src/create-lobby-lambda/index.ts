@@ -18,7 +18,7 @@ import {
   CreateLobbyInput,
   AddLobbyPlayerInput,
   LobbyHistoryEventInput
-} from '@squidcup/types-squidcup';
+} from '@squidcup/types';
 import * as crypto from 'crypto';
 
 // Extended response interface for API responses

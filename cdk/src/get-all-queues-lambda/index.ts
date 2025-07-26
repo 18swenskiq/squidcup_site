@@ -1,6 +1,6 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { getSession, getUser, getActiveQueuesWithDetails } from '@squidcup/shared-lambda-utils';
-import { ActiveQueueWithDetails, Session, User, QueueWithUserInfo } from '@squidcup/types-squidcup';
+import { ActiveQueueWithDetails, Session, User, QueueWithUserInfo } from '@squidcup/types';
 
 export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   console.log('Get all queues handler started');

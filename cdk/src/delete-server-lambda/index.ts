@@ -1,5 +1,4 @@
 import { getSession, getUser, deleteServer } from '@squidcup/shared-lambda-utils';
-import { Session, User } from '@squidcup/types-squidcup';
 
 // Function to extract numeric Steam ID from OpenID URL
 function extractSteamIdFromOpenId(steamId: string): string {
