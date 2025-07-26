@@ -33,7 +33,6 @@ export class ApiStack extends cdk.Stack {
       },
       bundling: {
         minify: true,
-        externalModules: ['@squidcup/types']
       }
     });
 
@@ -49,7 +48,6 @@ export class ApiStack extends cdk.Stack {
       },
       bundling: {
         minify: true,
-        externalModules: ['@squidcup/types']
       }
     });
 
@@ -65,7 +63,6 @@ export class ApiStack extends cdk.Stack {
       },
       bundling: {
         minify: true,
-        externalModules: ['@squidcup/types']
       }
     });
 
@@ -81,7 +78,6 @@ export class ApiStack extends cdk.Stack {
       },
       bundling: {
         minify: true,
-        externalModules: ['@squidcup/types']
       }
     });
 
@@ -97,7 +93,6 @@ export class ApiStack extends cdk.Stack {
       },
       bundling: {
         minify: true,
-        externalModules: ['@squidcup/types']
       }
     });
 
@@ -113,7 +108,6 @@ export class ApiStack extends cdk.Stack {
       },
       bundling: {
         minify: true,
-        externalModules: ['@squidcup/types']
       }
     });
 
@@ -129,7 +123,6 @@ export class ApiStack extends cdk.Stack {
       },
       bundling: {
         minify: true,
-        externalModules: ['@squidcup/types']
       }
     });
 
@@ -145,7 +138,6 @@ export class ApiStack extends cdk.Stack {
       },
       bundling: {
         minify: true,
-        externalModules: ['@squidcup/types']
       }
     });
 
@@ -161,7 +153,6 @@ export class ApiStack extends cdk.Stack {
       },
       bundling: {
         minify: true,
-        externalModules: ['@squidcup/types']
       }
     });
 
@@ -177,7 +168,6 @@ export class ApiStack extends cdk.Stack {
       },
       bundling: {
         minify: true,
-        externalModules: ['@squidcup/types']
       }
     });
 
@@ -193,7 +183,6 @@ export class ApiStack extends cdk.Stack {
       },
       bundling: {
         minify: true,
-        externalModules: ['@squidcup/types']
       }
     });
 
@@ -209,7 +198,6 @@ export class ApiStack extends cdk.Stack {
       },
       bundling: {
         minify: true,
-        externalModules: ['@squidcup/types']
       }
     });
 
@@ -225,7 +213,6 @@ export class ApiStack extends cdk.Stack {
       },
       bundling: {
         minify: true,
-        externalModules: ['@squidcup/types']
       }
     });
 
@@ -242,7 +229,6 @@ export class ApiStack extends cdk.Stack {
       },
       bundling: {
         minify: true,
-        externalModules: ['@squidcup/types']
       }
     });
 
@@ -258,7 +244,6 @@ export class ApiStack extends cdk.Stack {
       },
       bundling: {
         minify: true,
-        externalModules: ['@squidcup/types']
       }
     });
 
@@ -274,7 +259,6 @@ export class ApiStack extends cdk.Stack {
       },
       bundling: {
         minify: true,
-        externalModules: ['@squidcup/types']
       }
     });
 
@@ -290,7 +274,6 @@ export class ApiStack extends cdk.Stack {
       },
       bundling: {
         minify: true,
-        externalModules: ['@squidcup/types']
       }
     });
 

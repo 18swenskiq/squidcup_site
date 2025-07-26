@@ -28,11 +28,9 @@
     "@aws-sdk/client-lambda": "^3.0.0",
     "@aws-sdk/client-ssm": "^3.0.0"
   },
-  "peerDependencies": {
-    "@squidcup/types": "^1.0.0"
-  },
   "dependencies": {
-    "mysql2": "^3.6.0"
+    "mysql2": "^3.6.0",
+    "@squidcup/types": "file:../types-squidcup"
   },
   "engines": {
     "node": ">=18.0.0"
