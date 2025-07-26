@@ -33,7 +33,11 @@ export class ApiStack extends cdk.Stack {
       },
       bundling: {
         minify: true,
-      }
+        command: [
+        'bash', '-c', 
+        'pwd && npm install && ls'
+      ],
+      },
     });
 
     const getUserProfileFunction = new NodejsFunction(this, "get-user-profile-function", {
