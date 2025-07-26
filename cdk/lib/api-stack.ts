@@ -32,7 +32,7 @@ export class ApiStack extends cdk.Stack {
         FRONTEND_URL: 'https://squidcup.spkymnr.xyz', // Your actual domain
       },
       bundling: {
-        ''
+        minify: true
       }
     });
 
