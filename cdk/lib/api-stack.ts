@@ -292,6 +292,7 @@ export class ApiStack extends cdk.Stack {
     deleteServerFunction.addToRolePolicy(ssmPolicy);
     getUserQueueFunction.addToRolePolicy(ssmPolicy);
     createLobbyFunction.addToRolePolicy(ssmPolicy);
+    getActiveQueuesFunction.addToRolePolicy(ssmPolicy);
     getQueueHistoryFunction.addToRolePolicy(ssmPolicy);
     getServersFunction.addToRolePolicy(ssmPolicy);
     getUserProfileFunction.addToRolePolicy(ssmPolicy);
