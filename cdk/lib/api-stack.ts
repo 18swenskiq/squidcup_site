@@ -36,7 +36,7 @@ export class ApiStack extends cdk.Stack {
       }
     });
 
-    const getUserProfileFunction = new lambda.Function(this, "get-user-profile-function", {
+    const getUserProfileFunction = new NodejsFunction(this, "get-user-profile-function", {
       runtime: this.RUNTIME,
       memorySize: this.MEMORY_SIZE,
       timeout: this.TIMEOUT,
@@ -45,10 +45,13 @@ export class ApiStack extends cdk.Stack {
       logRetention: this.LOG_RETENTION,
       environment: {
         REGION: this.REGION,
+      },
+      bundling: {
+        minify: true
       }
     });
 
-    const getMapsFunction = new lambda.Function(this, "get-maps-function", {
+    const getMapsFunction = new NodejsFunction(this, "get-maps-function", {
       runtime: this.RUNTIME,
       memorySize: this.MEMORY_SIZE,
       timeout: this.TIMEOUT,
@@ -57,10 +60,13 @@ export class ApiStack extends cdk.Stack {
       logRetention: this.LOG_RETENTION,
       environment: {
         REGION: this.REGION,
+      },
+      bundling: {
+        minify: true
       }
     });
 
-    const addServerFunction = new lambda.Function(this, "add-server-function", {
+    const addServerFunction = new NodejsFunction(this, "add-server-function", {
       runtime: this.RUNTIME,
       memorySize: this.MEMORY_SIZE,
       timeout: this.TIMEOUT,
@@ -69,10 +75,13 @@ export class ApiStack extends cdk.Stack {
       logRetention: this.LOG_RETENTION,
       environment: {
         REGION: this.REGION,
+      },
+      bundling: {
+        minify: true
       }
     });
 
-    const deleteServerFunction = new lambda.Function(this, "delete-server-function", {
+    const deleteServerFunction = new NodejsFunction(this, "delete-server-function", {
       runtime: this.RUNTIME,
       memorySize: this.MEMORY_SIZE,
       timeout: this.TIMEOUT,
@@ -81,10 +90,13 @@ export class ApiStack extends cdk.Stack {
       logRetention: this.LOG_RETENTION,
       environment: {
         REGION: this.REGION,
+      },
+      bundling: {
+        minify: true
       }
     });
 
-    const getServersFunction = new lambda.Function(this, "get-servers-function", {
+    const getServersFunction = new NodejsFunction(this, "get-servers-function", {
       runtime: this.RUNTIME,
       memorySize: this.MEMORY_SIZE,
       timeout: this.TIMEOUT,
@@ -93,10 +105,13 @@ export class ApiStack extends cdk.Stack {
       logRetention: this.LOG_RETENTION,
       environment: {
         REGION: this.REGION,
+      },
+      bundling: {
+        minify: true
       }
     });
 
-    const startQueueFunction = new lambda.Function(this, "start-queue-function", {
+    const startQueueFunction = new NodejsFunction(this, "start-queue-function", {
       runtime: this.RUNTIME,
       memorySize: this.MEMORY_SIZE,
       timeout: this.TIMEOUT,
@@ -105,10 +120,13 @@ export class ApiStack extends cdk.Stack {
       logRetention: this.LOG_RETENTION,
       environment: {
         REGION: this.REGION,
+      },
+      bundling: {
+        minify: true
       }
     });
 
-    const getUserQueueFunction = new lambda.Function(this, "get-user-queue-function", {
+    const getUserQueueFunction = new NodejsFunction(this, "get-user-queue-function", {
       runtime: this.RUNTIME,
       memorySize: this.MEMORY_SIZE,
       timeout: cdk.Duration.seconds(10), // Extended timeout for comprehensive metrics collection
@@ -117,10 +135,13 @@ export class ApiStack extends cdk.Stack {
       logRetention: this.LOG_RETENTION,
       environment: {
         REGION: this.REGION,
+      },
+      bundling: {
+        minify: true
       }
     });
 
-    const getAllQueuesFunction = new lambda.Function(this, "get-all-queues-function", {
+    const getAllQueuesFunction = new NodejsFunction(this, "get-all-queues-function", {
       runtime: this.RUNTIME,
       memorySize: this.MEMORY_SIZE,
       timeout: this.TIMEOUT,
@@ -129,10 +150,13 @@ export class ApiStack extends cdk.Stack {
       logRetention: this.LOG_RETENTION,
       environment: {
         REGION: this.REGION,
+      },
+      bundling: {
+        minify: true
       }
     });
 
-    const leaveQueueFunction = new lambda.Function(this, "leave-queue-function", {
+    const leaveQueueFunction = new NodejsFunction(this, "leave-queue-function", {
       runtime: this.RUNTIME,
       memorySize: this.MEMORY_SIZE,
       timeout: this.TIMEOUT,
@@ -141,10 +165,13 @@ export class ApiStack extends cdk.Stack {
       logRetention: this.LOG_RETENTION,
       environment: {
         REGION: this.REGION,
+      },
+      bundling: {
+        minify: true
       }
     });
 
-    const joinQueueFunction = new lambda.Function(this, "join-queue-function", {
+    const joinQueueFunction = new NodejsFunction(this, "join-queue-function", {
       runtime: this.RUNTIME,
       memorySize: this.MEMORY_SIZE,
       timeout: this.TIMEOUT,
@@ -153,10 +180,13 @@ export class ApiStack extends cdk.Stack {
       logRetention: this.LOG_RETENTION,
       environment: {
         REGION: this.REGION,
+      },
+      bundling: {
+        minify: true
       }
     });
 
-    const getQueueHistoryFunction = new lambda.Function(this, "get-queue-history-function", {
+    const getQueueHistoryFunction = new NodejsFunction(this, "get-queue-history-function", {
       runtime: this.RUNTIME,
       memorySize: this.MEMORY_SIZE,
       timeout: this.TIMEOUT,
@@ -165,10 +195,13 @@ export class ApiStack extends cdk.Stack {
       logRetention: this.LOG_RETENTION,
       environment: {
         REGION: this.REGION,
+      },
+      bundling: {
+        minify: true
       }
     });
 
-    const getActiveQueuesFunction = new lambda.Function(this, "get-active-queues-function", {
+    const getActiveQueuesFunction = new NodejsFunction(this, "get-active-queues-function", {
       runtime: this.RUNTIME,
       memorySize: this.MEMORY_SIZE,
       timeout: this.TIMEOUT,
@@ -177,10 +210,13 @@ export class ApiStack extends cdk.Stack {
       logRetention: this.LOG_RETENTION,
       environment: {
         REGION: this.REGION,
+      },
+      bundling: {
+        minify: true
       }
     });
 
-    const queueCleanupFunction = new lambda.Function(this, "queue-cleanup-function", {
+    const queueCleanupFunction = new NodejsFunction(this, "queue-cleanup-function", {
       runtime: this.RUNTIME,
       memorySize: this.MEMORY_SIZE,
       timeout: cdk.Duration.seconds(30), // Longer timeout for cleanup operations
@@ -190,10 +226,13 @@ export class ApiStack extends cdk.Stack {
       environment: {
         REGION: this.REGION,
         QUEUE_TIMEOUT_MINUTES: '10', // 10 minutes of inactivity before cleanup
+      },
+      bundling: {
+        minify: true
       }
     });
 
-    const createLobbyFunction = new lambda.Function(this, "create-lobby-function", {
+    const createLobbyFunction = new NodejsFunction(this, "create-lobby-function", {
       runtime: this.RUNTIME,
       memorySize: this.MEMORY_SIZE,
       timeout: cdk.Duration.seconds(10), // Longer timeout for lobby operations
@@ -202,10 +241,13 @@ export class ApiStack extends cdk.Stack {
       logRetention: this.LOG_RETENTION,
       environment: {
         REGION: this.REGION,
+      },
+      bundling: {
+        minify: true
       }
     });
 
-    const leaveLobbyFunction = new lambda.Function(this, "leave-lobby-function", {
+    const leaveLobbyFunction = new NodejsFunction(this, "leave-lobby-function", {
       runtime: this.RUNTIME,
       memorySize: this.MEMORY_SIZE,
       timeout: this.TIMEOUT,
@@ -214,10 +256,13 @@ export class ApiStack extends cdk.Stack {
       logRetention: this.LOG_RETENTION,
       environment: {
         REGION: this.REGION,
+      },
+      bundling: {
+        minify: true
       }
     });
 
-    const selectMapFunction = new lambda.Function(this, "select-map-function", {
+    const selectMapFunction = new NodejsFunction(this, "select-map-function", {
       runtime: this.RUNTIME,
       memorySize: this.MEMORY_SIZE,
       timeout: this.TIMEOUT,
@@ -226,6 +271,9 @@ export class ApiStack extends cdk.Stack {
       logRetention: this.LOG_RETENTION,
       environment: {
         REGION: this.REGION,
+      },
+      bundling: {
+        minify: true
       }
     });
 
