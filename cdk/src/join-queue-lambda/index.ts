@@ -149,10 +149,11 @@ export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayPr
     
     // Check if queue is now full and should be converted to lobby
     const maxPlayers = getMaxPlayersForGamemode(queueData.game_mode);
-    const currentPlayers = updatedQueueData.players ? updatedQueueData.players.length : 0;
+    const currentPlayers = updatedQueueData.current_players;
     
     if (currentPlayers >= maxPlayers) {
       console.log('Queue is full, creating lobby...');
+      console.log(`Current players: ${currentPlayers}, Max players: ${maxPlayers}`);
       console.log('CREATE_LOBBY_FUNCTION_NAME environment variable:', process.env.CREATE_LOBBY_FUNCTION_NAME);
       
       try {

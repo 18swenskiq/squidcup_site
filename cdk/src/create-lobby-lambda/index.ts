@@ -65,7 +65,7 @@ export const handler = async (event: any) => {
     
     // Check if queue is full
     const maxPlayers = getMaxPlayersForGamemode(queueData.game_mode as GameMode);
-    const currentPlayers = 1 + queuePlayers.length; // host + joiners
+    const currentPlayers = queueData.current_players;
     
     if (currentPlayers < maxPlayers) {
       return {

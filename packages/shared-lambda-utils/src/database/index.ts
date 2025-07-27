@@ -565,8 +565,8 @@ export async function createQueue(queueData: CreateQueueInput): Promise<void> {
   const connection = await getDatabaseConnection();
   await executeQuery(
     connection,
-    `INSERT INTO squidcup_queues (id, game_mode, map, map_selection_mode, host_steam_id, server_id, password, ranked, start_time, max_players)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO squidcup_queues (id, game_mode, map, map_selection_mode, host_steam_id, server_id, password, ranked, start_time, max_players, current_players)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       queueData.id,
       queueData.gameMode,
@@ -577,7 +577,8 @@ export async function createQueue(queueData: CreateQueueInput): Promise<void> {
       queueData.password || null,
       queueData.ranked || false,
       jsDateToMySQLDate(queueData.startTime),
-      queueData.maxPlayers
+      queueData.maxPlayers,
+      1 // Initialize current_players to 1 for the host
     ]
   );
 }
@@ -603,6 +604,8 @@ export async function updateQueue(queueId: string, queueData: UpdateQueueInput):
 
 export async function addPlayerToQueue(queueId: string, playerData: AddPlayerToQueueInput): Promise<void> {
   const connection = await getDatabaseConnection();
+  
+  // Add player to queue_players table
   await executeQuery(
     connection,
     `INSERT INTO squidcup_queue_players (queue_id, player_steam_id, team, joined_at)
@@ -614,14 +617,30 @@ export async function addPlayerToQueue(queueId: string, playerData: AddPlayerToQ
       jsDateToMySQLDate(playerData.joinTime ?? new Date())
     ]
   );
+  
+  // Update current_players count
+  await executeQuery(
+    connection,
+    'UPDATE squidcup_queues SET current_players = current_players + 1 WHERE id = ?',
+    [queueId]
+  );
 }
 
 export async function removePlayerFromQueue(queueId: string, steamId: string): Promise<void> {
   const connection = await getDatabaseConnection();
+  
+  // Remove player from queue_players table
   await executeQuery(
     connection,
     'DELETE FROM squidcup_queue_players WHERE queue_id = ? AND player_steam_id = ?',
     [queueId, steamId]
+  );
+  
+  // Update current_players count
+  await executeQuery(
+    connection,
+    'UPDATE squidcup_queues SET current_players = current_players - 1 WHERE id = ?',
+    [queueId]
   );
 }
 
