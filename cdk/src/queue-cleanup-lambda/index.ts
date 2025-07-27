@@ -3,7 +3,8 @@ import {
   getActiveQueuesForCleanup,
   getQueuePlayers,
   storeQueueHistoryEvent,
-  deleteQueue
+  deleteQueue,
+  updateQueue
 } from '@squidcup/shared-lambda-utils';
 
 export async function handler(event: any): Promise<any> {
@@ -90,11 +91,11 @@ export async function handler(event: any): Promise<any> {
           }
         }
         
-        // Delete the expired queue using shared utilities (this will also cascade delete players)
-        await deleteQueue(queueId);
+        // Mark the expired queue as cancelled due to timeout instead of deleting it
+        await updateQueue(queueId, { status: 'cancelled' });
         
         expiredCount++;
-        console.log(`Deleted inactive queue ${queueId} (${players.length + 1} players affected)`);
+        console.log(`Marked inactive queue ${queueId} as cancelled (${players.length + 1} players affected)`);
       } else {
         console.log(`Queue ${queueId} is still active (last activity: ${lastActivityTime})`);
       }

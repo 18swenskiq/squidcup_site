@@ -111,8 +111,8 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
         }
       }
       
-      // Delete the entire queue using shared utilities
-      await deleteQueue(userQueue.id);
+      // Mark the queue as cancelled instead of deleting it
+      await updateQueue(userQueue.id, { status: 'cancelled' });
 
       console.log('Queue disbanded successfully');
       return {

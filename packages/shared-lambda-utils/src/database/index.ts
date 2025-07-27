@@ -873,7 +873,7 @@ export async function getUserCompleteStatus(sessionToken: string): Promise<UserC
     `SELECT l.*, 'player' as user_role
      FROM squidcup_lobbies l 
      JOIN squidcup_lobby_players lp ON l.id = lp.lobby_id 
-     WHERE lp.player_steam_id = ? AND l.status = 'active'`,
+     WHERE lp.player_steam_id = ? AND (l.status = 'waiting' OR l.status = 'active')`,
     [userSteamId]
   );
   

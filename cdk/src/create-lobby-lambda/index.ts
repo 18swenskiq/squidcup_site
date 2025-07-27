@@ -3,7 +3,8 @@ import {
   getQueuePlayers, 
   createLobby,
   addLobbyPlayers, 
-  deleteQueue, 
+  deleteQueue,
+  updateQueue,
   storeLobbyHistoryEvent,
   getMaxPlayersForGamemode,
   createCorsHeaders,
@@ -57,6 +58,15 @@ export const handler = async (event: any) => {
         statusCode: 404,
         headers: createCorsHeaders(),
         body: JSON.stringify({ error: 'Queue not found' })
+      };
+    }
+    
+    // Check if queue has already been converted to lobby
+    if (queueData.status !== 'waiting') {
+      return {
+        statusCode: 400,
+        headers: createCorsHeaders(),
+        body: JSON.stringify({ error: 'Queue has already been processed' })
       };
     }
     
@@ -132,8 +142,8 @@ export const handler = async (event: any) => {
       team: player.team || 0
     })));
 
-    // Delete the original queue
-    await deleteQueue(queueId);
+    // Mark the original queue as completed (converted to lobby) instead of deleting immediately
+    await updateQueue(queueId, { status: 'completed' });
 
     // Store lobby creation events for all players
     for (const player of playersWithTeams) {
