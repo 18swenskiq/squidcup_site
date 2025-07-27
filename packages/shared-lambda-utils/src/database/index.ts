@@ -839,12 +839,12 @@ export async function getUserCompleteStatus(sessionToken: string): Promise<UserC
   const userSteamId = session[0].steam_id;
   console.log('User Steam ID from session:', userSteamId);
   
-  // Step 2: Check for active lobby (as host)
+  // Step 2: Check for in-progress lobby (as host)
   const hostLobby = await executeQuery(
     connection,
     `SELECT l.*, 'host' as user_role
      FROM squidcup_lobbies l 
-     WHERE l.host_steam_id = ? AND l.status = 'active'`,
+     WHERE l.host_steam_id = ? AND (l.status = 'waiting' OR l.status = 'active')`,
     [userSteamId]
   );
   
