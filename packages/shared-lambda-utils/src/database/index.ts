@@ -611,7 +611,7 @@ export async function addPlayerToQueue(queueId: string, playerData: AddPlayerToQ
       queueId,
       playerData.steamId,
       playerData.team || 0,
-      playerData.joinTime || new Date().toISOString()
+      jsDateToMySQLDate(playerData.joinTime ?? new Date())
     ]
   );
 }

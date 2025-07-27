@@ -112,7 +112,7 @@ export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayPr
     }
 
     // Add user to the queue using shared utilities
-    const now = new Date().toISOString();
+    const now = new Date();
     const playerData = {
       steamId: userSteamId,
       joinTime: now,

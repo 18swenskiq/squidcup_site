@@ -440,7 +440,7 @@ export interface UpdateLobbyInput {
 export interface AddPlayerToQueueInput {
   steamId: string;
   team?: number;
-  joinTime?: string;
+  joinTime?: Date;
 }
 
 export interface UpdateServerInput {
