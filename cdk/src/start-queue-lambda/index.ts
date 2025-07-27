@@ -86,7 +86,7 @@ export async function handler(event: any): Promise<any> {
 
     // Generate queue ID
     const queueId = crypto.randomUUID();
-    const now = new Date().toISOString();
+    const now = new Date();
 
     // Create the active queue object
     const activeQueue: ActiveQueue = {
@@ -97,10 +97,10 @@ export async function handler(event: any): Promise<any> {
       serverId: server, // This is the server ID from the form
       password: password || undefined, // Only include if provided
       ranked: ranked === true,
-      startTime: now,
+      startTime: now.toISOString(),
       joiners: [], // Empty array initially
-      createdAt: now,
-      updatedAt: now
+      createdAt: now.toISOString(),
+      updatedAt: now.toISOString()
     };
 
     // Create queue using shared utilities

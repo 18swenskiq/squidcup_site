@@ -224,7 +224,7 @@ async function storeUserSession(steamId: string, frontendDomain: string) {
   });
 
   // Create session using shared utilities
-  await createSession(sessionToken, steamId, expiresAt.toISOString());
+  await createSession(sessionToken, steamId, expiresAt);
 
   return { sessionToken, expiresAt };
 }

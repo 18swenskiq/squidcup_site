@@ -353,23 +353,9 @@ export async function getSession(sessionToken: string): Promise<Session | null> 
   return rows.length > 0 ? rows[0] : null;
 }
 
-export async function createSession(sessionToken: string, steamId: string, expiresAt: string): Promise<void> {
+export async function createSession(sessionToken: string, steamId: string, expiresAt: Date): Promise<void> {
   const connection = await getDatabaseConnection();
-  
-  // Debug logging to see what data we're trying to insert
-  console.log('createSession called with:');
-  console.log('- sessionToken length:', sessionToken?.length, 'value:', sessionToken);
-  console.log('- steamId length:', steamId?.length, 'value:', steamId);
-  console.log('- expiresAt length:', expiresAt?.length, 'value:', expiresAt);
-  
-  // Convert ISO string to MySQL-compatible datetime format
-  // MySQL TIMESTAMP expects 'YYYY-MM-DD HH:MM:SS' format
-  let mysqlDateTime = expiresAt;
-  if (expiresAt && typeof expiresAt === 'string' && expiresAt.includes('T')) {
-    // Convert ISO string (2025-07-25T08:00:24.370Z) to MySQL format (2025-07-25 08:00:24)
-    mysqlDateTime = new Date(expiresAt).toISOString().slice(0, 19).replace('T', ' ');
-    console.log('Converted expiresAt from ISO to MySQL format:', mysqlDateTime);
-  }
+  let mysqlDateTime = jsDateToMySQLDate(expiresAt);
   
   await executeQuery(
     connection,
@@ -590,7 +576,7 @@ export async function createQueue(queueData: CreateQueueInput): Promise<void> {
       queueData.serverId,
       queueData.password || null,
       queueData.ranked || false,
-      queueData.startTime,
+      jsDateToMySQLDate(queueData.startTime),
       queueData.maxPlayers
     ]
   );
@@ -1116,4 +1102,15 @@ export async function getActiveQueuesWithDetails(): Promise<ActiveQueueWithDetai
 export async function executeRawQuery(query: string, params: any[] = []): Promise<any> {
   const connection = await getDatabaseConnection();
   return await executeQuery(connection, query, params);
+}
+
+function jsDateToMySQLDate(date: Date): string {
+  const dateISOString = date.toISOString();
+
+  let mysqlDateTime = dateISOString;
+  if (dateISOString.includes('T')) {
+    // Convert ISO string (2025-07-25T08:00:24.370Z) to MySQL format (2025-07-25 08:00:24)
+    mysqlDateTime = new Date(dateISOString).toISOString().slice(0, 19).replace('T', ' ');
+  }
+  return mysqlDateTime;
 }

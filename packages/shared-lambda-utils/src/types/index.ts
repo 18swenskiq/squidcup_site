@@ -410,7 +410,7 @@ export interface CreateQueueInput {
   serverId?: string;
   password?: string;
   ranked: boolean;
-  startTime: string;
+  startTime: Date;
   maxPlayers: number;
 }
 
