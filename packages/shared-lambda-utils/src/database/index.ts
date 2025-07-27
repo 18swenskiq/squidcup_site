@@ -836,7 +836,7 @@ export async function getUserCompleteStatus(sessionToken: string): Promise<UserC
     return { session: null };
   }
   
-  const userSteamId = session[0].steam_id;
+  const userSteamId = session[0].user_steam_id;
   console.log('User Steam ID from session:', userSteamId);
   
   // Step 2: Check for in-progress lobby (as host)
