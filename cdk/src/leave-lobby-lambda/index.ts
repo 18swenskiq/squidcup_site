@@ -104,7 +104,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
         eventType: 'disband',
         eventData: {
           gameMode: lobbyData.game_mode,
-          mapSelectionMode: 'Host Pick', // Default since lobbies don't store this
+          mapSelectionMode: lobbyData.map_selection_mode || 'host-pick',
           disbandedBy: userSteamId,
           isHost: player.player_steam_id === lobbyData.host_steam_id,
         }

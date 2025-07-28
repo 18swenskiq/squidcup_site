@@ -290,6 +290,7 @@ export interface DatabaseLobby {
   queue_id?: string;
   game_mode: GameMode;
   map?: string;
+  map_selection_mode: MapSelectionMode;
   host_steam_id: string;
   server_id?: string;
   status: 'waiting' | 'ready' | 'in_progress' | 'completed' | 'cancelled';
@@ -372,6 +373,7 @@ export interface UserCompleteStatus {
     queue_id?: string;
     game_mode: string;
     map?: string;
+    map_selection_mode: string;
     host_steam_id: string;
     server_id?: string;
     status: string;
@@ -425,6 +427,7 @@ export interface CreateLobbyInput {
   queueId?: string;
   gameMode: GameMode;
   map?: string;
+  mapSelectionMode: MapSelectionMode;
   hostSteamId: string;
   serverId?: string;
   status?: 'waiting' | 'ready' | 'in_progress' | 'completed' | 'cancelled';
@@ -432,6 +435,7 @@ export interface CreateLobbyInput {
 
 export interface UpdateLobbyInput {
   map?: string;
+  mapSelectionMode?: MapSelectionMode;
   status?: 'waiting' | 'ready' | 'in_progress' | 'completed' | 'cancelled';
   serverId?: string;
   gameMode?: GameMode;

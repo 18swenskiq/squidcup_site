@@ -88,7 +88,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
             hostSteamId: lobby.host_steam_id,
             hostName: lobby.playerNames[lobby.host_steam_id] || `Player ${lobby.host_steam_id.slice(-4)}`,
             gameMode: lobby.game_mode,
-            mapSelectionMode: 'Host Pick', // Default since lobbies don't store this
+            mapSelectionMode: lobby.map_selection_mode || 'host-pick', // Use stored value with fallback
             serverId: lobby.server_id,
             hasPassword: false, // Lobbies don't have passwords
             ranked: false, // Default for lobbies

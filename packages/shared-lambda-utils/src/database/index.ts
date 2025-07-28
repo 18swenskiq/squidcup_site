@@ -250,6 +250,7 @@ async function ensureTablesExist(connection: mysql.Connection): Promise<void> {
         queue_id VARCHAR(36),
         game_mode VARCHAR(20) NOT NULL,
         map VARCHAR(100),
+        map_selection_mode ENUM('all-pick', 'host-pick', 'random-map') NOT NULL,
         host_steam_id VARCHAR(50) NOT NULL,
         server_id VARCHAR(36),
         status ENUM('waiting', 'ready', 'in_progress', 'completed', 'cancelled') DEFAULT 'waiting',
@@ -700,13 +701,14 @@ export async function createLobby(lobbyData: CreateLobbyInput): Promise<void> {
   const connection = await getDatabaseConnection();
   await executeQuery(
     connection,
-    `INSERT INTO squidcup_lobbies (id, queue_id, game_mode, map, host_steam_id, server_id, status)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO squidcup_lobbies (id, queue_id, game_mode, map, map_selection_mode, host_steam_id, server_id, status)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       lobbyData.id,
       lobbyData.queueId,
       lobbyData.gameMode,
       lobbyData.map,
+      lobbyData.mapSelectionMode,
       lobbyData.hostSteamId,
       lobbyData.serverId,
       lobbyData.status || 'waiting'
@@ -750,6 +752,7 @@ export async function updateLobby(lobbyId: string, lobbyData: UpdateLobbyInput):
   const values = [];
   
   if (lobbyData.map !== undefined) { fields.push('map = ?'); values.push(lobbyData.map); }
+  if (lobbyData.mapSelectionMode !== undefined) { fields.push('map_selection_mode = ?'); values.push(lobbyData.mapSelectionMode); }
   if (lobbyData.status !== undefined) { fields.push('status = ?'); values.push(lobbyData.status); }
   if (lobbyData.serverId !== undefined) { fields.push('server_id = ?'); values.push(lobbyData.serverId); }
   if (lobbyData.gameMode !== undefined) { fields.push('game_mode = ?'); values.push(lobbyData.gameMode); }

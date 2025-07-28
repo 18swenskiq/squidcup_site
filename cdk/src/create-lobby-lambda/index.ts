@@ -128,6 +128,7 @@ export const handler = async (event: any) => {
       queueId: queueId,
       gameMode: queueData.game_mode as GameMode,
       map: selectedMap,
+      mapSelectionMode: mapSelectionMode,
       hostSteamId: queueData.host_steam_id,
       serverId: undefined, // Will be assigned later
       status: 'waiting'
