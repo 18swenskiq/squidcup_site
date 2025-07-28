@@ -877,6 +877,11 @@ export async function getUserCompleteStatus(sessionToken: string): Promise<UserC
     [userSteamId]
   );
   
+  // Log for debugging
+  console.log('Lobby check results for user:', userSteamId);
+  console.log('Host lobbies found:', hostLobby.length);
+  console.log('Player lobbies found:', playerLobby.length);
+  
   let activeLobby = null;
   let isLobbyHost = false;
   
@@ -933,7 +938,7 @@ export async function getUserCompleteStatus(sessionToken: string): Promise<UserC
     };
   }
   
-  // Step 5: Check for active queue (as host)
+  // Step 5: Check for active queue (as host) - only waiting status
   const hostQueue = await executeQuery(
     connection,
     `SELECT q.*, 'host' as user_role
@@ -942,7 +947,7 @@ export async function getUserCompleteStatus(sessionToken: string): Promise<UserC
     [userSteamId]
   );
   
-  // Step 6: Check for active queue (as player)
+  // Step 6: Check for active queue (as player) - only waiting status
   const playerQueue = await executeQuery(
     connection,
     `SELECT q.*, 'player' as user_role
@@ -951,6 +956,13 @@ export async function getUserCompleteStatus(sessionToken: string): Promise<UserC
      WHERE qp.player_steam_id = ? AND q.status = 'waiting'`,
     [userSteamId]
   );
+  
+  // Log for debugging disbanded lobby issues
+  if (hostQueue.length > 0 || playerQueue.length > 0) {
+    console.log('Found active queue(s) for user:', userSteamId);
+    console.log('Host queues:', hostQueue.length);
+    console.log('Player queues:', playerQueue.length);
+  }
   
   let activeQueue = null;
   let isQueueHost = false;

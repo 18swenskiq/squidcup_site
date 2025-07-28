@@ -5,6 +5,7 @@ import {
   getLobbyWithPlayers, 
   storeLobbyHistoryEvent, 
   deleteLobby,
+  deleteQueue,
   createCorsHeaders,
 } from '@squidcup/shared-lambda-utils';
 
@@ -112,6 +113,13 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
     
     // Delete the lobby using shared utilities
     await deleteLobby(lobbyData.id);
+
+    // If the lobby was created from a queue, also delete the original queue
+    // to prevent players from seeing stale queue data after lobby disbanding
+    if (lobbyData.queue_id) {
+      console.log('Deleting original queue:', lobbyData.queue_id);
+      await deleteQueue(lobbyData.queue_id);
+    }
 
     console.log('Lobby disbanded successfully');
     return {
