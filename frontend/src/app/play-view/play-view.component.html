@@ -116,7 +116,12 @@
           <label for="ranked">Ranked?</label>
         </div>
 
-        <button type="submit" [disabled]="queueForm.invalid">Start Queue</button>
+        <button type="submit" [disabled]="queueForm.invalid || isStartingQueue">
+          <span *ngIf="!isStartingQueue">Start Queue</span>
+          <span *ngIf="isStartingQueue">
+            <span class="spinner"></span> Starting...
+          </span>
+        </button>
       </form>
     </div>
 
@@ -149,7 +154,12 @@
           </div>
         </div>
       </div>
-      <button class="join-button" [disabled]="!selectedQueue || !isLoggedIn" (click)="joinQueue()" *ngIf="isLoggedIn">Join Queue</button>
+      <button class="join-button" [disabled]="!selectedQueue || !isLoggedIn || isJoiningQueue" (click)="joinQueue()" *ngIf="isLoggedIn">
+        <span *ngIf="!isJoiningQueue">Join Queue</span>
+        <span *ngIf="isJoiningQueue">
+          <span class="spinner"></span> Joining...
+        </span>
+      </button>
     </div>
   </div>
   

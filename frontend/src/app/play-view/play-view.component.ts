@@ -24,6 +24,8 @@ export class PlayViewComponent implements OnInit, OnDestroy {
   selectedQueue: Queue | null = null;
   userQueueStatus: UserQueueStatus | null = null;
   isLoadingUserQueue: boolean = true;
+  isStartingQueue: boolean = false;
+  isJoiningQueue: boolean = false;
   viewState: ViewState = {
     showStartQueue: true,
     showJoinQueue: true,
@@ -180,15 +182,18 @@ export class PlayViewComponent implements OnInit, OnDestroy {
   }
 
   startQueue(): void {
-    if (this.queueForm.valid) {
+    if (this.queueForm.valid && !this.isStartingQueue) {
+      this.isStartingQueue = true;
       const headers = this.authService.getAuthHeaders();
       this.http.post(`${this.apiBaseUrl}/startQueue`, this.queueForm.value, { headers }).subscribe({
         next: (response) => {
           console.log('Queue started successfully', response);
+          this.isStartingQueue = false;
           // The user queue status polling will automatically update the view
         },
         error: (error) => {
           console.error('Error starting queue', error);
+          this.isStartingQueue = false;
           // You might want to show an error message
         }
       });
@@ -200,13 +205,15 @@ export class PlayViewComponent implements OnInit, OnDestroy {
   }
 
   joinQueue(): void {
-    if (!this.selectedQueue) return;
+    if (!this.selectedQueue || this.isJoiningQueue) return;
     
     const currentUser = this.authService.getCurrentUser();
     if (!currentUser) {
       alert('You must be logged in to join a queue.');
       return;
     }
+    
+    this.isJoiningQueue = true;
     
     const headers = {
       'Authorization': `Bearer ${currentUser.sessionToken}`,
@@ -220,6 +227,7 @@ export class PlayViewComponent implements OnInit, OnDestroy {
     if (this.selectedQueue.hasPassword) {
       const password = prompt('This queue requires a password:');
       if (!password) {
+        this.isJoiningQueue = false;
         return; // User cancelled the password prompt
       }
       
@@ -232,6 +240,7 @@ export class PlayViewComponent implements OnInit, OnDestroy {
           console.log('Joined queue successfully', response);
           alert('Successfully joined the queue!');
           this.selectedQueue = null; // Clear selection
+          this.isJoiningQueue = false;
         },
         error: (error) => {
           console.error('Error joining queue', error);
@@ -242,6 +251,7 @@ export class PlayViewComponent implements OnInit, OnDestroy {
             errorMessage = error.error.error;
           }
           alert(errorMessage);
+          this.isJoiningQueue = false;
         }
       });
     } else {
@@ -253,6 +263,7 @@ export class PlayViewComponent implements OnInit, OnDestroy {
           console.log('Joined queue successfully', response);
           alert('Successfully joined the queue!');
           this.selectedQueue = null; // Clear selection
+          this.isJoiningQueue = false;
         },
         error: (error) => {
           console.error('Error joining queue', error);
@@ -263,6 +274,7 @@ export class PlayViewComponent implements OnInit, OnDestroy {
             errorMessage = error.error.error;
           }
           alert(errorMessage);
+          this.isJoiningQueue = false;
         }
       });
     }
