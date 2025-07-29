@@ -119,7 +119,7 @@ export async function handler(event: any): Promise<any> {
     // Store queue history event using shared utilities
     await storeQueueHistoryEvent({
       id: crypto.randomUUID(),
-      queueId: queueId,
+      gameId: queueId,
       playerSteamId: hostSteamId,
       eventType: 'join', // Host joining their own queue
       eventData: {

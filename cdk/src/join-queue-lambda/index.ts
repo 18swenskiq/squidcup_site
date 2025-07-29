@@ -124,7 +124,7 @@ export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayPr
     // Store queue history event using shared utilities
     const historyEventData = {
       id: crypto.randomUUID(),
-      queueId,
+      gameId: queueId,
       playerSteamId: userSteamId,
       eventType: 'join' as const,
       eventData: {

@@ -99,7 +99,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
       const eventId = crypto.randomUUID();
       await storeLobbyHistoryEvent({
         id: eventId,
-        lobbyId: lobbyData.id,
+        gameId: lobbyData.id,
         playerSteamId: player.player_steam_id,
         eventType: 'disband',
         eventData: {
@@ -114,12 +114,8 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
     // Delete the lobby using shared utilities
     await deleteLobby(lobbyData.id);
 
-    // If the lobby was created from a queue, also delete the original queue
-    // to prevent players from seeing stale queue data after lobby disbanding
-    if (lobbyData.queue_id) {
-      console.log('Deleting original queue:', lobbyData.queue_id);
-      await deleteQueue(lobbyData.queue_id);
-    }
+    // Note: In unified architecture, there's no separate queue to delete
+    // The game record itself handles both queue and lobby states
 
     console.log('Lobby disbanded successfully');
     return {

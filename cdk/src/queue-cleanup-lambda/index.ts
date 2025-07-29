@@ -60,7 +60,7 @@ export async function handler(event: any): Promise<any> {
         // Store timeout event for host using shared utilities
         await storeQueueHistoryEvent({
           id: crypto.randomUUID(),
-          queueId: queueId,
+          gameId: queueId,
           playerSteamId: queue.host_steam_id,
           eventType: 'timeout',
           eventData: {
@@ -77,7 +77,7 @@ export async function handler(event: any): Promise<any> {
           if (player.player_steam_id !== queue.host_steam_id) {
             await storeQueueHistoryEvent({
               id: crypto.randomUUID(),
-              queueId: queueId,
+              gameId: queueId,
               playerSteamId: player.player_steam_id,
               eventType: 'timeout',
               eventData: {

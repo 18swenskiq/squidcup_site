@@ -81,7 +81,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
       const hostEventId = crypto.randomUUID();
       await storeQueueHistoryEvent({
         id: hostEventId,
-        queueId: userQueue.id,
+        gameId: userQueue.id,
         playerSteamId: userSteamId,
         eventType: 'disband',
         eventData: {
@@ -98,7 +98,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
             const playerEventId = crypto.randomUUID();
             await storeQueueHistoryEvent({
               id: playerEventId,
-              queueId: userQueue.id,
+              gameId: userQueue.id,
               playerSteamId: player.player_steam_id,
               eventType: 'disband',
               eventData: {
@@ -132,7 +132,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
       const eventId = crypto.randomUUID();
       await storeQueueHistoryEvent({
         id: eventId,
-        queueId: userQueue.id,
+        gameId: userQueue.id,
         playerSteamId: userSteamId,
         eventType: 'leave',
         eventData: {

@@ -266,9 +266,9 @@ export interface EnrichedLobbyData extends LobbyData {
   }>;
 }
 
-// ===== DATABASE SPECIFIC TYPES =====
+// ===== UNIFIED GAME TYPES (replaces separate Queue/Lobby types) =====
 
-export interface DatabaseQueue {
+export interface DatabaseGame {
   id: string;
   game_mode: GameMode;
   map?: string;
@@ -280,67 +280,31 @@ export interface DatabaseQueue {
   start_time: string;
   max_players: number;
   current_players: number;
-  status: 'waiting' | 'ready' | 'in_progress' | 'completed' | 'cancelled';
+  status: 'queue' | 'lobby' | 'in_progress' | 'completed' | 'cancelled';
   created_at: string;
   updated_at: string;
 }
 
-export interface DatabaseLobby {
-  id: string;
-  queue_id?: string;
-  game_mode: GameMode;
-  map?: string;
-  map_selection_mode: MapSelectionMode;
-  host_steam_id: string;
-  server_id?: string;
-  status: 'waiting' | 'ready' | 'in_progress' | 'completed' | 'cancelled';
-  created_at: string;
-  updated_at: string;
-}
-
-export interface QueuePlayerRecord {
-  queue_id: string;
+export interface GamePlayerRecord {
+  game_id: string;
   player_steam_id: string;
   team: number;
   joined_at: string;
 }
 
-export interface LobbyPlayerRecord {
-  lobby_id: string;
-  player_steam_id: string;
-  team: number;
-  joined_at: string;
-}
-
-export interface QueueHistoryRecord {
+export interface GameHistoryRecord {
   id: string;
-  queue_id: string;
+  game_id: string;
   player_steam_id: string;
-  event_type: 'join' | 'leave' | 'disband' | 'timeout' | 'complete';
+  event_type: 'join' | 'leave' | 'disband' | 'timeout' | 'complete' | 'convert_to_lobby';
   event_data?: any;
   created_at: string;
   game_mode?: string;
   map_selection_mode?: string;
 }
 
-export interface LobbyHistoryRecord {
-  id: string;
-  lobby_id: string;
-  player_steam_id: string;
-  event_type: 'join' | 'leave' | 'disband' | 'timeout' | 'complete';
-  event_data?: any;
-  created_at: string;
-}
-
-export interface EnrichedQueueWithPlayers extends DatabaseQueue {
-  players: QueuePlayerRecord[];
-  isHost?: boolean;
-  userJoinedAt?: string;
-  userTeam?: number;
-}
-
-export interface EnrichedLobbyWithPlayers extends DatabaseLobby {
-  players: LobbyPlayerRecord[];
+export interface EnrichedGameWithPlayers extends DatabaseGame {
+  players: GamePlayerRecord[];
   isHost?: boolean;
   userJoinedAt?: string;
   userTeam?: number;
@@ -349,6 +313,26 @@ export interface EnrichedLobbyWithPlayers extends DatabaseLobby {
 export interface UserCompleteStatus {
   session: Session | null;
   userSteamId?: string;
+  game?: {
+    id: string;
+    game_mode: string;
+    map?: string;
+    map_selection_mode: string;
+    host_steam_id: string;
+    server_id?: string;
+    password?: string;
+    ranked: boolean;
+    start_time: string;
+    max_players: number;
+    current_players: number;
+    status: string;
+    created_at: string;
+    updated_at: string;
+    isHost: boolean;
+    players: GamePlayerRecord[];
+    playerNames: Record<string, string>;
+  };
+  // Legacy compatibility properties
   queue?: {
     id: string;
     game_mode: string;
@@ -365,22 +349,26 @@ export interface UserCompleteStatus {
     created_at: string;
     updated_at: string;
     isHost: boolean;
-    players: QueuePlayerRecord[];
+    players: GamePlayerRecord[];
     playerNames: Record<string, string>;
   };
   lobby?: {
     id: string;
-    queue_id?: string;
     game_mode: string;
     map?: string;
     map_selection_mode: string;
     host_steam_id: string;
     server_id?: string;
+    password?: string;
+    ranked: boolean;
+    start_time: string;
+    max_players: number;
+    current_players: number;
     status: string;
     created_at: string;
     updated_at: string;
     isHost: boolean;
-    players: LobbyPlayerRecord[];
+    players: GamePlayerRecord[];
     playerNames: Record<string, string>;
   };
 }
@@ -403,7 +391,7 @@ export interface QueueCleanupRecord {
 
 // ===== INPUT DATA TYPES =====
 
-export interface CreateQueueInput {
+export interface CreateGameInput {
   id: string;
   gameMode: GameMode;
   map?: string;
@@ -414,37 +402,33 @@ export interface CreateQueueInput {
   ranked: boolean;
   startTime: Date;
   maxPlayers: number;
+  status?: 'queue' | 'lobby' | 'in_progress' | 'completed' | 'cancelled';
 }
 
-export interface UpdateQueueInput {
+export interface UpdateGameInput {
   currentPlayers?: number;
-  status?: 'waiting' | 'ready' | 'in_progress' | 'completed' | 'cancelled';
-  map?: string;
-}
-
-export interface CreateLobbyInput {
-  id: string;
-  queueId?: string;
-  gameMode: GameMode;
-  map?: string;
-  mapSelectionMode: MapSelectionMode;
-  hostSteamId: string;
-  serverId?: string;
-  status?: 'waiting' | 'ready' | 'in_progress' | 'completed' | 'cancelled';
-}
-
-export interface UpdateLobbyInput {
+  status?: 'queue' | 'lobby' | 'in_progress' | 'completed' | 'cancelled';
   map?: string;
   mapSelectionMode?: MapSelectionMode;
-  status?: 'waiting' | 'ready' | 'in_progress' | 'completed' | 'cancelled';
   serverId?: string;
   gameMode?: GameMode;
 }
 
-export interface AddPlayerToQueueInput {
+export interface AddPlayerToGameInput {
   steamId: string;
   team?: number;
   joinTime?: Date;
+}
+
+export interface GameHistoryEventInput {
+  id: string;
+  gameId: string;
+  playerSteamId: string;
+  eventType: 'join' | 'leave' | 'disband' | 'timeout' | 'complete' | 'convert_to_lobby';
+  eventData?: any;
+  // Legacy compatibility fields
+  queueId?: string;
+  lobbyId?: string;
 }
 
 export interface UpdateServerInput {
@@ -466,27 +450,6 @@ export interface UpsertUserInput {
   countryCode?: string;
   stateCode?: string;
   isAdmin?: boolean;
-}
-
-export interface QueueHistoryEventInput {
-  id: string;
-  queueId: string;
-  playerSteamId: string;
-  eventType: 'join' | 'leave' | 'disband' | 'timeout' | 'complete';
-  eventData?: any;
-}
-
-export interface LobbyHistoryEventInput {
-  id: string;
-  lobbyId: string;
-  playerSteamId: string;
-  eventType: 'join' | 'leave' | 'disband' | 'timeout' | 'complete';
-  eventData?: any;
-}
-
-export interface AddLobbyPlayerInput {
-  steamId: string;
-  team?: number;
 }
 
 // ===== UTILITY TYPES =====
@@ -526,3 +489,20 @@ export interface SteamUserResponse {
     players: SteamPlayer[];
   };
 }
+
+// ===== LEGACY TYPE ALIASES (for backward compatibility) =====
+export type LobbyPlayerRecord = GamePlayerRecord;
+export type QueuePlayerRecord = GamePlayerRecord;
+export type CreateLobbyInput = CreateGameInput & { queueId?: string };
+export type UpdateLobbyInput = UpdateGameInput;
+export type AddLobbyPlayerInput = AddPlayerToGameInput;
+export type LobbyHistoryEventInput = GameHistoryEventInput;
+export type QueueHistoryEventInput = GameHistoryEventInput;
+export type QueueHistoryRecord = GameHistoryRecord;
+export type DatabaseQueue = DatabaseGame;
+export type DatabaseLobby = DatabaseGame;
+export type EnrichedQueueWithPlayers = EnrichedGameWithPlayers;
+export type EnrichedLobbyWithPlayers = EnrichedGameWithPlayers;
+export type CreateQueueInput = CreateGameInput;
+export type UpdateQueueInput = UpdateGameInput;
+export type AddPlayerToQueueInput = AddPlayerToGameInput;

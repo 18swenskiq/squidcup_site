@@ -62,7 +62,7 @@ export const handler = async (event: any) => {
     }
     
     // Check if queue has already been converted to lobby
-    if (queueData.status !== 'waiting') {
+    if (queueData.status !== 'queue') {
       return {
         statusCode: 400,
         headers: createCorsHeaders(),
@@ -92,13 +92,13 @@ export const handler = async (event: any) => {
     // Create players array from queue data
     const allPlayers: LobbyPlayerRecord[] = [
       { 
-        lobby_id: lobbyId,
+        game_id: lobbyId,
         player_steam_id: queueData.host_steam_id, 
         team: 0,
         joined_at: new Date().toISOString() 
       },
       ...queuePlayers.map(player => ({
-        lobby_id: lobbyId,
+        game_id: lobbyId,
         player_steam_id: player.player_steam_id,
         team: 0,
         joined_at: player.joined_at
@@ -125,13 +125,15 @@ export const handler = async (event: any) => {
     // Create lobby data
     const lobbyData: CreateLobbyInput = {
       id: lobbyId,
-      queueId: queueId,
       gameMode: queueData.game_mode as GameMode,
       map: selectedMap,
       mapSelectionMode: mapSelectionMode,
       hostSteamId: queueData.host_steam_id,
       serverId: undefined, // Will be assigned later
-      status: 'waiting'
+      status: 'lobby',
+      ranked: queueData.ranked || false,
+      startTime: new Date(queueData.start_time),
+      maxPlayers: maxPlayers
     };
 
     // Create the lobby in database
@@ -150,7 +152,7 @@ export const handler = async (event: any) => {
     for (const player of playersWithTeams) {
       await storeLobbyHistoryEvent({
         id: crypto.randomUUID(),
-        lobbyId,
+        gameId: lobbyId,
         playerSteamId: player.player_steam_id,
         eventType: 'join',
         eventData: {

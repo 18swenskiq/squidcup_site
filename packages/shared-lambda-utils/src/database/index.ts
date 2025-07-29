@@ -5,27 +5,19 @@ import {
   Session, 
   GameServer, 
   ActiveQueueWithDetails,
-  DatabaseQueue,
-  DatabaseLobby,
-  QueuePlayerRecord,
-  LobbyPlayerRecord,
-  QueueHistoryRecord,
-  LobbyHistoryRecord,
-  EnrichedQueueWithPlayers,
-  EnrichedLobbyWithPlayers,
+  DatabaseGame,
+  GamePlayerRecord,
+  GameHistoryRecord,
+  EnrichedGameWithPlayers,
   UserCompleteStatus,
   UserWithSteamData,
   QueueCleanupRecord,
-  CreateQueueInput,
-  UpdateQueueInput,
-  CreateLobbyInput,
-  UpdateLobbyInput,
-  AddPlayerToQueueInput,
+  CreateGameInput,
+  UpdateGameInput,
+  AddPlayerToGameInput,
   UpdateServerInput,
   UpsertUserInput,
-  QueueHistoryEventInput,
-  LobbyHistoryEventInput,
-  AddLobbyPlayerInput
+  GameHistoryEventInput
 } from '../types';
 
 // Initialize SSM client
@@ -202,9 +194,9 @@ async function ensureTablesExist(connection: mysql.Connection): Promise<void> {
       )
     `);
 
-    // Create queues table
+    // Create unified games table (replaces both queues and lobbies)
     await connection.execute(`
-      CREATE TABLE IF NOT EXISTS squidcup_queues (
+      CREATE TABLE IF NOT EXISTS squidcup_games (
         id VARCHAR(36) PRIMARY KEY,
         game_mode VARCHAR(20) NOT NULL,
         map VARCHAR(100),
@@ -216,7 +208,7 @@ async function ensureTablesExist(connection: mysql.Connection): Promise<void> {
         start_time TIMESTAMP NOT NULL,
         max_players INT NOT NULL,
         current_players INT DEFAULT 0,
-        status ENUM('waiting', 'ready', 'in_progress', 'completed', 'cancelled') DEFAULT 'waiting',
+        status ENUM('queue', 'lobby', 'in_progress', 'completed', 'cancelled') DEFAULT 'queue',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         FOREIGN KEY (host_steam_id) REFERENCES squidcup_users(steam_id),
@@ -224,85 +216,36 @@ async function ensureTablesExist(connection: mysql.Connection): Promise<void> {
         INDEX idx_status (status),
         INDEX idx_game_mode (game_mode),
         INDEX idx_server_id (server_id),
-        INDEX idx_start_time (start_time)
+        INDEX idx_start_time (start_time),
+        INDEX idx_host_steam_id (host_steam_id)
       )
     `);
 
-    // Create queue_players table (many-to-many relationship)
+    // Create unified game_players table (replaces both queue_players and lobby_players)
     await connection.execute(`
-      CREATE TABLE IF NOT EXISTS squidcup_queue_players (
-        queue_id VARCHAR(36) NOT NULL,
+      CREATE TABLE IF NOT EXISTS squidcup_game_players (
+        game_id VARCHAR(36) NOT NULL,
         player_steam_id VARCHAR(50) NOT NULL,
         team INT DEFAULT 0,
         joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        PRIMARY KEY (queue_id, player_steam_id),
-        FOREIGN KEY (queue_id) REFERENCES squidcup_queues(id) ON DELETE CASCADE,
+        PRIMARY KEY (game_id, player_steam_id),
+        FOREIGN KEY (game_id) REFERENCES squidcup_games(id) ON DELETE CASCADE,
         FOREIGN KEY (player_steam_id) REFERENCES squidcup_users(steam_id) ON DELETE CASCADE,
-        INDEX idx_queue_id (queue_id),
+        INDEX idx_game_id (game_id),
         INDEX idx_player_steam_id (player_steam_id)
       )
     `);
 
-    // Create lobbies table
+    // Create unified game history table for audit trail
     await connection.execute(`
-      CREATE TABLE IF NOT EXISTS squidcup_lobbies (
+      CREATE TABLE IF NOT EXISTS squidcup_game_history (
         id VARCHAR(36) PRIMARY KEY,
-        queue_id VARCHAR(36),
-        game_mode VARCHAR(20) NOT NULL,
-        map VARCHAR(100),
-        map_selection_mode ENUM('all-pick', 'host-pick', 'random-map') NOT NULL,
-        host_steam_id VARCHAR(50) NOT NULL,
-        server_id VARCHAR(36),
-        status ENUM('waiting', 'ready', 'in_progress', 'completed', 'cancelled') DEFAULT 'waiting',
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        FOREIGN KEY (queue_id) REFERENCES squidcup_queues(id),
-        FOREIGN KEY (host_steam_id) REFERENCES squidcup_users(steam_id),
-        FOREIGN KEY (server_id) REFERENCES squidcup_servers(id),
-        INDEX idx_status (status),
-        INDEX idx_queue_id (queue_id)
-      )
-    `);
-
-    // Create lobby_players table
-    await connection.execute(`
-      CREATE TABLE IF NOT EXISTS squidcup_lobby_players (
-        lobby_id VARCHAR(36) NOT NULL,
+        game_id VARCHAR(36) NOT NULL,
         player_steam_id VARCHAR(50) NOT NULL,
-        team INT DEFAULT 0,
-        joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        PRIMARY KEY (lobby_id, player_steam_id),
-        FOREIGN KEY (lobby_id) REFERENCES squidcup_lobbies(id) ON DELETE CASCADE,
-        FOREIGN KEY (player_steam_id) REFERENCES squidcup_users(steam_id) ON DELETE CASCADE,
-        INDEX idx_lobby_id (lobby_id),
-        INDEX idx_player_steam_id (player_steam_id)
-      )
-    `);
-
-    // Create history tables for audit trail
-    await connection.execute(`
-      CREATE TABLE IF NOT EXISTS squidcup_queue_history (
-        id VARCHAR(36) PRIMARY KEY,
-        queue_id VARCHAR(36) NOT NULL,
-        player_steam_id VARCHAR(50) NOT NULL,
-        event_type ENUM('join', 'leave', 'disband', 'timeout', 'complete') NOT NULL,
+        event_type ENUM('join', 'leave', 'disband', 'timeout', 'complete', 'convert_to_lobby') NOT NULL,
         event_data JSON,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        INDEX idx_queue_id (queue_id),
-        INDEX idx_player_steam_id (player_steam_id),
-        INDEX idx_event_type (event_type)
-      )
-    `);
-
-    await connection.execute(`
-      CREATE TABLE IF NOT EXISTS squidcup_lobby_history (
-        id VARCHAR(36) PRIMARY KEY,
-        lobby_id VARCHAR(36) NOT NULL,
-        player_steam_id VARCHAR(50) NOT NULL,
-        event_type ENUM('join', 'leave', 'disband', 'timeout', 'complete') NOT NULL,
-        event_data JSON,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        INDEX idx_lobby_id (lobby_id),
+        INDEX idx_game_id (game_id),
         INDEX idx_player_steam_id (player_steam_id),
         INDEX idx_event_type (event_type)
       )
@@ -488,131 +431,135 @@ export async function deleteServer(serverId: string): Promise<void> {
   await executeQuery(connection, 'DELETE FROM squidcup_servers WHERE id = ?', [serverId]);
 }
 
-// Queue management functions
-export async function getQueue(queueId: string): Promise<DatabaseQueue | null> {
+// Game management functions (unified queue/lobby)
+export async function getGame(gameId: string): Promise<DatabaseGame | null> {
   const connection = await getDatabaseConnection();
   const rows = await executeQuery(
     connection,
-    'SELECT * FROM squidcup_queues WHERE id = ?',
-    [queueId]
+    'SELECT * FROM squidcup_games WHERE id = ?',
+    [gameId]
   );
   return rows.length > 0 ? rows[0] : null;
 }
 
-export async function getQueueWithPlayers(queueId: string): Promise<EnrichedQueueWithPlayers | null> {
-  const queue = await getQueue(queueId);
-  if (!queue) return null;
+export async function getGameWithPlayers(gameId: string): Promise<EnrichedGameWithPlayers | null> {
+  const game = await getGame(gameId);
+  if (!game) return null;
   
-  const players = await getQueuePlayers(queueId);
+  const players = await getGamePlayers(gameId);
   return {
-    ...queue,
+    ...game,
     players
   };
 }
 
-export async function getUserActiveQueue(steamId: string): Promise<EnrichedQueueWithPlayers | null> {
+export async function getUserActiveGame(steamId: string): Promise<EnrichedGameWithPlayers | null> {
   const connection = await getDatabaseConnection();
   
-  // First check if user is hosting a queue
-  const hostQueue = await executeQuery(
+  // First check if user is hosting a game
+  const hostGame = await executeQuery(
     connection,
-    'SELECT * FROM squidcup_queues WHERE host_steam_id = ? AND status = "waiting"',
+    'SELECT * FROM squidcup_games WHERE host_steam_id = ? AND status IN ("queue", "lobby")',
     [steamId]
   );
   
-  if (hostQueue.length > 0) {
-    const players = await getQueuePlayers(hostQueue[0].id);
+  if (hostGame.length > 0) {
+    const players = await getGamePlayers(hostGame[0].id);
     return {
-      ...hostQueue[0],
+      ...hostGame[0],
       players,
       isHost: true
     };
   }
   
-  // Check if user is a player in any queue
-  const playerQueue = await executeQuery(
+  // Check if user is a player in any game
+  const playerGame = await executeQuery(
     connection,
-    `SELECT q.*, qp.joined_at, qp.team
-     FROM squidcup_queues q
-     INNER JOIN squidcup_queue_players qp ON q.id = qp.queue_id
-     WHERE qp.player_steam_id = ? AND q.status = "waiting"`,
+    `SELECT g.*, gp.joined_at, gp.team
+     FROM squidcup_games g
+     INNER JOIN squidcup_game_players gp ON g.id = gp.game_id
+     WHERE gp.player_steam_id = ? AND g.status IN ("queue", "lobby")`,
     [steamId]
   );
   
-  if (playerQueue.length > 0) {
-    const players = await getQueuePlayers(playerQueue[0].id);
+  if (playerGame.length > 0) {
+    const players = await getGamePlayers(playerGame[0].id);
     return {
-      ...playerQueue[0],
+      ...playerGame[0],
       players,
       isHost: false,
-      userJoinedAt: playerQueue[0].joined_at,
-      userTeam: playerQueue[0].team
+      userJoinedAt: playerGame[0].joined_at,
+      userTeam: playerGame[0].team
     };
   }
   
   return null;
 }
 
-export async function getQueuePlayers(queueId: string): Promise<QueuePlayerRecord[]> {
+export async function getGamePlayers(gameId: string): Promise<GamePlayerRecord[]> {
   const connection = await getDatabaseConnection();
   return await executeQuery(
     connection,
-    'SELECT * FROM squidcup_queue_players WHERE queue_id = ? ORDER BY joined_at',
-    [queueId]
+    'SELECT * FROM squidcup_game_players WHERE game_id = ? ORDER BY joined_at',
+    [gameId]
   );
 }
 
-export async function createQueue(queueData: CreateQueueInput): Promise<void> {
+export async function createGame(gameData: CreateGameInput): Promise<void> {
   const connection = await getDatabaseConnection();
   await executeQuery(
     connection,
-    `INSERT INTO squidcup_queues (id, game_mode, map, map_selection_mode, host_steam_id, server_id, password, ranked, start_time, max_players, current_players)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO squidcup_games (id, game_mode, map, map_selection_mode, host_steam_id, server_id, password, ranked, start_time, max_players, current_players, status)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
-      queueData.id,
-      queueData.gameMode,
-      queueData.map,
-      queueData.mapSelectionMode,
-      queueData.hostSteamId,
-      queueData.serverId,
-      queueData.password || null,
-      queueData.ranked || false,
-      jsDateToMySQLDate(queueData.startTime),
-      queueData.maxPlayers,
-      1 // Initialize current_players to 1 for the host
+      gameData.id,
+      gameData.gameMode,
+      gameData.map,
+      gameData.mapSelectionMode,
+      gameData.hostSteamId,
+      gameData.serverId,
+      gameData.password || null,
+      gameData.ranked || false,
+      jsDateToMySQLDate(gameData.startTime),
+      gameData.maxPlayers,
+      1, // Initialize current_players to 1 for the host
+      gameData.status || 'queue'
     ]
   );
 }
 
-export async function updateQueue(queueId: string, queueData: UpdateQueueInput): Promise<void> {
+export async function updateGame(gameId: string, gameData: UpdateGameInput): Promise<void> {
   const connection = await getDatabaseConnection();
   const fields = [];
   const values = [];
   
-  if (queueData.currentPlayers !== undefined) { fields.push('current_players = ?'); values.push(queueData.currentPlayers); }
-  if (queueData.status !== undefined) { fields.push('status = ?'); values.push(queueData.status); }
-  if (queueData.map !== undefined) { fields.push('map = ?'); values.push(queueData.map); }
+  if (gameData.currentPlayers !== undefined) { fields.push('current_players = ?'); values.push(gameData.currentPlayers); }
+  if (gameData.status !== undefined) { fields.push('status = ?'); values.push(gameData.status); }
+  if (gameData.map !== undefined) { fields.push('map = ?'); values.push(gameData.map); }
+  if (gameData.mapSelectionMode !== undefined) { fields.push('map_selection_mode = ?'); values.push(gameData.mapSelectionMode); }
+  if (gameData.serverId !== undefined) { fields.push('server_id = ?'); values.push(gameData.serverId); }
+  if (gameData.gameMode !== undefined) { fields.push('game_mode = ?'); values.push(gameData.gameMode); }
   
   fields.push('updated_at = CURRENT_TIMESTAMP');
-  values.push(queueId);
+  values.push(gameId);
   
   await executeQuery(
     connection,
-    `UPDATE squidcup_queues SET ${fields.join(', ')} WHERE id = ?`,
+    `UPDATE squidcup_games SET ${fields.join(', ')} WHERE id = ?`,
     values
   );
 }
 
-export async function addPlayerToQueue(queueId: string, playerData: AddPlayerToQueueInput): Promise<void> {
+export async function addPlayerToGame(gameId: string, playerData: AddPlayerToGameInput): Promise<void> {
   const connection = await getDatabaseConnection();
   
-  // Add player to queue_players table
+  // Add player to game_players table
   await executeQuery(
     connection,
-    `INSERT INTO squidcup_queue_players (queue_id, player_steam_id, team, joined_at)
+    `INSERT INTO squidcup_game_players (game_id, player_steam_id, team, joined_at)
      VALUES (?, ?, ?, ?)`,
     [
-      queueId,
+      gameId,
       playerData.steamId,
       playerData.team || 0,
       jsDateToMySQLDate(playerData.joinTime ?? new Date())
@@ -622,183 +569,54 @@ export async function addPlayerToQueue(queueId: string, playerData: AddPlayerToQ
   // Update current_players count
   await executeQuery(
     connection,
-    'UPDATE squidcup_queues SET current_players = current_players + 1 WHERE id = ?',
-    [queueId]
+    'UPDATE squidcup_games SET current_players = current_players + 1 WHERE id = ?',
+    [gameId]
   );
 }
 
-export async function removePlayerFromQueue(queueId: string, steamId: string): Promise<void> {
+export async function removePlayerFromGame(gameId: string, steamId: string): Promise<void> {
   const connection = await getDatabaseConnection();
   
-  // Remove player from queue_players table
+  // Remove player from game_players table
   await executeQuery(
     connection,
-    'DELETE FROM squidcup_queue_players WHERE queue_id = ? AND player_steam_id = ?',
-    [queueId, steamId]
+    'DELETE FROM squidcup_game_players WHERE game_id = ? AND player_steam_id = ?',
+    [gameId, steamId]
   );
   
   // Update current_players count
   await executeQuery(
     connection,
-    'UPDATE squidcup_queues SET current_players = current_players - 1 WHERE id = ?',
-    [queueId]
+    'UPDATE squidcup_games SET current_players = current_players - 1 WHERE id = ?',
+    [gameId]
   );
 }
 
-export async function deleteQueue(queueId: string): Promise<void> {
+export async function deleteGame(gameId: string): Promise<void> {
   const connection = await getDatabaseConnection();
-  // Delete queue players first (due to foreign key constraints)
-  await executeQuery(connection, 'DELETE FROM squidcup_queue_players WHERE queue_id = ?', [queueId]);
-  // Delete the queue
-  await executeQuery(connection, 'DELETE FROM squidcup_queues WHERE id = ?', [queueId]);
-}
-
-// Lobby management functions
-export async function getUserActiveLobby(steamId: string): Promise<EnrichedLobbyWithPlayers | null> {
-  const connection = await getDatabaseConnection();
-  
-  // First check if user is hosting a lobby
-  const hostLobby = await executeQuery(
-    connection,
-    'SELECT * FROM squidcup_lobbies WHERE host_steam_id = ? AND status = "waiting"',
-    [steamId]
-  );
-  
-  if (hostLobby.length > 0) {
-    const players = await getLobbyPlayers(hostLobby[0].id);
-    return {
-      ...hostLobby[0],
-      players,
-      isHost: true
-    };
-  }
-  
-  // Check if user is a player in any lobby
-  const playerLobby = await executeQuery(
-    connection,
-    `SELECT l.*, lp.joined_at, lp.team
-     FROM squidcup_lobbies l
-     INNER JOIN squidcup_lobby_players lp ON l.id = lp.lobby_id
-     WHERE lp.player_steam_id = ? AND l.status = "waiting"`,
-    [steamId]
-  );
-  
-  if (playerLobby.length > 0) {
-    const players = await getLobbyPlayers(playerLobby[0].id);
-    return {
-      ...playerLobby[0],
-      players,
-      isHost: false,
-      userJoinedAt: playerLobby[0].joined_at,
-      userTeam: playerLobby[0].team
-    };
-  }
-  
-  return null;
-}
-
-export async function createLobby(lobbyData: CreateLobbyInput): Promise<void> {
-  const connection = await getDatabaseConnection();
-  await executeQuery(
-    connection,
-    `INSERT INTO squidcup_lobbies (id, queue_id, game_mode, map, map_selection_mode, host_steam_id, server_id, status)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    [
-      lobbyData.id,
-      lobbyData.queueId,
-      lobbyData.gameMode,
-      lobbyData.map,
-      lobbyData.mapSelectionMode,
-      lobbyData.hostSteamId,
-      lobbyData.serverId,
-      lobbyData.status || 'waiting'
-    ]
-  );
-}
-
-export async function getLobby(lobbyId: string): Promise<DatabaseLobby | null> {
-  const connection = await getDatabaseConnection();
-  const rows = await executeQuery(
-    connection,
-    'SELECT * FROM squidcup_lobbies WHERE id = ?',
-    [lobbyId]
-  );
-  return rows.length > 0 ? rows[0] : null;
-}
-
-export async function getLobbyWithPlayers(lobbyId: string): Promise<EnrichedLobbyWithPlayers | null> {
-  const lobby = await getLobby(lobbyId);
-  if (!lobby) return null;
-  
-  const players = await getLobbyPlayers(lobbyId);
-  return {
-    ...lobby,
-    players
-  };
-}
-
-export async function getLobbyPlayers(lobbyId: string): Promise<LobbyPlayerRecord[]> {
-  const connection = await getDatabaseConnection();
-  return await executeQuery(
-    connection,
-    'SELECT * FROM squidcup_lobby_players WHERE lobby_id = ? ORDER BY joined_at',
-    [lobbyId]
-  );
-}
-
-export async function updateLobby(lobbyId: string, lobbyData: UpdateLobbyInput): Promise<void> {
-  const connection = await getDatabaseConnection();
-  const fields = [];
-  const values = [];
-  
-  if (lobbyData.map !== undefined) { fields.push('map = ?'); values.push(lobbyData.map); }
-  if (lobbyData.mapSelectionMode !== undefined) { fields.push('map_selection_mode = ?'); values.push(lobbyData.mapSelectionMode); }
-  if (lobbyData.status !== undefined) { fields.push('status = ?'); values.push(lobbyData.status); }
-  if (lobbyData.serverId !== undefined) { fields.push('server_id = ?'); values.push(lobbyData.serverId); }
-  if (lobbyData.gameMode !== undefined) { fields.push('game_mode = ?'); values.push(lobbyData.gameMode); }
-  
-  fields.push('updated_at = CURRENT_TIMESTAMP');
-  values.push(lobbyId);
-  
-  await executeQuery(
-    connection,
-    `UPDATE squidcup_lobbies SET ${fields.join(', ')} WHERE id = ?`,
-    values
-  );
-}
-
-export async function addLobbyPlayers(lobbyId: string, players: AddLobbyPlayerInput[]): Promise<void> {
-  if (players.length === 0) return;
-  
-  const connection = await getDatabaseConnection();
-  const values = players.map(player => [lobbyId, player.steamId, player.team || 0]);
-  const placeholders = values.map(() => '(?, ?, ?)').join(', ');
-  
-  await executeQuery(
-    connection,
-    `INSERT INTO squidcup_lobby_players (lobby_id, player_steam_id, team) VALUES ${placeholders}`,
-    values.flat()
-  );
-}
-
-export async function deleteLobby(lobbyId: string): Promise<void> {
-  const connection = await getDatabaseConnection();
-  // Delete lobby players first (due to foreign key constraints)
-  await executeQuery(connection, 'DELETE FROM squidcup_lobby_players WHERE lobby_id = ?', [lobbyId]);
-  // Delete the lobby
-  await executeQuery(connection, 'DELETE FROM squidcup_lobbies WHERE id = ?', [lobbyId]);
+  // Delete game players first (due to foreign key constraints)
+  await executeQuery(connection, 'DELETE FROM squidcup_game_players WHERE game_id = ?', [gameId]);
+  // Delete the game
+  await executeQuery(connection, 'DELETE FROM squidcup_games WHERE id = ?', [gameId]);
 }
 
 // History functions
-export async function storeLobbyHistoryEvent(eventData: LobbyHistoryEventInput): Promise<void> {
+export async function storeGameHistoryEvent(eventData: GameHistoryEventInput): Promise<void> {
   const connection = await getDatabaseConnection();
+  
+  // Handle legacy field names - use gameId, queueId, or lobbyId
+  const gameId = eventData.gameId || eventData.queueId || eventData.lobbyId;
+  if (!gameId) {
+    throw new Error('Missing gameId, queueId, or lobbyId in history event data');
+  }
+  
   await executeQuery(
     connection,
-    `INSERT INTO squidcup_lobby_history (id, lobby_id, player_steam_id, event_type, event_data)
+    `INSERT INTO squidcup_game_history (id, game_id, player_steam_id, event_type, event_data)
      VALUES (?, ?, ?, ?, ?)`,
     [
       eventData.id,
-      eventData.lobbyId,
+      gameId,
       eventData.playerSteamId,
       eventData.eventType,
       JSON.stringify(eventData.eventData || {})
@@ -806,25 +624,9 @@ export async function storeLobbyHistoryEvent(eventData: LobbyHistoryEventInput):
   );
 }
 
-export async function storeQueueHistoryEvent(eventData: QueueHistoryEventInput): Promise<void> {
+export async function getUserGameHistory(steamId: string, limit: number = 50): Promise<GameHistoryRecord[]> {
   const connection = await getDatabaseConnection();
-  await executeQuery(
-    connection,
-    `INSERT INTO squidcup_queue_history (id, queue_id, player_steam_id, event_type, event_data)
-     VALUES (?, ?, ?, ?, ?)`,
-    [
-      eventData.id,
-      eventData.queueId,
-      eventData.playerSteamId,
-      eventData.eventType,
-      JSON.stringify(eventData.eventData || {})
-    ]
-  );
-}
-
-export async function getUserQueueHistory(steamId: string, limit: number = 50): Promise<QueueHistoryRecord[]> {
-  const connection = await getDatabaseConnection();
-  console.log('getUserQueueHistory called with steamId:', steamId, 'limit:', limit, 'limit type:', typeof limit);
+  console.log('getUserGameHistory called with steamId:', steamId, 'limit:', limit, 'limit type:', typeof limit);
   
   // Ensure limit is a positive integer
   const sanitizedLimit = Math.max(1, Math.min(100, Math.floor(Number(limit) || 20)));
@@ -832,17 +634,17 @@ export async function getUserQueueHistory(steamId: string, limit: number = 50): 
   
   return await executeQuery(
     connection,
-    `SELECT qh.*, q.game_mode, q.map_selection_mode
-     FROM squidcup_queue_history qh
-     LEFT JOIN squidcup_queues q ON qh.queue_id = q.id
-     WHERE qh.player_steam_id = '?'
-     ORDER BY qh.created_at DESC
+    `SELECT gh.*, g.game_mode, g.map_selection_mode
+     FROM squidcup_game_history gh
+     LEFT JOIN squidcup_games g ON gh.game_id = g.id
+     WHERE gh.player_steam_id = '?'
+     ORDER BY gh.created_at DESC
      LIMIT ?`,
     [steamId, Number(sanitizedLimit)]
   );
 }
 
-// Consolidated function to get user's complete status (session + queue + lobby + player names)
+// Consolidated function to get user's complete status (session + game + player names)
 export async function getUserCompleteStatus(sessionToken: string): Promise<UserCompleteStatus> {
   const connection = await getDatabaseConnection();
   console.log('getUserCompleteStatus called with token:', sessionToken.substring(0, 8) + '...');
@@ -861,169 +663,92 @@ export async function getUserCompleteStatus(sessionToken: string): Promise<UserC
   const userSteamId = session[0].user_steam_id;
   console.log('User Steam ID from session:', userSteamId);
   
-  // Step 2: Check for in-progress lobby (as host)
-  const hostLobby = await executeQuery(
+  // Step 2: Check for active game (as host)
+  const hostGame = await executeQuery(
     connection,
-    `SELECT l.*, 'host' as user_role
-     FROM squidcup_lobbies l 
-     WHERE l.host_steam_id = ? AND (l.status = 'waiting' OR l.status = 'active')`,
+    `SELECT g.*, 'host' as user_role
+     FROM squidcup_games g 
+     WHERE g.host_steam_id = ? AND g.status IN ('queue', 'lobby', 'in_progress')`,
     [userSteamId]
   );
   
-  // Step 3: Check for active lobby (as player)
-  const playerLobby = await executeQuery(
+  // Step 3: Check for active game (as player)
+  const playerGame = await executeQuery(
     connection,
-    `SELECT l.*, 'player' as user_role
-     FROM squidcup_lobbies l 
-     JOIN squidcup_lobby_players lp ON l.id = lp.lobby_id 
-     WHERE lp.player_steam_id = ? AND (l.status = 'waiting' OR l.status = 'active')`,
+    `SELECT g.*, 'player' as user_role
+     FROM squidcup_games g 
+     JOIN squidcup_game_players gp ON g.id = gp.game_id 
+     WHERE gp.player_steam_id = ? AND g.status IN ('queue', 'lobby', 'in_progress')`,
     [userSteamId]
   );
   
   // Log for debugging
-  console.log('Lobby check results for user:', userSteamId);
-  console.log('Host lobbies found:', hostLobby.length);
-  console.log('Player lobbies found:', playerLobby.length);
+  console.log('Game check results for user:', userSteamId);
+  console.log('Host games found:', hostGame.length);
+  console.log('Player games found:', playerGame.length);
   
-  let activeLobby = null;
-  let isLobbyHost = false;
+  let activeGame = null;
+  let isGameHost = false;
   
-  if (hostLobby.length > 0) {
-    activeLobby = hostLobby[0];
-    isLobbyHost = true;
-  } else if (playerLobby.length > 0) {
-    activeLobby = playerLobby[0];
-    isLobbyHost = false;
+  if (hostGame.length > 0) {
+    activeGame = hostGame[0];
+    isGameHost = true;
+  } else if (playerGame.length > 0) {
+    activeGame = playerGame[0];
+    isGameHost = false;
   }
   
-  // Step 4: If in lobby, get lobby players and their names
-  let lobbyPlayers = [];
-  let lobbyPlayerNames = new Map();
+  // Step 4: If in game, get game players and their names
+  let gamePlayers = [];
+  let gamePlayerNames = new Map();
   
-  if (activeLobby) {
-    console.log('User found in lobby:', activeLobby.id);
+  if (activeGame) {
+    console.log('User found in game:', activeGame.id, 'status:', activeGame.status);
     
-    // Get all lobby players
-    lobbyPlayers = await executeQuery(
+    // Get all game players
+    gamePlayers = await executeQuery(
       connection,
-      'SELECT * FROM squidcup_lobby_players WHERE lobby_id = ?',
-      [activeLobby.id]
+      'SELECT * FROM squidcup_game_players WHERE game_id = ?',
+      [activeGame.id]
     );
     
-    // Get player names for lobby
-    const allLobbyIds = [activeLobby.host_steam_id, ...lobbyPlayers.map((p: any) => p.player_steam_id)];
-    const lobbyUsers = await executeQuery(
+    // Get player names for game
+    const allGameIds = [activeGame.host_steam_id, ...gamePlayers.map((p: any) => p.player_steam_id)];
+    const gameUsers = await executeQuery(
       connection,
-      `SELECT steam_id, username FROM squidcup_users WHERE steam_id IN (${allLobbyIds.map(() => '?').join(',')})`,
-      allLobbyIds
+      `SELECT steam_id, username FROM squidcup_users WHERE steam_id IN (${allGameIds.map(() => '?').join(',')})`,
+      allGameIds
     );
     
-    for (const user of lobbyUsers) {
-      lobbyPlayerNames.set(user.steam_id, user.username || `Player ${user.steam_id.slice(-4)}`);
+    for (const user of gameUsers) {
+      gamePlayerNames.set(user.steam_id, user.username || `Player ${user.steam_id.slice(-4)}`);
     }
     
     // Add fallback names for missing users
-    for (const steamId of allLobbyIds) {
-      if (!lobbyPlayerNames.has(steamId)) {
-        lobbyPlayerNames.set(steamId, `Player ${steamId.slice(-4)}`);
+    for (const steamId of allGameIds) {
+      if (!gamePlayerNames.has(steamId)) {
+        gamePlayerNames.set(steamId, `Player ${steamId.slice(-4)}`);
       }
     }
+    
+    const gameData = {
+      ...activeGame,
+      isHost: isGameHost,
+      players: gamePlayers,
+      playerNames: Object.fromEntries(gamePlayerNames)
+    };
     
     return {
       session: session[0],
       userSteamId,
-      lobby: {
-        ...activeLobby,
-        isHost: isLobbyHost,
-        players: lobbyPlayers,
-        playerNames: Object.fromEntries(lobbyPlayerNames)
-      }
+      game: gameData,
+      // Legacy compatibility - populate queue or lobby based on status
+      ...(activeGame.status === 'queue' ? { queue: gameData } : {}),
+      ...(activeGame.status === 'lobby' ? { lobby: gameData } : {})
     };
   }
   
-  // Step 5: Check for active queue (as host) - only waiting status
-  const hostQueue = await executeQuery(
-    connection,
-    `SELECT q.*, 'host' as user_role
-     FROM squidcup_queues q 
-     WHERE q.host_steam_id = ? AND q.status = 'waiting'`,
-    [userSteamId]
-  );
-  
-  // Step 6: Check for active queue (as player) - only waiting status
-  const playerQueue = await executeQuery(
-    connection,
-    `SELECT q.*, 'player' as user_role
-     FROM squidcup_queues q 
-     JOIN squidcup_queue_players qp ON q.id = qp.queue_id 
-     WHERE qp.player_steam_id = ? AND q.status = 'waiting'`,
-    [userSteamId]
-  );
-  
-  // Log for debugging disbanded lobby issues
-  if (hostQueue.length > 0 || playerQueue.length > 0) {
-    console.log('Found active queue(s) for user:', userSteamId);
-    console.log('Host queues:', hostQueue.length);
-    console.log('Player queues:', playerQueue.length);
-  }
-  
-  let activeQueue = null;
-  let isQueueHost = false;
-  
-  if (hostQueue.length > 0) {
-    activeQueue = hostQueue[0];
-    isQueueHost = true;
-  } else if (playerQueue.length > 0) {
-    activeQueue = playerQueue[0];
-    isQueueHost = false;
-  }
-  
-  // Step 7: If in queue, get queue players and their names
-  let queuePlayers = [];
-  let queuePlayerNames = new Map();
-  
-  if (activeQueue) {
-    console.log('User found in queue:', activeQueue.id);
-    
-    // Get all queue players
-    queuePlayers = await executeQuery(
-      connection,
-      'SELECT * FROM squidcup_queue_players WHERE queue_id = ?',
-      [activeQueue.id]
-    );
-    
-    // Get player names for queue
-    const allQueueIds = [activeQueue.host_steam_id, ...queuePlayers.map((p: any) => p.player_steam_id)];
-    const queueUsers = await executeQuery(
-      connection,
-      `SELECT steam_id, username FROM squidcup_users WHERE steam_id IN (${allQueueIds.map(() => '?').join(',')})`,
-      allQueueIds
-    );
-    
-    for (const user of queueUsers) {
-      queuePlayerNames.set(user.steam_id, user.username || `Player ${user.steam_id.slice(-4)}`);
-    }
-    
-    // Add fallback names for missing users
-    for (const steamId of allQueueIds) {
-      if (!queuePlayerNames.has(steamId)) {
-        queuePlayerNames.set(steamId, `Player ${steamId.slice(-4)}`);
-      }
-    }
-    
-    return {
-      session: session[0],
-      userSteamId,
-      queue: {
-        ...activeQueue,
-        isHost: isQueueHost,
-        players: queuePlayers,
-        playerNames: Object.fromEntries(queuePlayerNames)
-      }
-    };
-  }
-  
-  // User is not in any queue or lobby
+  // User is not in any game
   return {
     session: session[0],
     userSteamId
@@ -1035,8 +760,8 @@ export async function getSsmParameter(parameterName: string): Promise<string> {
   return await getParameterValue(parameterName);
 }
 
-// Function to get active queues for cleanup (simple format)
-export async function getActiveQueuesForCleanup(): Promise<QueueCleanupRecord[]> {
+// Function to get active games for cleanup (simple format)
+export async function getActiveGamesForCleanup(): Promise<QueueCleanupRecord[]> {
   const connection = await getDatabaseConnection();
   return await executeQuery(
     connection,
@@ -1048,59 +773,59 @@ export async function getActiveQueuesForCleanup(): Promise<QueueCleanupRecord[]>
       start_time,
       created_at,
       updated_at
-     FROM squidcup_queues
-     WHERE status = 'waiting'
+     FROM squidcup_games
+     WHERE status IN ('queue', 'lobby')
      ORDER BY created_at DESC`
   );
 }
 
-// Function to get active queues with user and server details
-export async function getActiveQueuesWithDetails(): Promise<ActiveQueueWithDetails[]> {
+// Function to get active games with user and server details
+export async function getActiveGamesWithDetails(): Promise<ActiveQueueWithDetails[]> {
   const connection = await getDatabaseConnection();
   
-  // Get all active queues with host information and server details
-  const queues = await executeQuery(
+  // Get all active games with host information and server details
+  const games = await executeQuery(
     connection,
     `SELECT 
-      q.id,
-      q.game_mode,
-      q.map,
-      q.map_selection_mode,
-      q.host_steam_id,
-      q.server_id,
-      q.password,
-      q.ranked,
-      q.start_time,
-      q.max_players,
-      q.current_players,
-      q.status,
-      q.created_at,
-      q.updated_at,
+      g.id,
+      g.game_mode,
+      g.map,
+      g.map_selection_mode,
+      g.host_steam_id,
+      g.server_id,
+      g.password,
+      g.ranked,
+      g.start_time,
+      g.max_players,
+      g.current_players,
+      g.status,
+      g.created_at,
+      g.updated_at,
       u.username as host_name,
       s.nickname as server_name
-     FROM squidcup_queues q
-     LEFT JOIN squidcup_users u ON q.host_steam_id = u.steam_id
-     LEFT JOIN squidcup_servers s ON q.server_id = s.id
-     WHERE q.status = 'waiting'
-     ORDER BY q.created_at DESC`
+     FROM squidcup_games g
+     LEFT JOIN squidcup_users u ON g.host_steam_id = u.steam_id
+     LEFT JOIN squidcup_servers s ON g.server_id = s.id
+     WHERE g.status = 'queue'
+     ORDER BY g.created_at DESC`
   );
 
-  // For each queue, get the players
+  // For each game, get the players
   const result = [];
-  for (const queue of queues) {
-    // Get queue players
+  for (const game of games) {
+    // Get game players
     const players = await executeQuery(
       connection,
       `SELECT 
-        qp.player_steam_id,
-        qp.team,
-        qp.joined_at,
+        gp.player_steam_id,
+        gp.team,
+        gp.joined_at,
         u.username
-       FROM squidcup_queue_players qp
-       LEFT JOIN squidcup_users u ON qp.player_steam_id = u.steam_id
-       WHERE qp.queue_id = ?
-       ORDER BY qp.joined_at`,
-      [queue.id]
+       FROM squidcup_game_players gp
+       LEFT JOIN squidcup_users u ON gp.player_steam_id = u.steam_id
+       WHERE gp.game_id = ?
+       ORDER BY gp.joined_at`,
+      [game.id]
     );
 
     // Convert to format expected by frontend
@@ -1111,21 +836,21 @@ export async function getActiveQueuesWithDetails(): Promise<ActiveQueueWithDetai
     }));
 
     result.push({
-      queueId: queue.id,
-      hostSteamId: queue.host_steam_id,
-      hostName: queue.host_name || 'Unknown',
-      gameMode: queue.game_mode,
-      mapSelectionMode: queue.map_selection_mode,
-      serverId: queue.server_id,
-      serverName: queue.server_name || 'Unknown Server',
-      startTime: queue.start_time,
+      queueId: game.id, // Keep this for backwards compatibility
+      hostSteamId: game.host_steam_id,
+      hostName: game.host_name || 'Unknown',
+      gameMode: game.game_mode,
+      mapSelectionMode: game.map_selection_mode,
+      serverId: game.server_id,
+      serverName: game.server_name || 'Unknown Server',
+      startTime: game.start_time,
       players: 1 + joiners.length, // host + joiners
-      maxPlayers: queue.max_players,
+      maxPlayers: game.max_players,
       joiners: joiners,
-      ranked: !!queue.ranked,
-      hasPassword: !!queue.password,
-      createdAt: queue.created_at,
-      lastActivity: queue.updated_at || queue.created_at
+      ranked: !!game.ranked,
+      hasPassword: !!game.password,
+      createdAt: game.created_at,
+      lastActivity: game.updated_at || game.created_at
     });
   }
 
@@ -1137,6 +862,34 @@ export async function executeRawQuery(query: string, params: any[] = []): Promis
   const connection = await getDatabaseConnection();
   return await executeQuery(connection, query, params);
 }
+
+// Legacy compatibility functions (deprecated - use unified game functions instead)
+export const getQueue = getGame;
+export const getQueueWithPlayers = getGameWithPlayers;
+export const getUserActiveQueue = getUserActiveGame;
+export const getQueuePlayers = getGamePlayers;
+export const createQueue = createGame;
+export const updateQueue = updateGame;
+export const addPlayerToQueue = addPlayerToGame;
+export const removePlayerFromQueue = removePlayerFromGame;
+export const deleteQueue = deleteGame;
+export const getActiveQueuesForCleanup = getActiveGamesForCleanup;
+export const getActiveQueuesWithDetails = getActiveGamesWithDetails;
+export const storeQueueHistoryEvent = storeGameHistoryEvent;
+export const getUserQueueHistory = getUserGameHistory;
+
+// Lobby compatibility (all lobbies are now games with status='lobby')
+export const getUserActiveLobby = getUserActiveGame;
+export const createLobby = (lobbyData: any) => createGame({ ...lobbyData, status: 'lobby' });
+export const getLobby = getGame;
+export const getLobbyWithPlayers = getGameWithPlayers;
+export const getLobbyPlayers = getGamePlayers;
+export const updateLobby = updateGame;
+export const addLobbyPlayers = (gameId: string, players: any[]) => {
+  return Promise.all(players.map(player => addPlayerToGame(gameId, player)));
+};
+export const deleteLobby = deleteGame;
+export const storeLobbyHistoryEvent = storeGameHistoryEvent;
 
 function jsDateToMySQLDate(date: Date): string {
   const dateISOString = date.toISOString();
