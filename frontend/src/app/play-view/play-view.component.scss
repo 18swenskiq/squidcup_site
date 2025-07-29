@@ -7,6 +7,7 @@
   --primary-light: rgba(0, 212, 255, 0.1);
   --primary-border: rgba(0, 212, 255, 0.3);
   --border-light: rgba(255, 255, 255, 0.1);
+  --main-font: Century Gothic, CenturyGothic, AppleGothic, sans-serif;
 }
 
 .play-view-container {
@@ -177,6 +178,7 @@ button {
   display: flex;
   background: rgba(255, 255, 255, 0.1);
   padding: 10px;
+  font-family: var(--main-font);
   font-weight: bold;
 
   span {
@@ -198,6 +200,7 @@ button {
   padding: 10px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   cursor: pointer;
+  font-family: var(--main-font);
 
   &:hover { background: rgba(255, 255, 255, 0.05); }
   &.selected { background: rgba(76, 175, 80, 0.3); }
