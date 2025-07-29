@@ -22,8 +22,6 @@ import {
 
 // Initialize SSM client
 const ssmClient = new SSMClient({ region: process.env.AWS_REGION || 'us-east-1' });
-
-// Database configuration interface
 interface DatabaseConfig {
   host: string;
   port: number;
@@ -604,10 +602,8 @@ export async function deleteGame(gameId: string): Promise<void> {
 export async function storeGameHistoryEvent(eventData: GameHistoryEventInput): Promise<void> {
   const connection = await getDatabaseConnection();
   
-  // Handle legacy field names - use gameId, queueId, or lobbyId
-  const gameId = eventData.gameId || eventData.queueId || eventData.lobbyId;
-  if (!gameId) {
-    throw new Error('Missing gameId, queueId, or lobbyId in history event data');
+  if (!eventData.gameId) {
+    throw new Error('Missing gameId in history event data');
   }
   
   await executeQuery(
@@ -616,12 +612,12 @@ export async function storeGameHistoryEvent(eventData: GameHistoryEventInput): P
      VALUES (?, ?, ?, ?, ?)`,
     [
       eventData.id,
-      gameId,
+      eventData.gameId,
       eventData.playerSteamId,
       eventData.eventType,
       JSON.stringify(eventData.eventData || {})
     ]
-  );
+  )
 }
 
 export async function getUserGameHistory(steamId: string, limit: number = 50): Promise<GameHistoryRecord[]> {
@@ -836,7 +832,7 @@ export async function getActiveGamesWithDetails(): Promise<ActiveQueueWithDetail
     }));
 
     result.push({
-      queueId: game.id, // Keep this for backwards compatibility
+      queueId: game.id, // Legacy field name for API compatibility
       hostSteamId: game.host_steam_id,
       hostName: game.host_name || 'Unknown',
       gameMode: game.game_mode,

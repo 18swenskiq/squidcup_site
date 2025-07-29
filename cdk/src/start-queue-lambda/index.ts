@@ -84,13 +84,13 @@ export async function handler(event: any): Promise<any> {
       };
     }
 
-    // Generate queue ID
-    const queueId = crypto.randomUUID();
+    // Generate game ID (in unified architecture, queues are games with status='queue')
+    const gameId = crypto.randomUUID();
     const now = new Date();
 
     // Create the active queue object
     const activeQueue: ActiveQueue = {
-      id: queueId,
+      id: gameId,
       hostSteamId,
       gameMode,
       mapSelectionMode,
@@ -105,7 +105,7 @@ export async function handler(event: any): Promise<any> {
 
     // Create queue using shared utilities
     await createQueue({
-      id: queueId,
+      id: gameId,
       gameMode: gameMode,
       mapSelectionMode: mapSelectionMode,
       hostSteamId: hostSteamId,
@@ -119,7 +119,7 @@ export async function handler(event: any): Promise<any> {
     // Store queue history event using shared utilities
     await storeQueueHistoryEvent({
       id: crypto.randomUUID(),
-      gameId: queueId,
+      gameId: gameId,
       playerSteamId: hostSteamId,
       eventType: 'join', // Host joining their own queue
       eventData: {

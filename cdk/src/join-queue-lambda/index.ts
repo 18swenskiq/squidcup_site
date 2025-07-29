@@ -52,7 +52,10 @@ export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayPr
     // Parse request body
     const { queueId, password } = JSON.parse(event.body || '{}');
     
-    if (!queueId) {
+    // Note: queueId is actually a gameId in the unified architecture
+    const gameId = queueId;
+    
+    if (!gameId) {
       return {
         statusCode: 400,
         headers: corsHeaders,
@@ -61,7 +64,7 @@ export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayPr
     }
 
     // Get the queue with players from shared utilities
-    const queueData = await getQueueWithPlayers(queueId);
+    const queueData = await getQueueWithPlayers(gameId);
     
     if (!queueData) {
       return {
@@ -119,12 +122,12 @@ export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayPr
       isHost: false
     };
 
-    await addPlayerToQueue(queueId, playerData);
+    await addPlayerToQueue(gameId, playerData);
 
     // Store queue history event using shared utilities
     const historyEventData = {
       id: crypto.randomUUID(),
-      gameId: queueId,
+      gameId: gameId,
       playerSteamId: userSteamId,
       eventType: 'join' as const,
       eventData: {
@@ -137,7 +140,7 @@ export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayPr
     await storeQueueHistoryEvent(historyEventData);
 
     // Get updated queue data to check if it's full
-    const updatedQueueData = await getQueueWithPlayers(queueId);
+    const updatedQueueData = await getQueueWithPlayers(gameId);
     
     if (!updatedQueueData) {
       return {
@@ -159,7 +162,7 @@ export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayPr
       try {
         // Invoke create-lobby lambda
         const createLobbyPayload = {
-          body: JSON.stringify({ queueId })
+          body: JSON.stringify({ queueId: gameId })
         };
         
         console.log('Invoking create-lobby lambda with function name:', process.env.CREATE_LOBBY_FUNCTION_NAME);
@@ -196,7 +199,7 @@ export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayPr
       body: JSON.stringify({
         message: 'Successfully joined queue',
         queue: {
-          id: queueId,
+          id: gameId,
           hostSteamId: updatedQueueData.host_steam_id,
           gameMode: updatedQueueData.game_mode,
           mapSelectionMode: updatedQueueData.map_selection_mode,

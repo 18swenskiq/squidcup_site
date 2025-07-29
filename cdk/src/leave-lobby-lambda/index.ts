@@ -57,7 +57,10 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
     // Parse request body
     const { lobbyId } = JSON.parse(event.body || '{}');
     
-    if (!lobbyId) {
+    // Note: lobbyId is actually a gameId in the unified architecture
+    const gameId = lobbyId;
+    
+    if (!gameId) {
       return {
         statusCode: 400,
         headers: corsHeaders,
@@ -66,7 +69,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
     }
 
     // Get the lobby with players from shared utilities
-    const lobbyData = await getLobbyWithPlayers(lobbyId);
+    const lobbyData = await getLobbyWithPlayers(gameId);
 
     if (!lobbyData) {
       return {

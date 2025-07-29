@@ -278,7 +278,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
     this.http.delete(`${this.apiBaseUrl}/leaveLobby`, {
       headers,
       body: JSON.stringify({
-        lobbyId: this.lobby.id
+        gameId: this.lobby.id
       })
     }).subscribe({
       next: (response: any) => {

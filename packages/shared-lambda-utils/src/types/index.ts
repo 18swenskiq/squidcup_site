@@ -103,7 +103,7 @@ export interface QueueJoiner {
 }
 
 export interface ActiveQueueWithDetails {
-  queueId: string;
+  queueId: string; // Legacy field name for API compatibility
   hostSteamId: string;
   hostName: string;
   gameMode: GameMode;
@@ -433,9 +433,6 @@ export interface GameHistoryEventInput {
   playerSteamId: string;
   eventType: 'join' | 'leave' | 'disband' | 'timeout' | 'complete' | 'convert_to_lobby';
   eventData?: any;
-  // Legacy compatibility fields
-  queueId?: string;
-  lobbyId?: string;
 }
 
 export interface UpdateServerInput {
@@ -500,7 +497,7 @@ export interface SteamUserResponse {
 // ===== LEGACY TYPE ALIASES (for backward compatibility) =====
 export type LobbyPlayerRecord = GamePlayerRecord;
 export type QueuePlayerRecord = GamePlayerRecord;
-export type CreateLobbyInput = CreateGameInput & { queueId?: string };
+export type CreateLobbyInput = CreateGameInput;
 export type UpdateLobbyInput = UpdateGameInput;
 export type AddLobbyPlayerInput = AddPlayerToGameInput;
 export type LobbyHistoryEventInput = GameHistoryEventInput;

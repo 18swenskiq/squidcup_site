@@ -31,10 +31,10 @@ export async function handler(event: any): Promise<any> {
     const now = new Date().toISOString();
     
     for (const queue of activeQueues) {
-      const queueId = queue.id;
+      const gameId = queue.id; // In unified architecture, this is a gameId
       
       // Get queue players to check for recent activity using shared utilities
-      const players = await getQueuePlayers(queueId);
+      const players = await getQueuePlayers(gameId);
       
       // Determine the last activity time
       // This is either the queue start time or the most recent joiner time
@@ -51,16 +51,16 @@ export async function handler(event: any): Promise<any> {
         lastActivityTime = mostRecentJoinTime > queue.start_time ? mostRecentJoinTime : queue.start_time;
       }
       
-      console.log(`Queue ${queueId}: last activity at ${lastActivityTime}, cutoff is ${cutoffTime}`);
+      console.log(`Queue ${gameId}: last activity at ${lastActivityTime}, cutoff is ${cutoffTime}`);
       
       // Check if queue has been inactive for too long
       if (lastActivityTime < cutoffTime) {
-        console.log(`Queue ${queueId} has been inactive for ${timeoutMinutes}+ minutes (last activity: ${lastActivityTime})`);
+        console.log(`Queue ${gameId} has been inactive for ${timeoutMinutes}+ minutes (last activity: ${lastActivityTime})`);
         
         // Store timeout event for host using shared utilities
         await storeQueueHistoryEvent({
           id: crypto.randomUUID(),
-          gameId: queueId,
+          gameId: gameId,
           playerSteamId: queue.host_steam_id,
           eventType: 'timeout',
           eventData: {
@@ -77,7 +77,7 @@ export async function handler(event: any): Promise<any> {
           if (player.player_steam_id !== queue.host_steam_id) {
             await storeQueueHistoryEvent({
               id: crypto.randomUUID(),
-              gameId: queueId,
+              gameId: gameId,
               playerSteamId: player.player_steam_id,
               eventType: 'timeout',
               eventData: {
@@ -92,12 +92,12 @@ export async function handler(event: any): Promise<any> {
         }
         
         // Mark the expired queue as cancelled due to timeout instead of deleting it
-        await updateQueue(queueId, { status: 'cancelled' });
+        await updateQueue(gameId, { status: 'cancelled' });
         
         expiredCount++;
-        console.log(`Marked inactive queue ${queueId} as cancelled (${players.length + 1} players affected)`);
+        console.log(`Marked inactive queue ${gameId} as cancelled (${players.length + 1} players affected)`);
       } else {
-        console.log(`Queue ${queueId} is still active (last activity: ${lastActivityTime})`);
+        console.log(`Queue ${gameId} is still active (last activity: ${lastActivityTime})`);
       }
     }
     

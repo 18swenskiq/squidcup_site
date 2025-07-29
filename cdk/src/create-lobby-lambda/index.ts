@@ -5,6 +5,7 @@ import {
   addLobbyPlayers, 
   deleteQueue,
   updateQueue,
+  updateGame,
   storeLobbyHistoryEvent,
   getMaxPlayersForGamemode,
   createCorsHeaders,
@@ -42,7 +43,10 @@ export const handler = async (event: any) => {
   try {
     const { queueId } = JSON.parse(event.body || '{}');
     
-    if (!queueId) {
+    // Note: queueId is actually a gameId in the unified architecture
+    const gameId = queueId;
+    
+    if (!gameId) {
       return {
         statusCode: 400,
         headers: createCorsHeaders(),
@@ -51,7 +55,7 @@ export const handler = async (event: any) => {
     }
 
     // Get the queue from database
-    const queueData = await getQueue(queueId);
+    const queueData = await getQueue(gameId);
 
     if (!queueData) {
       return {
@@ -71,7 +75,7 @@ export const handler = async (event: any) => {
     }
     
     // Get queue players
-    const queuePlayers = await getQueuePlayers(queueId);
+    const queuePlayers = await getQueuePlayers(gameId);
     
     // Check if queue is full
     const maxPlayers = getMaxPlayersForGamemode(queueData.game_mode as GameMode);
@@ -85,8 +89,9 @@ export const handler = async (event: any) => {
       };
     }
 
-    // Create lobby ID
-    const lobbyId = crypto.randomUUID();
+    // In the unified architecture, we just update the same game record to 'lobby' status
+    // instead of creating a new lobby with a new ID
+    const lobbyId = gameId; // Use the same game ID
     const now = new Date().toISOString();
 
     // Create players array from queue data
@@ -136,17 +141,17 @@ export const handler = async (event: any) => {
       maxPlayers: maxPlayers
     };
 
-    // Create the lobby in database
-    await createLobby(lobbyData);
+    // Update the existing game to lobby status instead of creating a new one
+    await updateGame(gameId, {
+      status: 'lobby',
+      map: selectedMap,
+      mapSelectionMode: mapSelectionMode,
+      serverId: undefined // Will be assigned later when map is selected
+    });
 
-    // Add lobby players
-    await addLobbyPlayers(lobbyId, playersWithTeams.map(player => ({
-      steamId: player.player_steam_id,
-      team: player.team || 0
-    })));
-
-    // Mark the original queue as completed (converted to lobby) instead of deleting immediately
-    await updateQueue(queueId, { status: 'completed' });
+    // No need to add players again - they're already in the game_players table
+    // Just update their team assignments if needed
+    // TODO: Update player teams if required by game mode
 
     // Store lobby creation events for all players
     for (const player of playersWithTeams) {
