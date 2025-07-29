@@ -158,12 +158,17 @@ export class PlayViewComponent implements OnInit, OnDestroy {
       this.userQueueSubscription.unsubscribe();
       this.userQueueSubscription = undefined;
     }
+    if (this.queueSubscription) {
+      this.queueSubscription.unsubscribe();
+      this.queueSubscription = undefined;
+    }
   }
 
   restartPolling(): void {
     this.isTimedOut = false;
     this.lastResponseTime = Date.now();
     this.startUserQueueStatusPolling();
+    this.startQueuePolling();
   }
 
   onGameModeChange(): void {
