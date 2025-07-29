@@ -250,7 +250,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
     const headers = this.getAuthHeaders();
     
     this.http.post(`${this.apiBaseUrl}/selectMap`, {
-      lobbyId: this.lobby.id,
+      gameId: this.lobby.id,
       mapId: selectedMapId
     }, { headers }).subscribe({
       next: (response) => {

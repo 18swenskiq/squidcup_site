@@ -202,6 +202,13 @@ export interface Server {
   game_mode_support: GameMode[];
 }
 
+// ===== API REQUEST TYPES =====
+
+export interface SelectMapRequest {
+  gameId: string;
+  mapId: string;
+}
+
 // ===== API RESPONSE TYPES =====
 
 export interface ApiResponse<T = any> {

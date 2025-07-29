@@ -1,15 +1,11 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { 
   getSession,
-  getLobbyWithPlayers,
-  updateLobby,
-  createCorsHeaders
+  getGameWithPlayers,
+  updateGame,
+  createCorsHeaders,
+  SelectMapRequest
 } from '@squidcup/shared-lambda-utils';
-
-interface SelectMapRequest {
-  lobbyId: string;
-  mapName: string;
-}
 
 export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   const corsHeaders = createCorsHeaders();
@@ -71,49 +67,57 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
       };
     }
 
-    const { lobbyId, mapName } = requestBody;
+    const { gameId, mapId } = requestBody;
 
-    if (!lobbyId || !mapName) {
+    if (!gameId || !mapId) {
       return {
         statusCode: 400,
         headers: corsHeaders,
-        body: JSON.stringify({ error: 'Missing required fields: lobbyId, mapName' }),
+        body: JSON.stringify({ error: 'Missing required fields: gameId, mapId' }),
       };
     }
 
-    // Get the lobby to verify user is the host using shared utilities
-    const lobby = await getLobbyWithPlayers(lobbyId);
+    // Get the game to verify user is the host using shared utilities
+    const game = await getGameWithPlayers(gameId);
     
-    if (!lobby) {
+    if (!game) {
       return {
         statusCode: 404,
         headers: corsHeaders,
-        body: JSON.stringify({ error: 'Lobby not found' }),
+        body: JSON.stringify({ error: 'Game not found' }),
       };
     }
 
     // Check if user is the host (only host can select map)
-    if (lobby.host_steam_id !== steamId) {
+    if (game.host_steam_id !== steamId) {
       return {
         statusCode: 403,
         headers: corsHeaders,
-        body: JSON.stringify({ error: 'Only the lobby host can select the map' }),
+        body: JSON.stringify({ error: 'Only the game host can select the map' }),
       };
     }
 
-    // For now, assume all lobbies allow host to pick maps
-    // TODO: Add map selection mode to lobby schema
-    // if (lobby.mapSelectionMode !== 'Host Pick') {
-    //   return {
-    //     statusCode: 400,
-    //     headers: corsHeaders,
-    //     body: JSON.stringify({ error: 'Map selection is not allowed in this lobby mode' }),
-    //   };
-    // }
+    // Check if the game is in lobby status (maps can only be selected in lobby)
+    if (game.status !== 'lobby') {
+      return {
+        statusCode: 400,
+        headers: corsHeaders,
+        body: JSON.stringify({ error: 'Maps can only be selected when the game is in lobby status' }),
+      };
+    }
 
-    // Update the lobby with the selected map using shared utilities
-    await updateLobby(lobbyId, {
-      map: mapName
+    // Check if map selection mode allows host to pick
+    if (game.map_selection_mode === 'all-pick') {
+      return {
+        statusCode: 400,
+        headers: corsHeaders,
+        body: JSON.stringify({ error: 'Map selection mode does not allow host to pick maps' }),
+      };
+    }
+
+    // Update the game with the selected map using shared utilities
+    await updateGame(gameId, {
+      map: mapId
     });
 
     return {
@@ -121,9 +125,9 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
       headers: corsHeaders,
       body: JSON.stringify({
         message: 'Map selected successfully',
-        lobby: {
-          ...lobby,
-          map: mapName,
+        game: {
+          ...game,
+          map: mapId,
           updatedAt: new Date().toISOString()
         }
       }),
