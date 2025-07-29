@@ -1,3 +1,14 @@
+// CSS Variables for common values
+:host {
+  --text-light: rgba(255, 255, 255, 0.8);
+  --text-muted: rgba(255, 255, 255, 0.6);
+  --text-bright: rgba(255, 255, 255, 0.9);
+  --primary-color: #00d4ff;
+  --primary-light: rgba(0, 212, 255, 0.1);
+  --primary-border: rgba(0, 212, 255, 0.3);
+  --border-light: rgba(255, 255, 255, 0.1);
+}
+
 .play-view-container {
   display: flex;
   flex-direction: column;
@@ -9,6 +20,19 @@
   overflow-x: hidden;
 }
 
+// Shared spinner animation and base styles
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.spinner {
+  display: inline-block;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  vertical-align: middle;
+}
+
 .loading-container {
   display: flex;
   flex-direction: column;
@@ -18,25 +42,19 @@
   text-align: center;
 
   .loading-spinner {
+    @extend .spinner;
     width: 40px;
     height: 40px;
     border: 3px solid rgba(255, 255, 255, 0.3);
-    border-top: 3px solid #00d4ff;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
+    border-top: 3px solid var(--primary-color);
     margin-bottom: 20px;
   }
 
   p {
-    color: rgba(255, 255, 255, 0.8);
+    color: var(--text-light);
     font-size: 1.1rem;
     margin: 0;
   }
-}
-
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
 }
 
 .queue-columns {
@@ -377,17 +395,13 @@ button {
   }
 }
 
-// Button spinner styles
+// Button and loading spinner styles  
 .spinner {
-  display: inline-block;
   width: 16px;
   height: 16px;
   border: 2px solid rgba(255, 255, 255, 0.3);
   border-top: 2px solid white;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
   margin-right: 8px;
-  vertical-align: middle;
 }
 
 // Queue loading styles
@@ -396,7 +410,7 @@ button {
   align-items: center;
   justify-content: center;
   padding: 15px;
-  color: rgba(255, 255, 255, 0.8);
+  color: var(--text-light);
   
   .loading-text {
     font-size: 0.9rem;
@@ -404,14 +418,14 @@ button {
   }
   
   &.queue-refresh {
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    border-top: 1px solid var(--border-light);
     background: rgba(0, 0, 0, 0.1);
   }
 }
 
 .queue-refresh-info {
   font-size: 0.8rem;
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--text-muted);
   margin: 8px 0 0 0;
   text-align: left;
   font-style: italic;
@@ -424,10 +438,10 @@ button {
   justify-content: center;
   margin-top: 20px;
   padding: 15px;
-  background: rgba(0, 212, 255, 0.1);
-  border: 1px solid rgba(0, 212, 255, 0.3);
+  background: var(--primary-light);
+  border: 1px solid var(--primary-border);
   border-radius: 8px;
-  color: #00d4ff;
+  color: var(--primary-color);
   
   .transition-text {
     font-size: 1rem;
