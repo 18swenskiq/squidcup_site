@@ -51,6 +51,12 @@
               <span class="player-name">Waiting for player...</span>
             </div>
           </div>
+          
+          <!-- Transitioning to lobby message -->
+          <div *ngIf="isTransitioningToLobby" class="lobby-transition-message">
+            <span class="spinner"></span>
+            <span class="transition-text">All players have joined, setting up lobby...</span>
+          </div>
         </div>
         
         <div class="lobby-actions">

@@ -27,6 +27,7 @@ export class PlayViewComponent implements OnInit, OnDestroy {
   isStartingQueue: boolean = false;
   isJoiningQueue: boolean = false;
   isLoadingActiveQueues: boolean = false;
+  isTransitioningToLobby: boolean = false;
   viewState: ViewState = {
     showStartQueue: true,
     showJoinQueue: true,
@@ -89,6 +90,12 @@ export class PlayViewComponent implements OnInit, OnDestroy {
         next: (status) => {
           this.userQueueStatus = status;
           this.isLoadingUserQueue = false;
+          
+          // Check if queue is full and transitioning to lobby
+          if (status.inQueue && !status.inLobby && this.isQueueFull()) {
+            this.isTransitioningToLobby = true;
+          }
+          
           this.updateViewState();
           
           // Initialize response tracking
@@ -129,7 +136,16 @@ export class PlayViewComponent implements OnInit, OnDestroy {
             }
           }
           
+          // Check if queue is full and transitioning to lobby
+          const wasTransitioning = this.isTransitioningToLobby;
           this.userQueueStatus = status;
+          
+          if (status.inQueue && !status.inLobby && this.isQueueFull()) {
+            this.isTransitioningToLobby = true;
+          } else if (status.inLobby || !status.inQueue) {
+            this.isTransitioningToLobby = false;
+          }
+          
           this.updateViewState();
         },
         error: (error) => {
@@ -391,5 +407,12 @@ export class PlayViewComponent implements OnInit, OnDestroy {
       case '5v5': return 10;
       default: return 0;
     }
+  }
+
+  isQueueFull(): boolean {
+    if (!this.userQueueStatus?.queue) return false;
+    const currentPlayers = this.getJoinersCount() + 1; // +1 for host
+    const maxPlayers = this.getMaxPlayers();
+    return currentPlayers >= maxPlayers;
   }
 }
