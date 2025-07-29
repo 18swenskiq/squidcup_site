@@ -1,17 +1,12 @@
 import { 
   getQueue, 
   getQueuePlayers, 
-  createLobby,
-  addLobbyPlayers, 
-  deleteQueue,
-  updateQueue,
   updateGame,
   storeLobbyHistoryEvent,
   getMaxPlayersForGamemode,
   createCorsHeaders,
   LobbyPlayerRecord, 
   GameMode, 
-  MapSelectionMode,
   LobbyData,
   CreateLobbyInput,
 } from '@squidcup/shared-lambda-utils';
