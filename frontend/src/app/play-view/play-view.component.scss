@@ -389,3 +389,30 @@ button {
   margin-right: 8px;
   vertical-align: middle;
 }
+
+// Queue loading styles
+.loading-spinner-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 15px;
+  color: rgba(255, 255, 255, 0.8);
+  
+  .loading-text {
+    font-size: 0.9rem;
+    margin-left: 4px;
+  }
+  
+  &.queue-refresh {
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(0, 0, 0, 0.1);
+  }
+}
+
+.queue-refresh-info {
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.6);
+  margin: 8px 0 0 0;
+  text-align: left;
+  font-style: italic;
+}

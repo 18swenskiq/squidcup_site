@@ -26,6 +26,7 @@ export class PlayViewComponent implements OnInit, OnDestroy {
   isLoadingUserQueue: boolean = true;
   isStartingQueue: boolean = false;
   isJoiningQueue: boolean = false;
+  isLoadingActiveQueues: boolean = false;
   viewState: ViewState = {
     showStartQueue: true,
     showJoinQueue: true,
@@ -332,10 +333,14 @@ export class PlayViewComponent implements OnInit, OnDestroy {
   private startQueuePolling(): void {
     this.queueSubscription = interval(this.POLLING_INTERVAL) // Poll every 5 seconds
       .pipe(
-        switchMap(() => this.http.get<{queues: ActiveQueue[]}>(`${this.apiBaseUrl}/activeQueues`))
+        switchMap(() => {
+          this.isLoadingActiveQueues = true;
+          return this.http.get<{queues: ActiveQueue[]}>(`${this.apiBaseUrl}/activeQueues`);
+        })
       )
       .subscribe({
         next: (response) => {
+          this.isLoadingActiveQueues = false;
           // Map ActiveQueue to Queue format for the UI
           this.activeQueues = response.queues.map(aq => ({
             id: aq.queueId,
@@ -353,6 +358,7 @@ export class PlayViewComponent implements OnInit, OnDestroy {
           }
         },
         error: (error) => {
+          this.isLoadingActiveQueues = false;
           console.error('Error fetching queues', error);
         }
       });

@@ -141,6 +141,13 @@
           <span>Password?</span>
         </div>
         <div class="queue-list">
+          <!-- Show loading spinner when no queues and loading -->
+          <div *ngIf="activeQueues.length === 0 && isLoadingActiveQueues" class="loading-spinner-container">
+            <span class="spinner"></span>
+            <span class="loading-text">Loading queues...</span>
+          </div>
+          
+          <!-- Show queue items -->
           <div class="queue-item" 
                *ngFor="let queue of activeQueues" 
                (click)="selectQueue(queue)"
@@ -152,7 +159,14 @@
             <span>{{ queue.ranked ? 'Yes' : 'No' }}</span>
             <span>{{ queue.hasPassword ? 'Yes' : 'No' }}</span>
           </div>
+          
+          <!-- Show loading spinner when queues exist and loading -->
+          <div *ngIf="activeQueues.length > 0 && isLoadingActiveQueues" class="loading-spinner-container queue-refresh">
+            <span class="spinner"></span>
+            <span class="loading-text">Refreshing...</span>
+          </div>
         </div>
+        <p class="queue-refresh-info">Queue list automatically refreshes every few seconds</p>
       </div>
       <button class="join-button" [disabled]="!selectedQueue || !isLoggedIn || isJoiningQueue" (click)="joinQueue()" *ngIf="isLoggedIn">
         <span *ngIf="!isJoiningQueue">Join Queue</span>
