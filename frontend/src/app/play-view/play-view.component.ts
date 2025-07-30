@@ -2,8 +2,8 @@ import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { HttpClient, HttpClientModule } from '@angular/common/http';
-import { interval, Subscription } from 'rxjs';
-import { switchMap } from 'rxjs/operators';
+import { interval, Subscription, of } from 'rxjs';
+import { switchMap, catchError } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
 import { AuthService } from '../services/auth.service';
 import { GameServer, UserQueueStatus, Queue, ViewState, ActiveQueue, UserActiveQueue, LobbyData } from './play-view.interfaces';
@@ -115,7 +115,19 @@ export class PlayViewComponent implements OnInit, OnDestroy {
       .pipe(
         switchMap(() => {
           const headers = this.authService.getAuthHeaders();
-          return this.http.get<UserQueueStatus>(`${this.apiBaseUrl}/userQueue`, { headers });
+          return this.http.get<UserQueueStatus>(`${this.apiBaseUrl}/userQueue`, { headers })
+            .pipe(
+              catchError((error) => {
+                console.error('Error fetching user queue status:', error);
+                // Return a default/empty response to continue polling
+                return of({
+                  inQueue: false,
+                  inLobby: false,
+                  queue: null,
+                  lobby: null
+                } as UserQueueStatus);
+              })
+            );
         })
       )
       .subscribe({
@@ -147,9 +159,6 @@ export class PlayViewComponent implements OnInit, OnDestroy {
           }
           
           this.updateViewState();
-        },
-        error: (error) => {
-          console.error('Error fetching user queue status:', error);
         }
       });
   }
@@ -351,7 +360,15 @@ export class PlayViewComponent implements OnInit, OnDestroy {
       .pipe(
         switchMap(() => {
           this.isLoadingActiveQueues = true;
-          return this.http.get<{queues: ActiveQueue[]}>(`${this.apiBaseUrl}/activeQueues`);
+          return this.http.get<{queues: ActiveQueue[]}>(`${this.apiBaseUrl}/activeQueues`)
+            .pipe(
+              catchError((error) => {
+                console.error('Error fetching active queues:', error);
+                this.isLoadingActiveQueues = false;
+                // Return empty queues array to continue polling
+                return of({ queues: [] as ActiveQueue[] });
+              })
+            );
         })
       )
       .subscribe({
@@ -372,10 +389,6 @@ export class PlayViewComponent implements OnInit, OnDestroy {
           if (this.selectedQueue && !this.activeQueues.some(q => q.id === this.selectedQueue?.id)) {
             this.selectedQueue = null;
           }
-        },
-        error: (error) => {
-          this.isLoadingActiveQueues = false;
-          console.error('Error fetching queues', error);
         }
       });
   }
