@@ -88,15 +88,6 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
       };
     }
 
-    // Check if user is the host (only host can select map)
-    if (game.host_steam_id !== steamId) {
-      return {
-        statusCode: 403,
-        headers: corsHeaders,
-        body: JSON.stringify({ error: 'Only the game host can select the map' }),
-      };
-    }
-
     // Check if the game is in lobby status (maps can only be selected in lobby)
     if (game.status !== 'lobby') {
       return {
@@ -106,12 +97,32 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
       };
     }
 
-    // Check if map selection mode allows host to pick
-    if (game.map_selection_mode === 'all-pick') {
+    // Check authorization based on map selection mode
+    if (game.map_selection_mode === 'host-pick') {
+      // Only host can select map in host-pick mode
+      if (game.host_steam_id !== steamId) {
+        return {
+          statusCode: 403,
+          headers: corsHeaders,
+          body: JSON.stringify({ error: 'Only the game host can select the map in host-pick mode' }),
+        };
+      }
+    } else if (game.map_selection_mode === 'all-pick') {
+      // Any player in the game can select map in all-pick mode
+      const isPlayerInGame = game.players.some(player => player.player_steam_id === steamId);
+      if (!isPlayerInGame) {
+        return {
+          statusCode: 403,
+          headers: corsHeaders,
+          body: JSON.stringify({ error: 'Only players in the game can select the map' }),
+        };
+      }
+    } else if (game.map_selection_mode === 'random-map') {
+      // No manual map selection allowed in random mode
       return {
         statusCode: 400,
         headers: corsHeaders,
-        body: JSON.stringify({ error: 'Map selection mode does not allow host to pick maps' }),
+        body: JSON.stringify({ error: 'Map selection is not allowed in random-map mode' }),
       };
     }
 
