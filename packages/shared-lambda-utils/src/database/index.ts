@@ -840,7 +840,7 @@ export async function getActiveGamesWithDetails(): Promise<ActiveQueueWithDetail
       serverId: game.server_id,
       serverName: game.server_name || 'Unknown Server',
       startTime: game.start_time,
-      players: 1 + joiners.length, // host + joiners
+      players: joiners.length, // Use actual player count from game_players table
       maxPlayers: game.max_players,
       joiners: joiners,
       ranked: !!game.ranked,
