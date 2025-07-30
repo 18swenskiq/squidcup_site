@@ -2,6 +2,7 @@ import * as crypto from 'crypto';
 import { 
   getSession,
   createQueue,
+  addPlayerToGame,
   storeQueueHistoryEvent,
   createCorsHeaders,
   getMaxPlayersForGamemode,
@@ -114,6 +115,13 @@ export async function handler(event: any): Promise<any> {
       ranked: ranked === true,
       startTime: now,
       maxPlayers: getMaxPlayersForGamemode(gameMode)
+    });
+
+    // Add the host as a player in the game_players table
+    await addPlayerToGame(gameId, {
+      steamId: hostSteamId,
+      team: 0, // Default team
+      joinTime: now
     });
 
     // Store queue history event using shared utilities

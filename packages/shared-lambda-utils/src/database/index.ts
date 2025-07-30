@@ -520,7 +520,7 @@ export async function createGame(gameData: CreateGameInput): Promise<void> {
       gameData.ranked || false,
       jsDateToMySQLDate(gameData.startTime),
       gameData.maxPlayers,
-      1, // Initialize current_players to 1 for the host
+      0, // Initialize current_players to 0, will be incremented when host is added as player
       gameData.status || 'queue'
     ]
   );
