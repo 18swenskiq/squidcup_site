@@ -2,8 +2,8 @@ import { Component, Input, Output, EventEmitter, OnInit, OnDestroy } from '@angu
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
-import { interval, Subscription } from 'rxjs';
-import { switchMap } from 'rxjs/operators';
+import { interval, Subscription, EMPTY } from 'rxjs';
+import { switchMap, catchError } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
 import { AuthService } from '../../services/auth.service';
 
@@ -144,7 +144,13 @@ export class LobbyComponent implements OnInit, OnDestroy {
       .pipe(
         switchMap(() => this.http.get(`${this.apiBaseUrl}/userQueue`, {
           headers: this.getAuthHeaders()
-        }))
+        }).pipe(
+          catchError((error) => {
+            console.error('Error refreshing lobby state:', error);
+            // Return EMPTY to skip this emission and keep the last successful state
+            return EMPTY;
+          })
+        ))
       )
       .subscribe({
         next: (response: any) => {
@@ -162,10 +168,8 @@ export class LobbyComponent implements OnInit, OnDestroy {
             // Lobby was disbanded
             this.lobbyLeft.emit();
           }
-        },
-        error: (error) => {
-          console.error('Error refreshing lobby state:', error);
         }
+        // Remove the error handler since we're handling it in the pipe
       });
   }
 
