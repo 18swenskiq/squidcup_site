@@ -2,7 +2,7 @@ import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { HttpClient, HttpClientModule } from '@angular/common/http';
-import { interval, Subscription, of } from 'rxjs';
+import { interval, Subscription, of, EMPTY } from 'rxjs';
 import { switchMap, catchError } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
 import { AuthService } from '../services/auth.service';
@@ -119,13 +119,8 @@ export class PlayViewComponent implements OnInit, OnDestroy {
             .pipe(
               catchError((error) => {
                 console.error('Error fetching user queue status:', error);
-                // Return a default/empty response to continue polling
-                return of({
-                  inQueue: false,
-                  inLobby: false,
-                  queue: null,
-                  lobby: null
-                } as UserQueueStatus);
+                // Return EMPTY to skip this emission and keep the last successful state
+                return EMPTY;
               })
             );
         })
@@ -365,8 +360,8 @@ export class PlayViewComponent implements OnInit, OnDestroy {
               catchError((error) => {
                 console.error('Error fetching active queues:', error);
                 this.isLoadingActiveQueues = false;
-                // Return empty queues array to continue polling
-                return of({ queues: [] as ActiveQueue[] });
+                // Return EMPTY to skip this emission and keep the last successful queue list
+                return EMPTY;
               })
             );
         })
