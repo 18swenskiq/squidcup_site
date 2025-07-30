@@ -250,7 +250,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
     const headers = this.getAuthHeaders();
     
     this.http.post(`${this.apiBaseUrl}/selectMap`, {
-      gameId: this.lobby.id,
+      lobbyId: this.lobby.id,  // Use lobbyId for consistency with lobby endpoints
       mapId: selectedMapId
     }, { headers }).subscribe({
       next: (response) => {
@@ -278,7 +278,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
     this.http.delete(`${this.apiBaseUrl}/leaveLobby`, {
       headers,
       body: JSON.stringify({
-        gameId: this.lobby.id
+        lobbyId: this.lobby.id  // Use lobbyId instead of gameId for lobby endpoints
       })
     }).subscribe({
       next: (response: any) => {
