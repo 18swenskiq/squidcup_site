@@ -1,5 +1,5 @@
 .lobby-container {
-  max-width: 800px;
+  max-width: 1200px;
   margin: 0 auto;
   padding: 20px;
   background-color: rgba(255, 255, 255, 0.05);
@@ -50,13 +50,42 @@
 }
 
 .teams-container {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 30px;
+  display: flex;
+  gap: 20px;
   margin-bottom: 30px;
+  align-items: flex-start;
+}
+
+// Central map display between teams
+.selected-map-display {
+  flex: 0 0 200px; // Fixed width for the center section
+  text-align: center;
+  padding: 20px 10px;
+  
+  h4 {
+    color: #3498db;
+    margin-bottom: 10px;
+    font-size: 16px;
+  }
+  
+  .map-name {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    padding: 12px;
+    color: #ffffff;
+    font-weight: 500;
+    font-size: 14px;
+  }
+  
+  .no-selection {
+    color: rgba(255, 255, 255, 0.6);
+    font-style: italic;
+  }
 }
 
 .team {
+  flex: 1; // Teams take equal space on either side
   background: rgba(255, 255, 255, 0.08);
   border: 1px solid rgba(255, 255, 255, 0.1);
   padding: 20px;
@@ -209,11 +238,33 @@
 
 .map-tiles {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 15px;
   width: 100%;
-  max-width: 600px;
+  max-width: 100%; // Allow full width utilization
   margin-bottom: 20px;
+  
+  // Responsive breakpoints for map columns
+  @media (min-width: 1000px) {
+    // 4 columns on larger screens
+    grid-template-columns: repeat(4, 1fr);
+  }
+  
+  @media (max-width: 999px) and (min-width: 700px) {
+    // 3 columns on medium screens
+    grid-template-columns: repeat(3, 1fr);
+  }
+  
+  @media (max-width: 699px) {
+    // 2 columns on smaller screens
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+  
+  @media (max-width: 500px) {
+    // 1 column on mobile
+    grid-template-columns: 1fr;
+  }
 }
 
 .map-tile {
@@ -420,8 +471,27 @@
 
 @media (max-width: 768px) {
   .teams-container {
-    grid-template-columns: 1fr;
-    gap: 20px;
+    flex-direction: column;
+    gap: 15px;
+  }
+  
+  .selected-map-display {
+    flex: none;
+    order: 2; // Show map selection between teams on mobile
+    margin: 10px 0;
+  }
+  
+  .team:first-child {
+    order: 1;
+  }
+  
+  .team:last-child {
+    order: 3;
+  }
+  
+  .lobby-container {
+    padding: 15px;
+    max-width: 100%;
   }
   
   .lobby-info {
@@ -437,7 +507,7 @@
   }
   
   .map-tiles {
-    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    grid-template-columns: 1fr;
     gap: 10px;
   }
   

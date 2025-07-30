@@ -8,20 +8,52 @@
     </div>
   </div>
 
-  <!-- Teams Display - Always show two columns -->
+  <!-- Teams Display - Two teams with selected map in between -->
   <div class="teams-container">
-    <div class="team" *ngFor="let teamNum of [1, 2]">
-      <h3>{{ getTeamName(teamNum) }}</h3>
+    <!-- Team 1 -->
+    <div class="team">
+      <h3>{{ getTeamName(1) }}</h3>
       <div class="players-list">
-        <div class="player" *ngFor="let player of getTeamPlayers(teamNum)">
+        <div class="player" *ngFor="let player of getTeamPlayers(1)">
           <span class="player-name">{{ getPlayerDisplayName(player.steamId) }}</span>
           <span class="host-badge" *ngIf="player.steamId === lobby.hostSteamId">Host</span>
-          <span class="map-status" *ngIf="lobby.mapSelectionMode === 'all-pickk'">
+          <span class="map-status" *ngIf="lobby.mapSelectionMode === 'all-pick'">
             {{ player.hasSelectedMap ? '✓ Selected' : '⏳ Selecting...' }}
           </span>
         </div>
         <!-- Show empty slots if team has no players -->
-        <div class="player empty-slot" *ngIf="getTeamPlayers(teamNum).length === 0">
+        <div class="player empty-slot" *ngIf="getTeamPlayers(1).length === 0">
+          <span class="player-name">Waiting for players...</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Selected Map Display (Center) -->
+    <div class="selected-map-display">
+      <h4>Selected:</h4>
+      <div class="map-name" *ngIf="lobby.selectedMap && isMapSelectionComplete; else noMapSelected">
+        {{ getSelectedMapName() }}
+      </div>
+      <ng-template #noMapSelected>
+        <div class="map-name no-selection">
+          {{ getMapSelectionStatus() }}
+        </div>
+      </ng-template>
+    </div>
+
+    <!-- Team 2 -->
+    <div class="team">
+      <h3>{{ getTeamName(2) }}</h3>
+      <div class="players-list">
+        <div class="player" *ngFor="let player of getTeamPlayers(2)">
+          <span class="player-name">{{ getPlayerDisplayName(player.steamId) }}</span>
+          <span class="host-badge" *ngIf="player.steamId === lobby.hostSteamId">Host</span>
+          <span class="map-status" *ngIf="lobby.mapSelectionMode === 'all-pick'">
+            {{ player.hasSelectedMap ? '✓ Selected' : '⏳ Selecting...' }}
+          </span>
+        </div>
+        <!-- Show empty slots if team has no players -->
+        <div class="player empty-slot" *ngIf="getTeamPlayers(2).length === 0">
           <span class="player-name">Waiting for players...</span>
         </div>
       </div>

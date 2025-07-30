@@ -297,6 +297,7 @@ export interface GamePlayerRecord {
   player_steam_id: string;
   team: number;
   joined_at: string;
+  map_selection?: string; // Optional map selection (map ID)
 }
 
 export interface GameHistoryRecord {

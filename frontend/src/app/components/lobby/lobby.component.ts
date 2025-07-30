@@ -331,6 +331,30 @@ export class LobbyComponent implements OnInit, OnDestroy {
     return this.lobby?.selectedMap ? this.getMapName(this.lobby.selectedMap) : '';
   }
 
+  getSelectedMapName(): string {
+    if (this.lobby?.selectedMap) {
+      return this.getMapName(this.lobby.selectedMap);
+    }
+    return 'No map selected';
+  }
+
+  getMapSelectionStatus(): string {
+    if (!this.lobby) return 'Loading...';
+    
+    switch (this.lobby.mapSelectionMode) {
+      case 'Random Map':
+        return 'Random map will be selected';
+      case 'Host Pick':
+        return this.isHost ? 'Select a map below' : 'Waiting for host selection';
+      case 'all-pick':
+        const selected = this.playersWithMapSelection;
+        const total = this.totalPlayers;
+        return `${selected}/${total} players selected`;
+      default:
+        return 'Waiting for map selection';
+    }
+  }
+
   private getAuthHeaders(): any {
     const currentUser = this.authService.getCurrentUser();
     return currentUser ? {
