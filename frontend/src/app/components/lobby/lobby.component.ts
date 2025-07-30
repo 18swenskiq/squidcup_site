@@ -227,7 +227,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
 
     const userSteamId = this.extractSteamId(currentUser.steamId);
     
-    if (this.lobby.mapSelectionMode === 'Host Pick') {
+    if (this.lobby.mapSelectionMode === 'host-pick') {
       return this.isHost;
     } else if (this.lobby.mapSelectionMode === 'all-pick') {
       const currentPlayer = this.lobby.players?.find(p => p.steamId === userSteamId);
@@ -342,9 +342,9 @@ export class LobbyComponent implements OnInit, OnDestroy {
     if (!this.lobby) return 'Loading...';
     
     switch (this.lobby.mapSelectionMode) {
-      case 'Random Map':
+      case 'random-map':
         return 'Random map will be selected';
-      case 'Host Pick':
+      case 'host-pick':
         return this.isHost ? 'Select a map below' : 'Waiting for host selection';
       case 'all-pick':
         const selected = this.playersWithMapSelection;

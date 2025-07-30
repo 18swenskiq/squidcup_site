@@ -65,12 +65,12 @@
     <h3>Map Selection</h3>
     
     <!-- Random Map Mode -->
-    <div *ngIf="lobby.mapSelectionMode === 'Random Map'" class="map-info">
+    <div *ngIf="lobby.mapSelectionMode === 'random-map'" class="map-info">
       <p>🎲 A random map will be selected automatically</p>
     </div>
 
     <!-- Host Pick Mode -->
-    <div *ngIf="lobby.mapSelectionMode === 'Host Pick'" class="map-picker">
+    <div *ngIf="lobby.mapSelectionMode === 'host-pick'" class="map-picker">
       <div *ngIf="isHost">
         <p>As the host, please select a map:</p>
         
@@ -140,9 +140,8 @@
 
     <!-- Fallback: Show map tiles if we have maps but no mode matched -->
     <div *ngIf="availableMaps.length > 0 && 
-                lobby.mapSelectionMode !== 'Random Map' && 
-                lobby.mapSelectionMode !== 'Host Pick' && 
-                lobby.mapSelectionMode !== 'All Pick' && 
+                lobby.mapSelectionMode !== 'random-map' && 
+                lobby.mapSelectionMode !== 'host-pick' && 
                 lobby.mapSelectionMode !== 'all-pick'" class="map-picker">
       <p>Select a map ({{ lobby.mapSelectionMode }}):</p>
       
