@@ -70,6 +70,8 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
         steamId: player.player_steam_id,
         team: player.team,
         joinedAt: player.joined_at,
+        mapSelection: player.map_selection,
+        hasSelectedMap: !!player.map_selection,
         name: lobby.playerNames[player.player_steam_id] || `Player ${player.player_steam_id.slice(-4)}`
       }));
       
@@ -93,6 +95,8 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
             hasPassword: false, // Lobbies don't have passwords
             ranked: false, // Default for lobbies
             players: enrichedPlayers,
+            mapSelectionComplete: lobby.map ? true : false, // Check if final map has been selected
+            selectedMap: lobby.map, // Include the final selected map if available
             createdAt: lobby.created_at,
             updatedAt: lobby.updated_at,
           }
@@ -111,6 +115,8 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
         .map((player: any) => ({
           steamId: player.player_steam_id,
           joinTime: player.joined_at,
+          mapSelection: player.map_selection,
+          hasSelectedMap: !!player.map_selection,
           name: queue.playerNames[player.player_steam_id] || `Player ${player.player_steam_id.slice(-4)}`
         }));
       
@@ -135,6 +141,8 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
             ranked: !!queue.ranked,
             startTime: queue.start_time,
             joiners: enrichedJoiners,
+            mapSelectionComplete: queue.map ? true : false, // Check if final map has been selected
+            selectedMap: queue.map, // Include the final selected map if available
             createdAt: queue.created_at,
             updatedAt: queue.updated_at,
           }
