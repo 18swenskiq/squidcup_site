@@ -100,14 +100,14 @@ export class LobbyComponent implements OnInit, OnDestroy {
     this.http.get<{data: GameMap[]}>(url)
       .subscribe({
         next: (response) => {
-          this.availableMaps = response.data || [];
-          // Add "Random Map" option at the end
-          this.availableMaps.push({
+          const maps = response.data || [];
+          // Add "Random Map" option at the beginning
+          this.availableMaps = [{
             id: 'random',
             name: 'Random Map',
             thumbnailUrl: 'assets/dice_roll.jpg',
             gameModes: [] // Empty since it works for all game modes
-          });
+          }, ...maps];
           this.mapsLoading = false;
         },
         error: (error) => {
