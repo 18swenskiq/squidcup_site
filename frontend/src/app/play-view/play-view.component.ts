@@ -54,8 +54,10 @@ export class PlayViewComponent implements OnInit, OnDestroy {
       this.startUserQueueStatusPolling();
     } else {
       this.isLoadingUserQueue = false;
+      // Only start queue polling if user is not logged in (they can view queues but not join)
+      this.startQueuePolling();
     }
-    this.startQueuePolling();
+    // Queue polling will be started conditionally based on user status in updateViewState()
   }
 
   ngOnDestroy(): void {
@@ -98,6 +100,11 @@ export class PlayViewComponent implements OnInit, OnDestroy {
           
           this.updateViewState();
           
+          // Start queue polling if user is not in a queue/lobby (can join other queues)
+          if (!status.inQueue && !status.inLobby) {
+            this.startQueuePolling();
+          }
+          
           // Initialize response tracking
           this.lastUserQueueResponse = JSON.stringify(status);
           this.lastResponseTime = Date.now();
@@ -106,6 +113,8 @@ export class PlayViewComponent implements OnInit, OnDestroy {
           console.error('Error fetching initial user queue status:', error);
           this.isLoadingUserQueue = false;
           this.updateViewState();
+          // On error, start queue polling to show available queues
+          this.startQueuePolling();
         }
       });
   }
@@ -159,18 +168,34 @@ export class PlayViewComponent implements OnInit, OnDestroy {
   }
 
   private updateViewState(): void {
+    const wasInLobbyOrQueue = this.viewState.showLobby;
+    
     if (this.userQueueStatus?.inQueue || this.userQueueStatus?.inLobby) {
       this.viewState = {
         showStartQueue: false,
         showJoinQueue: false,
         showLobby: true
       };
+      
+      // Stop active queue polling when user enters a queue/lobby (can't join other queues anyway)
+      if (this.queueSubscription && !wasInLobbyOrQueue) {
+        console.log('User entered queue/lobby - stopping active queue polling');
+        this.queueSubscription.unsubscribe();
+        this.queueSubscription = undefined;
+        this.isLoadingActiveQueues = false;
+      }
     } else {
       this.viewState = {
         showStartQueue: true,
         showJoinQueue: true,
         showLobby: false
       };
+      
+      // Start active queue polling when user leaves queue/lobby (can now join other queues)
+      if (!this.queueSubscription && wasInLobbyOrQueue && this.isLoggedIn) {
+        console.log('User left queue/lobby - starting active queue polling');
+        this.startQueuePolling();
+      }
     }
   }
 
@@ -189,7 +214,11 @@ export class PlayViewComponent implements OnInit, OnDestroy {
     this.isTimedOut = false;
     this.lastResponseTime = Date.now();
     this.startUserQueueStatusPolling();
-    this.startQueuePolling();
+    
+    // Only restart queue polling if user is not in a queue/lobby
+    if (!this.userQueueStatus?.inQueue && !this.userQueueStatus?.inLobby) {
+      this.startQueuePolling();
+    }
   }
 
   onGameModeChange(): void {
