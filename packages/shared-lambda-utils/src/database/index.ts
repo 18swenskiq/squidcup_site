@@ -226,6 +226,7 @@ async function ensureTablesExist(connection: mysql.Connection): Promise<void> {
         player_steam_id VARCHAR(50) NOT NULL,
         team INT DEFAULT 0,
         joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        map_selection VARCHAR(100) DEFAULT NULL,
         PRIMARY KEY (game_id, player_steam_id),
         FOREIGN KEY (game_id) REFERENCES squidcup_games(id) ON DELETE CASCADE,
         FOREIGN KEY (player_steam_id) REFERENCES squidcup_users(steam_id) ON DELETE CASCADE,
