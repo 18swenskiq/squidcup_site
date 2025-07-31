@@ -219,9 +219,30 @@ export class LobbyComponent implements OnInit, OnDestroy, OnChanges {
             const previousAnimStartTime = this.lobby.mapAnimSelectStartTime;
             this.lobby = response.lobby;
             
-            // Check if animation should start
-            if (this.lobby.mapAnimSelectStartTime && !previousAnimStartTime && !this.isAnimating) {
-              this.startMapSelectionAnimation();
+            // Debug logging for animation timing
+            if (this.lobby.mapAnimSelectStartTime) {
+              console.log('Received mapAnimSelectStartTime:', this.lobby.mapAnimSelectStartTime);
+              console.log('Current time:', Date.now());
+              console.log('Time difference:', Date.now() - this.lobby.mapAnimSelectStartTime);
+              console.log('Currently animating:', this.isAnimating);
+            }
+            
+            // Check if animation should start or continue
+            if (this.lobby.mapAnimSelectStartTime && !this.isAnimating) {
+              const now = Date.now();
+              const animationStartTime = this.lobby.mapAnimSelectStartTime;
+              const timeSinceAnimationStart = now - animationStartTime;
+              const animationDuration = 10000; // 10 seconds
+              
+              console.log('Animation check - timeSinceStart:', timeSinceAnimationStart, 'duration:', animationDuration);
+              
+              // Start animation if we're within the animation window (before or during)
+              if (timeSinceAnimationStart < animationDuration) {
+                console.log('Starting animation now');
+                this.startMapSelectionAnimation();
+              } else {
+                console.log('Animation window has passed, not starting animation');
+              }
             }
             
             // If new players joined, load their profiles
@@ -297,33 +318,66 @@ export class LobbyComponent implements OnInit, OnDestroy, OnChanges {
     if (!this.lobby.mapAnimSelectStartTime || !this.isBrowser) return;
     
     console.log('Starting map selection animation...');
+    console.log('mapAnimSelectStartTime:', this.lobby.mapAnimSelectStartTime);
+    console.log('Current time:', Date.now());
+    
     this.isAnimating = true;
     
-    // Calculate initial countdown based on animation start time
     const now = Date.now();
-    const endTime = this.lobby.mapAnimSelectStartTime + 10000; // 10 seconds from start
-    this.animationCountdown = Math.max(0, Math.ceil((endTime - now) / 1000));
+    const animationStartTime = this.lobby.mapAnimSelectStartTime;
     
-    // If animation has already ended, skip to completed state
-    if (this.animationCountdown <= 0) {
-      this.completeMapSelectionAnimation();
-      return;
+    console.log('Animation start time:', animationStartTime);
+    
+    // If animation hasn't started yet, countdown to animation start
+    if (now < animationStartTime) {
+      const timeUntilAnimation = animationStartTime - now;
+      this.animationCountdown = Math.ceil(timeUntilAnimation / 1000);
+      console.log('Countdown until animation starts:', this.animationCountdown, 'seconds');
+      
+      // Start countdown timer
+      this.animationSubscription = timer(0, 1000)
+        .pipe(
+          takeWhile(() => this.animationCountdown > 0 && this.isAnimating)
+        )
+        .subscribe(() => {
+          this.ngZone.run(() => {
+            this.animationCountdown--;
+            console.log('Countdown:', this.animationCountdown);
+            
+            // When countdown reaches 0, start the actual animation
+            if (this.animationCountdown <= 0) {
+              console.log('Countdown finished, starting map cycling animation');
+              this.animationSubscription?.unsubscribe();
+              this.startMapCyclingAnimation();
+            }
+          });
+        });
+    } 
+    // If animation should have already started, start it immediately
+    else {
+      console.log('Animation should be running now, starting map cycling immediately');
+      this.startMapCyclingAnimation();
     }
+  }
 
-    // Start the map name cycling animation
+  private startMapCyclingAnimation(): void {
+    console.log('Starting map cycling animation');
+    this.animationCountdown = 10; // Fixed 10-second animation
     this.startMapNameCycling();
     
-    // Use RxJS timer for countdown
+    // Start the 10-second animation countdown
     this.animationSubscription = timer(0, 1000)
       .pipe(
-        takeWhile(() => this.animationCountdown >= 0 && this.isAnimating)
+        takeWhile(() => this.animationCountdown > 0 && this.isAnimating)
       )
       .subscribe(() => {
         this.ngZone.run(() => {
+          this.animationCountdown--;
+          console.log('Animation countdown:', this.animationCountdown);
+          
+          // When animation countdown reaches 0, complete the animation
           if (this.animationCountdown <= 0) {
             this.completeMapSelectionAnimation();
-          } else {
-            this.animationCountdown--;
           }
         });
       });
