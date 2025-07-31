@@ -101,11 +101,24 @@ export class LobbyComponent implements OnInit, OnDestroy {
       .subscribe({
         next: (response) => {
           this.availableMaps = response.data || [];
+          // Add "Random Map" option at the end
+          this.availableMaps.push({
+            id: 'random',
+            name: 'Random Map',
+            thumbnailUrl: 'assets/dice_roll.jpg',
+            gameModes: [] // Empty since it works for all game modes
+          });
           this.mapsLoading = false;
         },
         error: (error) => {
           console.error('Error loading maps:', error);
-          this.availableMaps = []; // Ensure it's empty array on error
+          // Even on error, provide the random map option
+          this.availableMaps = [{
+            id: 'random',
+            name: 'Random Map',
+            thumbnailUrl: 'assets/dice_roll.jpg',
+            gameModes: []
+          }];
           this.mapsLoading = false;
         }
       });
@@ -319,6 +332,9 @@ export class LobbyComponent implements OnInit, OnDestroy {
   }
 
   getMapName(mapId: string): string {
+    if (mapId === 'random') {
+      return 'Random Map';
+    }
     const map = this.availableMaps.find(m => m.id === mapId);
     return map ? map.name : 'Choosing...';
   }

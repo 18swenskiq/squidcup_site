@@ -361,6 +361,36 @@
   border-color: #27ae60;
 }
 
+// Special styling for random map tile
+.map-tile[style*="dice_roll.jpg"] {
+  background-size: cover !important;
+  
+  &::before {
+    background: rgba(0, 0, 0, 0.4); // Slightly darker overlay for better text visibility
+  }
+  
+  &:hover::before {
+    background: rgba(52, 152, 219, 0.5);
+  }
+  
+  &.selected::before {
+    background: rgba(39, 174, 96, 0.7);
+  }
+  
+  .map-name {
+    font-size: 1.1em;
+    text-shadow: 
+      -2px -2px 0 #000,
+      2px -2px 0 #000,
+      -2px 2px 0 #000,
+      2px 2px 0 #000,
+      0 -2px 0 #000,
+      0 2px 0 #000,
+      -2px 0 0 #000,
+      2px 0 0 #000;
+  }
+}
+
 .map-name {
   font-family: Century Gothic, CenturyGothic, AppleGothic, sans-serif;
   font-weight: bold;
