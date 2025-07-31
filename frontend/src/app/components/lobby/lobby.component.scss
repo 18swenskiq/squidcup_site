@@ -58,9 +58,9 @@
 
 // Central map display between teams
 .selected-map-display {
-  flex: 0 0 200px; // Fixed width for the center section
+  flex: 0 0 250px; // Increased width for better map name display
   text-align: center;
-  padding: 20px 10px;
+  padding: 20px 15px;
   
   h4 {
     color: #3498db;
@@ -84,29 +84,23 @@
   }
   
   .map-selection-table {
-    background: rgba(255, 255, 255, 0.05);
-    border-radius: 6px;
-    padding: 10px;
-    max-height: 200px;
-    overflow-y: auto;
+    margin-top: 10px;
     
     .player-selection {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 8px 12px;
-      margin-bottom: 4px;
-      border-radius: 4px;
-      background: rgba(255, 255, 255, 0.03);
+      padding: 6px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
       
       &:last-child {
-        margin-bottom: 0;
+        border-bottom: none;
       }
       
       .player-name {
         font-weight: 500;
         color: #ffffff;
-        font-size: 0.9em;
+        font-size: 0.85em;
       }
       
       .selected-map {
@@ -531,7 +525,16 @@
   .selected-map-display {
     flex: none;
     order: 2; // Show map selection between teams on mobile
-    margin: 10px 0;
+    margin: 15px 0;
+    padding: 15px;
+    
+    .map-selection-table .player-selection {
+      padding: 8px 0;
+      
+      .player-name, .selected-map, .choosing {
+        font-size: 0.9em;
+      }
+    }
   }
   
   .team:first-child {
