@@ -125,8 +125,9 @@
               <div class="map-name">{{ map.name }}</div>
             </div>
           </div>
-          <button type="submit" [disabled]="!mapSelectionForm.get('selectedMap')?.value" class="select-btn">
-            Select Map
+          <button type="submit" [disabled]="!mapSelectionForm.get('selectedMap')?.value || mapSelectionLoading" class="select-btn" [class.loading]="mapSelectionLoading">
+            <span *ngIf="!mapSelectionLoading">Select Map</span>
+            <div *ngIf="mapSelectionLoading" class="spinner"></div>
           </button>
         </form>
       </div>
@@ -158,8 +159,9 @@
               <div class="map-name">{{ map.name }}</div>
             </div>
           </div>
-          <button type="submit" [disabled]="!mapSelectionForm.get('selectedMap')?.value" class="select-btn">
-            Select Map
+          <button type="submit" [disabled]="!mapSelectionForm.get('selectedMap')?.value || mapSelectionLoading" class="select-btn" [class.loading]="mapSelectionLoading">
+            <span *ngIf="!mapSelectionLoading">Select Map</span>
+            <div *ngIf="mapSelectionLoading" class="spinner"></div>
           </button>
         </form>
       </div>
@@ -196,8 +198,9 @@
             <div class="map-name">{{ map.name }}</div>
           </div>
         </div>
-        <button type="submit" [disabled]="!mapSelectionForm.get('selectedMap')?.value" class="select-btn">
-          Select Map
+        <button type="submit" [disabled]="!mapSelectionForm.get('selectedMap')?.value || mapSelectionLoading" class="select-btn" [class.loading]="mapSelectionLoading">
+          <span *ngIf="!mapSelectionLoading">Select Map</span>
+          <div *ngIf="mapSelectionLoading" class="spinner"></div>
         </button>
       </form>
     </div>

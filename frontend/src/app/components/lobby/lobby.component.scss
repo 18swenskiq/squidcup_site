@@ -487,6 +487,12 @@
   cursor: pointer;
   font-weight: 500;
   transition: background-color 0.3s ease;
+  position: relative;
+  min-width: 120px;
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .select-btn:hover:not(:disabled) {
@@ -496,6 +502,24 @@
 .select-btn:disabled {
   background: #bdc3c7;
   cursor: not-allowed;
+}
+
+.select-btn.loading {
+  background: #3498db;
+  cursor: default;
+}
+
+.select-btn.loading:hover {
+  background: #3498db;
+}
+
+.select-btn .spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top: 2px solid white;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
 }
 
 .selection-progress {

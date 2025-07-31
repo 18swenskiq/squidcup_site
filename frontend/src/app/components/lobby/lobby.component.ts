@@ -61,6 +61,7 @@ export class LobbyComponent implements OnInit, OnDestroy, OnChanges {
   mapSelectionForm!: FormGroup;
   availableMaps: GameMap[] = [];
   mapsLoading: boolean = false;
+  mapSelectionLoading: boolean = false;
   playerProfiles: Map<string, PlayerProfile> = new Map();
   private apiBaseUrl: string = environment.apiUrl;
   private mapRefreshSubscription?: Subscription;
@@ -225,6 +226,9 @@ export class LobbyComponent implements OnInit, OnDestroy, OnChanges {
               console.log('Current time:', Date.now());
               console.log('Time difference:', Date.now() - this.lobby.mapAnimSelectStartTime);
               console.log('Currently animating:', this.isAnimating);
+              
+              // Reset map selection loading state since server has processed the selection
+              this.mapSelectionLoading = false;
             }
             
             // Check if animation should start or continue
@@ -544,6 +548,9 @@ export class LobbyComponent implements OnInit, OnDestroy, OnChanges {
     const currentUser = this.authService.getCurrentUser();
     if (!currentUser) return;
 
+    // Set loading state
+    this.mapSelectionLoading = true;
+
     const headers = this.getAuthHeaders();
     
     this.http.post(`${this.apiBaseUrl}/selectMap`, {
@@ -552,10 +559,13 @@ export class LobbyComponent implements OnInit, OnDestroy, OnChanges {
     }, { headers }).subscribe({
       next: (response: any) => {
         console.log('Map selection response:', response);
+        // Keep loading state - it will be reset when userQueue polling updates the UI
         // No more popup alerts - let the UI handle the feedback naturally
       },
       error: (error) => {
         console.error('Error selecting map:', error);
+        // Reset loading state on error
+        this.mapSelectionLoading = false;
         let errorMessage = 'Failed to select map. Please try again.';
         if (error.error?.error) {
           errorMessage = error.error.error;
