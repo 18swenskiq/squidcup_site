@@ -55,16 +55,13 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
     console.log('User Steam ID:', userSteamId);
 
     // Parse request body
-    const { lobbyId } = JSON.parse(event.body || '{}');
-    
-    // Note: lobbyId is actually a gameId in the unified architecture
-    const gameId = lobbyId;
+    const { gameId } = JSON.parse(event.body || '{}');
     
     if (!gameId) {
       return {
         statusCode: 400,
         headers: corsHeaders,
-        body: JSON.stringify({ error: 'Lobby ID is required' }),
+        body: JSON.stringify({ error: 'Game ID is required' }),
       };
     }
 
