@@ -1,6 +1,18 @@
 /* You can add global styles to this file, and also import other style files */
+
+/* Set Century Gothic as the default font for everything */
+* {
+  font-family: Century Gothic, CenturyGothic, AppleGothic, sans-serif;
+}
+
 body {
   background-color: #333333;
+  font-family: Century Gothic, CenturyGothic, AppleGothic, sans-serif;
+}
+
+/* Ensure form elements also use Century Gothic */
+input, textarea, select, button {
+  font-family: Century Gothic, CenturyGothic, AppleGothic, sans-serif;
 }
 
 h1,
