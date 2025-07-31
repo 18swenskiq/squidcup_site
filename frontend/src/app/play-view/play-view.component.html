@@ -70,7 +70,8 @@
     <!-- Actual Lobby View - Show the lobby component for full lobbies -->
     <app-lobby *ngIf="userQueueStatus?.inLobby && userQueueStatus?.lobby" 
                [lobby]="userQueueStatus!.lobby!" 
-               [isHost]="userQueueStatus!.isHost!">
+               [isHost]="userQueueStatus!.isHost!"
+               [isPollingPaused]="isTimedOut">
     </app-lobby>
   </div>
 

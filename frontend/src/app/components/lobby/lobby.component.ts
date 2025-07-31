@@ -55,6 +55,7 @@ export interface PlayerProfile {
 export class LobbyComponent implements OnInit, OnDestroy {
   @Input() lobby!: LobbyData;
   @Input() isHost!: boolean;
+  @Input() isPollingPaused: boolean = false;
   @Output() lobbyLeft = new EventEmitter<void>();
 
   mapSelectionForm!: FormGroup;
@@ -172,15 +173,22 @@ export class LobbyComponent implements OnInit, OnDestroy {
     // Refresh lobby state every 2 seconds to check for map selection updates
     this.mapRefreshSubscription = interval(2000)
       .pipe(
-        switchMap(() => this.http.get(`${this.apiBaseUrl}/userQueue`, {
-          headers: this.getAuthHeaders()
-        }).pipe(
-          catchError((error) => {
-            console.error('Error refreshing lobby state:', error);
-            // Return EMPTY to skip this emission and keep the last successful state
+        switchMap(() => {
+          // Skip polling if paused
+          if (this.isPollingPaused) {
             return EMPTY;
-          })
-        ))
+          }
+          
+          return this.http.get(`${this.apiBaseUrl}/userQueue`, {
+            headers: this.getAuthHeaders()
+          }).pipe(
+            catchError((error) => {
+              console.error('Error refreshing lobby state:', error);
+              // Return EMPTY to skip this emission and keep the last successful state
+              return EMPTY;
+            })
+          );
+        })
       )
       .subscribe({
         next: (response: any) => {
