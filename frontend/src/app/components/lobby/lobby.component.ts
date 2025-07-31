@@ -68,7 +68,9 @@ export class LobbyComponent implements OnInit, OnDestroy {
   // Animation state properties
   isAnimating: boolean = false;
   animationCountdown: number = 0;
+  currentCyclingMapName: string = '';
   private animationSubscription?: Subscription;
+  private mapCyclingSubscription?: Subscription;
   private isBrowser: boolean;
 
   constructor(
@@ -94,6 +96,9 @@ export class LobbyComponent implements OnInit, OnDestroy {
     }
     if (this.animationSubscription) {
       this.animationSubscription.unsubscribe();
+    }
+    if (this.mapCyclingSubscription) {
+      this.mapCyclingSubscription.unsubscribe();
     }
   }
 
@@ -281,17 +286,21 @@ export class LobbyComponent implements OnInit, OnDestroy {
       this.completeMapSelectionAnimation();
       return;
     }
+
+    // Start the map name cycling animation
+    this.startMapNameCycling();
     
-    // Use RxJS timer instead of setInterval for SSR compatibility
+    // Use RxJS timer for countdown
     this.animationSubscription = timer(0, 1000)
       .pipe(
-        takeWhile(() => this.animationCountdown > 0 && this.isAnimating)
+        takeWhile(() => this.animationCountdown >= 0 && this.isAnimating)
       )
       .subscribe(() => {
         this.ngZone.run(() => {
-          this.animationCountdown--;
           if (this.animationCountdown <= 0) {
             this.completeMapSelectionAnimation();
+          } else {
+            this.animationCountdown--;
           }
         });
       });
@@ -303,14 +312,92 @@ export class LobbyComponent implements OnInit, OnDestroy {
     }
   }
 
+  private startMapNameCycling(): void {
+    if (!this.availableMaps || this.availableMaps.length === 0) {
+      // If no maps loaded yet, show a placeholder
+      this.currentCyclingMapName = 'Loading maps...';
+      return;
+    }
+
+    let mapIndex = 0;
+    let cycleInterval = 200; // Start fast
+    // Start with first map
+    this.currentCyclingMapName = this.availableMaps[mapIndex].name;
+    
+    const cycleMaps = () => {
+      // Gradually slow down the cycling as countdown approaches 0
+      const timeRemaining = this.animationCountdown;
+      if (timeRemaining <= 3) {
+        // Slow down dramatically in the last 3 seconds
+        cycleInterval = 800;
+      } else if (timeRemaining <= 5) {
+        // Start slowing down
+        cycleInterval = 400;
+      } else {
+        // Keep fast pace
+        cycleInterval = 200;
+      }
+      
+      // Stop cycling in the last second to build suspense
+      if (timeRemaining <= 1) {
+        if (this.mapCyclingSubscription) {
+          this.mapCyclingSubscription.unsubscribe();
+          this.mapCyclingSubscription = undefined;
+        }
+        return;
+      }
+      
+      mapIndex = (mapIndex + 1) % this.availableMaps.length;
+      this.currentCyclingMapName = this.availableMaps[mapIndex].name;
+      
+      // Schedule next cycle with updated interval
+      if (this.isAnimating) {
+        setTimeout(() => {
+          if (this.isAnimating) {
+            cycleMaps();
+          }
+        }, cycleInterval);
+      }
+    };
+    
+    // Start the first cycle
+    setTimeout(() => {
+      if (this.isAnimating) {
+        cycleMaps();
+      }
+    }, cycleInterval);
+  }
+
   private completeMapSelectionAnimation(): void {
     console.log('Map selection animation completed');
+    
+    // Show the final selected map name for a moment before completing
+    if (this.lobby.selectedMap) {
+      const finalMapName = this.getSelectedMapName();
+      this.currentCyclingMapName = finalMapName;
+      
+      // Wait a moment to show the final map, then complete
+      setTimeout(() => {
+        this.finishAnimation();
+      }, 1000); // Show final map for 1 second
+    } else {
+      this.finishAnimation();
+    }
+  }
+
+  private finishAnimation(): void {
     this.isAnimating = false;
     this.animationCountdown = 0;
+    this.currentCyclingMapName = '';
     
     if (this.animationSubscription) {
       this.animationSubscription.unsubscribe();
       this.animationSubscription = undefined;
+    }
+    
+    if (this.mapCyclingSubscription) {
+      this.mapCyclingSubscription.unsubscribe();
+      this.mapCyclingSubscription = undefined;
     }
     
     // Resume normal polling
@@ -388,19 +475,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
     }, { headers }).subscribe({
       next: (response: any) => {
         console.log('Map selection response:', response);
-        
-        if (response.selectionStatus) {
-          // All-pick mode response
-          const status = response.selectionStatus;
-          if (status.hasAllSelected) {
-            alert(`All players have selected! Final map: ${status.finalMap}`);
-          } else {
-            alert(`Map selection recorded! ${status.playersWithSelections}/${status.totalPlayers} players have selected.`);
-          }
-        } else {
-          // Host-pick mode response
-          alert('Map selected successfully!');
-        }
+        // No more popup alerts - let the UI handle the feedback naturally
       },
       error: (error) => {
         console.error('Error selecting map:', error);

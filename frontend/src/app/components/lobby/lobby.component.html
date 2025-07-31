@@ -31,11 +31,11 @@
 
     <!-- Selected Map Display (Center) -->
     <div class="selected-map-display">
-      <!-- Animation state - show spinning wheel during 10-second countdown -->
+      <!-- Animation state - show cycling maps during 10-second countdown -->
       <div *ngIf="isAnimating" class="map-animation-container">
         <h4>Finalizing Map Selection...</h4>
         <div class="animation-wheel-container">
-          <div class="spinning-wheel"></div>
+          <div class="cycling-map-name">{{ currentCyclingMapName }}</div>
           <div class="countdown-text">{{ animationCountdown }}</div>
         </div>
         <p class="animation-status">Please wait while the final map is being selected</p>
@@ -203,18 +203,10 @@
   </div>
 
   <!-- Selected Map Display -->
-  <div class="selected-map" *ngIf="isMapSelectionComplete && lobby.selectedMap">
+  <div class="selected-map" *ngIf="isMapSelectionComplete && lobby.selectedMap && !isAnimating">
     <h3>Selected Map</h3>
     <div class="map-info">
       <span class="map-name">{{ selectedMapName }}</span>
-    </div>
-  </div>
-
-  <!-- Game Ready Status -->
-  <div class="game-status" *ngIf="isMapSelectionComplete">
-    <div class="status-message">
-      <h3>🎮 Game Ready!</h3>
-      <p>All players are ready and the map has been selected. The game can now begin!</p>
     </div>
   </div>
 
