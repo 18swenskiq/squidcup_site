@@ -78,6 +78,13 @@
   text-align: center;
   padding: 20px 15px;
   
+  &.hidden {
+    visibility: hidden;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+  }
+  
   h4 {
     color: #3498db;
     margin-bottom: 10px;

@@ -30,8 +30,8 @@
       </div>
     </div>
 
-    <!-- Selected Map Display (Center) - Only show during map selection process -->
-    <div class="selected-map-display" *ngIf="!isMapSelectionComplete || isAnimating">
+    <!-- Selected Map Display (Center) - Hide when map selection is complete to avoid reflow -->
+    <div class="selected-map-display" [class.hidden]="isMapSelectionComplete && !isAnimating">
       <!-- Animation state - show cycling maps during 10-second countdown -->
       <div *ngIf="isAnimating" class="map-animation-container">
         <h4>Finalizing Map Selection...</h4>
