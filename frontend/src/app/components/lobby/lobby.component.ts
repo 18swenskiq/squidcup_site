@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter, OnInit, OnDestroy, NgZone, PLATFORM_ID, Inject } from '@angular/core';
+import { Component, Input, Output, EventEmitter, OnInit, OnDestroy, OnChanges, SimpleChanges, NgZone, PLATFORM_ID, Inject } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
@@ -52,7 +52,7 @@ export interface PlayerProfile {
   templateUrl: './lobby.component.html',
   styleUrl: './lobby.component.scss'
 })
-export class LobbyComponent implements OnInit, OnDestroy {
+export class LobbyComponent implements OnInit, OnDestroy, OnChanges {
   @Input() lobby!: LobbyData;
   @Input() isHost!: boolean;
   @Input() isPollingPaused: boolean = false;
@@ -88,6 +88,19 @@ export class LobbyComponent implements OnInit, OnDestroy {
     this.loadAvailableMaps();
     this.loadPlayerProfiles();
     this.startMapRefresh();
+  }
+
+  ngOnChanges(changes: SimpleChanges): void {
+    // Handle changes to isPollingPaused input
+    if (changes['isPollingPaused'] && !changes['isPollingPaused'].firstChange) {
+      if (changes['isPollingPaused'].currentValue) {
+        // Polling is now paused - stop the subscription
+        this.stopMapRefresh();
+      } else {
+        // Polling is now resumed - restart the subscription
+        this.startMapRefresh();
+      }
+    }
   }
 
   ngOnDestroy(): void {
@@ -172,14 +185,17 @@ export class LobbyComponent implements OnInit, OnDestroy {
   }
 
   private startMapRefresh(): void {
-    // Only start polling in the browser
-    if (!this.isBrowser) return;
+    // Only start polling in the browser and if not paused
+    if (!this.isBrowser || this.isPollingPaused) return;
+    
+    // Don't start if already running
+    if (this.mapRefreshSubscription) return;
     
     // Refresh lobby state every 2 seconds to check for map selection updates
     this.mapRefreshSubscription = interval(2000)
       .pipe(
         switchMap(() => {
-          // Skip polling if paused
+          // Double check polling pause state
           if (this.isPollingPaused) {
             return EMPTY;
           }
@@ -220,6 +236,13 @@ export class LobbyComponent implements OnInit, OnDestroy {
         }
         // Remove the error handler since we're handling it in the pipe
       });
+  }
+
+  private stopMapRefresh(): void {
+    if (this.mapRefreshSubscription) {
+      this.mapRefreshSubscription.unsubscribe();
+      this.mapRefreshSubscription = undefined;
+    }
   }
 
   getTeamPlayers(teamNumber: number): LobbyPlayer[] {
