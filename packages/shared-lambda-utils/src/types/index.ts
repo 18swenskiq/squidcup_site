@@ -288,6 +288,7 @@ export interface DatabaseGame {
   max_players: number;
   current_players: number;
   status: 'queue' | 'lobby' | 'in_progress' | 'completed' | 'cancelled';
+  map_anim_select_start_time?: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -334,6 +335,7 @@ export interface UserCompleteStatus {
     max_players: number;
     current_players: number;
     status: string;
+    map_anim_select_start_time?: number | null;
     created_at: string;
     updated_at: string;
     isHost: boolean;
@@ -354,6 +356,7 @@ export interface UserCompleteStatus {
     max_players: number;
     current_players: number;
     status: string;
+    map_anim_select_start_time?: number | null;
     created_at: string;
     updated_at: string;
     isHost: boolean;
@@ -373,6 +376,7 @@ export interface UserCompleteStatus {
     max_players: number;
     current_players: number;
     status: string;
+    map_anim_select_start_time?: number | null;
     created_at: string;
     updated_at: string;
     isHost: boolean;
@@ -420,6 +424,7 @@ export interface UpdateGameInput {
   mapSelectionMode?: MapSelectionMode;
   serverId?: string;
   gameMode?: GameMode;
+  mapAnimSelectStartTime?: number | null;
 }
 
 export interface AddPlayerToGameInput {

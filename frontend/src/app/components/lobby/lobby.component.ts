@@ -1,9 +1,9 @@
-import { Component, Input, Output, EventEmitter, OnInit, OnDestroy } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { Component, Input, Output, EventEmitter, OnInit, OnDestroy, NgZone, PLATFORM_ID, Inject } from '@angular/core';
+import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
-import { interval, Subscription, EMPTY } from 'rxjs';
-import { switchMap, catchError } from 'rxjs/operators';
+import { interval, Subscription, EMPTY, timer } from 'rxjs';
+import { switchMap, catchError, takeWhile } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
 import { AuthService } from '../../services/auth.service';
 
@@ -27,6 +27,7 @@ export interface LobbyData {
   players: LobbyPlayer[];
   mapSelectionComplete: boolean;
   selectedMap?: string;
+  mapAnimSelectStartTime?: number; // Animation timing for map selection
   createdAt: string;
   updatedAt: string;
 }
@@ -63,11 +64,21 @@ export class LobbyComponent implements OnInit, OnDestroy {
   private apiBaseUrl: string = environment.apiUrl;
   private mapRefreshSubscription?: Subscription;
 
+  // Animation state properties
+  isAnimating: boolean = false;
+  animationCountdown: number = 0;
+  private animationSubscription?: Subscription;
+  private isBrowser: boolean;
+
   constructor(
     private fb: FormBuilder, 
     private http: HttpClient, 
-    public authService: AuthService
-  ) {}
+    public authService: AuthService,
+    private ngZone: NgZone,
+    @Inject(PLATFORM_ID) platformId: Object
+  ) {
+    this.isBrowser = isPlatformBrowser(platformId);
+  }
 
   ngOnInit(): void {
     this.initMapSelectionForm();
@@ -79,6 +90,9 @@ export class LobbyComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     if (this.mapRefreshSubscription) {
       this.mapRefreshSubscription.unsubscribe();
+    }
+    if (this.animationSubscription) {
+      this.animationSubscription.unsubscribe();
     }
   }
 
@@ -152,6 +166,9 @@ export class LobbyComponent implements OnInit, OnDestroy {
   }
 
   private startMapRefresh(): void {
+    // Only start polling in the browser
+    if (!this.isBrowser) return;
+    
     // Refresh lobby state every 2 seconds to check for map selection updates
     this.mapRefreshSubscription = interval(2000)
       .pipe(
@@ -170,7 +187,13 @@ export class LobbyComponent implements OnInit, OnDestroy {
           if (response.lobby && response.lobby.id === this.lobby.id) {
             // Update lobby data
             const oldPlayerCount = this.lobby.players?.length || 0;
+            const previousAnimStartTime = this.lobby.mapAnimSelectStartTime;
             this.lobby = response.lobby;
+            
+            // Check if animation should start
+            if (this.lobby.mapAnimSelectStartTime && !previousAnimStartTime && !this.isAnimating) {
+              this.startMapSelectionAnimation();
+            }
             
             // If new players joined, load their profiles
             const newPlayerCount = this.lobby.players?.length || 0;
@@ -234,13 +257,98 @@ export class LobbyComponent implements OnInit, OnDestroy {
     return `Team ${playerName}`;
   }
 
+  private startMapSelectionAnimation(): void {
+    if (!this.lobby.mapAnimSelectStartTime || !this.isBrowser) return;
+    
+    console.log('Starting map selection animation...');
+    this.isAnimating = true;
+    
+    // Calculate initial countdown based on animation start time
+    const now = Date.now();
+    const endTime = this.lobby.mapAnimSelectStartTime + 10000; // 10 seconds from start
+    this.animationCountdown = Math.max(0, Math.ceil((endTime - now) / 1000));
+    
+    // If animation has already ended, skip to completed state
+    if (this.animationCountdown <= 0) {
+      this.completeMapSelectionAnimation();
+      return;
+    }
+    
+    // Use RxJS timer instead of setInterval for SSR compatibility
+    this.animationSubscription = timer(0, 1000)
+      .pipe(
+        takeWhile(() => this.animationCountdown > 0 && this.isAnimating)
+      )
+      .subscribe(() => {
+        this.ngZone.run(() => {
+          this.animationCountdown--;
+          if (this.animationCountdown <= 0) {
+            this.completeMapSelectionAnimation();
+          }
+        });
+      });
+    
+    // Optimize polling during animation - check every 5 seconds instead of 2
+    if (this.mapRefreshSubscription) {
+      this.mapRefreshSubscription.unsubscribe();
+      this.startOptimizedPolling();
+    }
+  }
+
+  private completeMapSelectionAnimation(): void {
+    console.log('Map selection animation completed');
+    this.isAnimating = false;
+    this.animationCountdown = 0;
+    
+    if (this.animationSubscription) {
+      this.animationSubscription.unsubscribe();
+      this.animationSubscription = undefined;
+    }
+    
+    // Resume normal polling
+    this.startMapRefresh();
+  }
+
+  private startOptimizedPolling(): void {
+    // Only start polling in the browser
+    if (!this.isBrowser) return;
+    
+    // Reduced polling frequency during animation
+    this.mapRefreshSubscription = interval(5000)
+      .pipe(
+        switchMap(() => this.http.get(`${this.apiBaseUrl}/userQueue`, {
+          headers: this.getAuthHeaders()
+        }).pipe(
+          catchError((error) => {
+            console.error('Error during optimized polling:', error);
+            return EMPTY;
+          })
+        ))
+      )
+      .subscribe({
+        next: (response: any) => {
+          if (response.lobby && response.lobby.id === this.lobby.id) {
+            // Update lobby data but maintain animation state
+            this.lobby = response.lobby;
+            
+            // Check if map selection completed during animation
+            if (this.lobby.mapSelectionComplete && this.isAnimating) {
+              this.completeMapSelectionAnimation();
+            }
+          } else if (!response.inLobby) {
+            this.lobbyLeft.emit();
+          }
+        }
+      });
+  }
+
   selectMapTile(mapId: string): void {
     this.mapSelectionForm.patchValue({ selectedMap: mapId });
   }
 
   canSelectMap(): boolean {
     const currentUser = this.authService.getCurrentUser();
-    if (!currentUser || !this.lobby) return false;
+    if (!currentUser || !this.lobby || this.isAnimating) return false;
 
     const userSteamId = this.extractSteamId(currentUser.steamId);
     

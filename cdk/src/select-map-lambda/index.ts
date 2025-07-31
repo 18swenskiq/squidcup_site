@@ -149,8 +149,17 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
       if (selectionStatus.hasAllSelected) {
         // All players have selected - choose a random map from the selections
         finalMap = await selectRandomMapFromSelections(gameId);
+        
         if (finalMap) {
-          await updateGame(gameId, { map: finalMap });
+          // Set the animation start time to 10 seconds from now
+          const animStartTime = Math.floor(Date.now() / 1000) + 10; // Epoch time 10 seconds from now
+          
+          await updateGame(gameId, { 
+            map: finalMap
+          });
+          
+          // TODO: Set mapAnimSelectStartTime field and implement random map replacement
+          // TODO: Call game setup lambda after animation completes
         }
       }
 

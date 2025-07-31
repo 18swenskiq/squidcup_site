@@ -97,6 +97,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
             players: enrichedPlayers,
             mapSelectionComplete: lobby.map ? true : false, // Check if final map has been selected
             selectedMap: lobby.map, // Include the final selected map if available
+            mapAnimSelectStartTime: lobby.map_anim_select_start_time, // Animation timing for map selection
             createdAt: lobby.created_at,
             updatedAt: lobby.updated_at,
           }

@@ -31,31 +31,44 @@
 
     <!-- Selected Map Display (Center) -->
     <div class="selected-map-display">
-      <h4 *ngIf="lobby.mapSelectionComplete; else mapSelectionInProgress">Selected:</h4>
-      <ng-template #mapSelectionInProgress>
-        <h4>Maps:</h4>
-      </ng-template>
-      
-      <div class="map-name" *ngIf="lobby.selectedMap && isMapSelectionComplete">
-        {{ getSelectedMapName() }}
-      </div>
-      
-      <!-- Map selection table for all-pick mode -->
-      <div class="map-selection-table" *ngIf="lobby.mapSelectionMode === 'all-pick' && !isMapSelectionComplete">
-        <div class="player-selection" *ngFor="let player of lobby.players">
-          <span class="player-name">{{ getPlayerDisplayName(player.steamId) }}</span>
-          <span class="selected-map" *ngIf="player.hasSelectedMap && player.mapSelection; else choosingTemplate">
-            {{ getMapName(player.mapSelection) }}
-          </span>
-          <ng-template #choosingTemplate>
-            <span class="choosing">Choosing...</span>
-          </ng-template>
+      <!-- Animation state - show spinning wheel during 10-second countdown -->
+      <div *ngIf="isAnimating" class="map-animation-container">
+        <h4>Finalizing Map Selection...</h4>
+        <div class="animation-wheel-container">
+          <div class="spinning-wheel"></div>
+          <div class="countdown-text">{{ animationCountdown }}</div>
         </div>
+        <p class="animation-status">Please wait while the final map is being selected</p>
       </div>
       
-      <!-- For other modes, show the status -->
-      <div class="map-name no-selection" *ngIf="!lobby.selectedMap && lobby.mapSelectionMode !== 'all-pick'">
-        {{ getMapSelectionStatus() }}
+      <!-- Normal map selection display -->
+      <div *ngIf="!isAnimating">
+        <h4 *ngIf="lobby.mapSelectionComplete; else mapSelectionInProgress">Selected:</h4>
+        <ng-template #mapSelectionInProgress>
+          <h4>Maps:</h4>
+        </ng-template>
+        
+        <div class="map-name" *ngIf="lobby.selectedMap && isMapSelectionComplete">
+          {{ getSelectedMapName() }}
+        </div>
+        
+        <!-- Map selection table for all-pick mode -->
+        <div class="map-selection-table" *ngIf="lobby.mapSelectionMode === 'all-pick' && !isMapSelectionComplete">
+          <div class="player-selection" *ngFor="let player of lobby.players">
+            <span class="player-name">{{ getPlayerDisplayName(player.steamId) }}</span>
+            <span class="selected-map" *ngIf="player.hasSelectedMap && player.mapSelection; else choosingTemplate">
+              {{ getMapName(player.mapSelection) }}
+            </span>
+            <ng-template #choosingTemplate>
+              <span class="choosing">Choosing...</span>
+            </ng-template>
+          </div>
+        </div>
+        
+        <!-- For other modes, show the status -->
+        <div class="map-name no-selection" *ngIf="!lobby.selectedMap && lobby.mapSelectionMode !== 'all-pick'">
+          {{ getMapSelectionStatus() }}
+        </div>
       </div>
     </div>
 
@@ -80,7 +93,7 @@
   </div>
 
   <!-- Map Selection Section -->
-  <div class="map-selection" *ngIf="!lobby.mapSelectionComplete">
+  <div class="map-selection" *ngIf="!lobby.mapSelectionComplete && !isAnimating">
     <h3>Map Selection</h3>
     
     <!-- Random Map Mode -->

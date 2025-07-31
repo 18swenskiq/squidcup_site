@@ -59,6 +59,7 @@ export interface LobbyData {
   players: LobbyPlayer[];
   mapSelectionComplete: boolean;
   selectedMap?: string;
+  mapAnimSelectStartTime?: number; // Animation timing for map selection
   createdAt: string;
   updatedAt: string;
 }

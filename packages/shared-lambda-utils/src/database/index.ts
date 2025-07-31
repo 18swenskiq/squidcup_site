@@ -207,6 +207,7 @@ async function ensureTablesExist(connection: mysql.Connection): Promise<void> {
         max_players INT NOT NULL,
         current_players INT DEFAULT 0,
         status ENUM('queue', 'lobby', 'in_progress', 'completed', 'cancelled') DEFAULT 'queue',
+        map_anim_select_start_time BIGINT DEFAULT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         FOREIGN KEY (host_steam_id) REFERENCES squidcup_users(steam_id),
@@ -538,6 +539,7 @@ export async function updateGame(gameId: string, gameData: UpdateGameInput): Pro
   if (gameData.mapSelectionMode !== undefined) { fields.push('map_selection_mode = ?'); values.push(gameData.mapSelectionMode); }
   if (gameData.serverId !== undefined) { fields.push('server_id = ?'); values.push(gameData.serverId); }
   if (gameData.gameMode !== undefined) { fields.push('game_mode = ?'); values.push(gameData.gameMode); }
+  if (gameData.mapAnimSelectStartTime !== undefined) { fields.push('map_anim_select_start_time = ?'); values.push(gameData.mapAnimSelectStartTime); }
   
   fields.push('updated_at = CURRENT_TIMESTAMP');
   values.push(gameId);
@@ -908,6 +910,54 @@ export async function selectRandomMapFromSelections(gameId: string): Promise<str
   // Select a random map from the player selections
   const randomIndex = Math.floor(Math.random() * selectedMaps.length);
   return selectedMaps[randomIndex];
+}
+
+export async function selectRandomMapFromAvailable(gameMode: string): Promise<string | null> {
+  // This would ideally fetch from a maps table or API
+  // For now, we'll use a hardcoded list of popular map IDs per game mode
+  const mapsByGameMode: { [key: string]: string[] } = {
+    '5v5': ['3070291408', '3070581293', '3070308249', '3070347018', '3070550719'], // Example map IDs
+    'wingman': ['3070291408', '3070347018', '3070308249'], 
+    '3v3': ['3070291408', '3070581293', '3070308249'],
+    '1v1': ['3070291408', '3070347018']
+  };
+
+  const availableMaps = mapsByGameMode[gameMode] || mapsByGameMode['5v5'];
+  if (availableMaps.length === 0) {
+    return null;
+  }
+
+  const randomIndex = Math.floor(Math.random() * availableMaps.length);
+  return availableMaps[randomIndex];
+}
+
+export async function replaceRandomMapSelections(gameId: string): Promise<void> {
+  const connection = await getDatabaseConnection();
+  
+  // Get game info first to know the game mode
+  const game = await getGame(gameId);
+  if (!game) {
+    throw new Error('Game not found');
+  }
+
+  // Get players who selected "random" map
+  const randomSelectors = await executeQuery(
+    connection,
+    'SELECT player_steam_id FROM squidcup_game_players WHERE game_id = ? AND map_selection = ?',
+    [gameId, 'random']
+  );
+
+  // Replace each random selection with an actual random map
+  for (const player of randomSelectors) {
+    const randomMap = await selectRandomMapFromAvailable(game.game_mode);
+    if (randomMap) {
+      await executeQuery(
+        connection,
+        'UPDATE squidcup_game_players SET map_selection = ? WHERE game_id = ? AND player_steam_id = ?',
+        [randomMap, gameId, player.player_steam_id]
+      );
+    }
+  }
 }
 
 // Raw query execution function
