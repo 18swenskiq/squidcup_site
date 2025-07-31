@@ -82,6 +82,46 @@
     color: rgba(255, 255, 255, 0.6);
     font-style: italic;
   }
+  
+  .map-selection-table {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 6px;
+    padding: 10px;
+    max-height: 200px;
+    overflow-y: auto;
+    
+    .player-selection {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 12px;
+      margin-bottom: 4px;
+      border-radius: 4px;
+      background: rgba(255, 255, 255, 0.03);
+      
+      &:last-child {
+        margin-bottom: 0;
+      }
+      
+      .player-name {
+        font-weight: 500;
+        color: #ffffff;
+        font-size: 0.9em;
+      }
+      
+      .selected-map {
+        color: #4CAF50;
+        font-size: 0.8em;
+        font-weight: 500;
+      }
+      
+      .choosing {
+        color: rgba(255, 255, 255, 0.5);
+        font-size: 0.8em;
+        font-style: italic;
+      }
+    }
+  }
 }
 
 .team {
@@ -195,6 +235,16 @@
   font-size: 0.9em;
   padding: 4px 8px;
   border-radius: 12px;
+  
+  .check-icon {
+    color: #4CAF50; // Green color for checkmark
+    font-size: 1.2em;
+    font-weight: 600;
+  }
+  
+  .selecting-text {
+    color: rgba(255, 255, 255, 0.7);
+  }
 }
 
 .map-selection {
