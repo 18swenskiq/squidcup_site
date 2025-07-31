@@ -3,6 +3,11 @@
   font-family: inherit;
 }
 
+// Ensure material icons display correctly
+.material-symbols-outlined {
+  font-family: 'Material Symbols Outlined' !important;
+}
+
 .lobby-container {
   max-width: 1200px;
   margin: 0 auto;
@@ -79,6 +84,7 @@
     font-weight: 500;
     font-size: 1em;
     padding: 8px 0;
+    font-family: Century Gothic, CenturyGothic, AppleGothic, sans-serif;
   }
   
   .no-selection {
@@ -241,6 +247,7 @@
     color: #4CAF50; // Green color for checkmark
     font-size: 1.2em;
     font-weight: 600;
+    font-family: 'Material Symbols Outlined', sans-serif !important; // Ensure material icons display correctly
   }
   
   .selecting-text {
@@ -398,7 +405,7 @@
 }
 
 .map-name {
-  font-family: inherit;
+  font-family: Century Gothic, CenturyGothic, AppleGothic, sans-serif;
   font-weight: bold;
   font-size: 1.2em;
   color: white;
@@ -493,7 +500,7 @@
   color: #4CAF50;
   font-weight: 500;
   font-size: 1.1em;
-  font-family: inherit; // Use the standard font
+  font-family: Century Gothic, CenturyGothic, AppleGothic, sans-serif;
 }
 
 .game-status {
@@ -607,6 +614,7 @@
   .map-name {
     font-size: 0.8em;
     padding: 6px 8px;
+    font-family: Century Gothic, CenturyGothic, AppleGothic, sans-serif;
   }
 }
 
@@ -648,6 +656,7 @@
   box-shadow: 0 0 20px rgba(52, 152, 219, 0.3);
   min-width: 250px;
   animation: mapCyclePulse 0.2s ease-in-out;
+  font-family: Century Gothic, CenturyGothic, AppleGothic, sans-serif;
 }
 
 .countdown-text {
