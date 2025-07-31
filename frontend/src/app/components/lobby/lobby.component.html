@@ -4,7 +4,8 @@
     <div class="lobby-info">
       <span class="gamemode">{{ lobby.gameMode }}</span>
       <span class="ranked" *ngIf="lobby.ranked">Ranked</span>
-      <span class="map-mode">{{ lobby.mapSelectionMode }}</span>
+      <span class="unranked" *ngIf="!lobby.ranked">Unranked</span>
+      <span class="map-mode">{{ getMapSelectionModeFriendlyName() }}</span>
     </div>
   </div>
 

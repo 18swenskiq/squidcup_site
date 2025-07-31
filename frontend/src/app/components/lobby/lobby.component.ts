@@ -614,6 +614,25 @@ export class LobbyComponent implements OnInit, OnDestroy, OnChanges {
     }
   }
 
+  getMapSelectionModeFriendlyName(): string {
+    if (!this.lobby?.mapSelectionMode) return 'Unknown';
+    
+    switch (this.lobby.mapSelectionMode) {
+      case 'all-pick':
+        return 'All Pick';
+      case 'host-pick':
+        return 'Host Pick';
+      case 'random-map':
+        return 'Random Map';
+      default:
+        // Fallback: capitalize first letter of each word and replace hyphens/underscores
+        return this.lobby.mapSelectionMode
+          .split(/[-_]/)
+          .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+          .join(' ');
+    }
+  }
+
   private getAuthHeaders(): any {
     const currentUser = this.authService.getCurrentUser();
     return currentUser ? {
