@@ -215,6 +215,15 @@
     </div>
   </div>
 
+  <!-- Server Preparation -->
+  <div class="server-preparation" 
+       *ngIf="isMapSelectionComplete && !isAnimating">
+    <div class="preparation-content">
+      <div class="spinner"></div>
+      <p>Server is being prepared...</p>
+    </div>
+  </div>
+
   <!-- Action Buttons -->
   <div class="lobby-actions">
     <button class="leave-btn danger" (click)="leaveLobby()">

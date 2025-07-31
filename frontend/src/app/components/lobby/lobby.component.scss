@@ -725,3 +725,27 @@
     box-shadow: 0 0 20px rgba(52, 152, 219, 0.3);
   }
 }
+
+// Server preparation section
+.server-preparation {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 20px;
+  margin: 20px 0;
+  text-align: center;
+}
+
+.preparation-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 15px;
+}
+
+.preparation-content p {
+  color: #ffffff;
+  font-size: 1.1em;
+  font-weight: 500;
+  margin: 0;
+}
