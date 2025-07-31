@@ -320,7 +320,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
 
   getMapName(mapId: string): string {
     const map = this.availableMaps.find(m => m.id === mapId);
-    return map ? map.name : 'Unknown Map';
+    return map ? map.name : 'Choosing...';
   }
 
   getPlayerDisplayName(steamId: string): string {
