@@ -6,6 +6,7 @@ import {
   updatePlayerMapSelection,
   getMapSelectionStatus,
   selectRandomMapFromSelections,
+  replaceRandomMapSelections,
   createCorsHeaders,
   SelectMapRequest
 } from '@squidcup/shared-lambda-utils';
@@ -147,19 +148,20 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
       
       let finalMap = null;
       if (selectionStatus.hasAllSelected) {
-        // All players have selected - choose a random map from the selections
+        // All players have selected - replace any "random" selections with actual maps
+        await replaceRandomMapSelections(gameId);
+        
+        // Now get a random map from the updated selections
         finalMap = await selectRandomMapFromSelections(gameId);
         
         if (finalMap) {
-          // Set the animation start time to 10 seconds from now
-          const animStartTime = Math.floor(Date.now() / 1000) + 10; // Epoch time 10 seconds from now
+          // Set the animation start time - use milliseconds for JavaScript compatibility
+          const animStartTime = Date.now() + 10000; // 10 seconds from now in milliseconds
           
           await updateGame(gameId, { 
-            map: finalMap
+            map: finalMap,
+            mapAnimSelectStartTime: animStartTime
           });
-          
-          // TODO: Set mapAnimSelectStartTime field and implement random map replacement
-          // TODO: Call game setup lambda after animation completes
         }
       }
 
