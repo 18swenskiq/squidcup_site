@@ -530,6 +530,14 @@ export class LobbyComponent implements OnInit, OnDestroy {
     return map ? map.name : 'Choosing...';
   }
 
+  getSelectedMapThumbnailUrl(): string {
+    if (!this.lobby?.selectedMap) {
+      return '';
+    }
+    const map = this.availableMaps.find(m => m.id === this.lobby.selectedMap);
+    return map ? map.thumbnailUrl : '';
+  }
+
   getPlayerDisplayName(steamId: string): string {
     // First check if we have the name from the lobby data
     const lobbyPlayer = this.lobby?.players?.find(p => p.steamId === steamId);

@@ -203,10 +203,14 @@
   </div>
 
   <!-- Selected Map Display -->
-  <div class="selected-map" *ngIf="isMapSelectionComplete && lobby.selectedMap && !isAnimating">
-    <h3>Selected Map</h3>
-    <div class="map-info">
-      <span class="map-name">{{ selectedMapName }}</span>
+  <div class="selected-map" 
+       *ngIf="isMapSelectionComplete && lobby.selectedMap && !isAnimating"
+       [style.background-image]="'url(' + getSelectedMapThumbnailUrl() + ')'">
+    <div class="selected-map-overlay">
+      <h3>Selected Map</h3>
+      <div class="map-info">
+        <span class="map-name">{{ selectedMapName }}</span>
+      </div>
     </div>
   </div>
 
