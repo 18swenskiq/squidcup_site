@@ -93,7 +93,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
             mapSelectionMode: lobby.map_selection_mode || 'host-pick', // Use stored value with fallback
             serverId: lobby.server_id,
             hasPassword: false, // Lobbies don't have passwords
-            ranked: false, // Default for lobbies
+            ranked: !!lobby.ranked, // Use actual ranked status from database
             players: enrichedPlayers,
             mapSelectionComplete: lobby.map ? true : false, // Check if final map has been selected
             selectedMap: lobby.map, // Include the final selected map if available

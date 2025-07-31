@@ -76,6 +76,9 @@ export async function handler(event: any): Promise<any> {
     const queueData = JSON.parse(event.body);
     const { gameMode, mapSelectionMode, server, password, ranked } = queueData;
     
+    console.log('Queue data received:', queueData);
+    console.log('Ranked value:', ranked, 'Type:', typeof ranked);
+    
     // Validate required fields
     if (!gameMode || !mapSelectionMode || !server) {
       return {
