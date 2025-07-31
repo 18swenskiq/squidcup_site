@@ -122,9 +122,20 @@
       }
       
       .selected-map {
-        color: #4CAF50;
-        font-size: 0.8em;
-        font-weight: 500;
+        color: #4CAF50 !important;
+        font-size: 0.8em !important;
+        font-weight: 500 !important;
+        background: none !important;
+        border: none !important;
+        border-radius: 0 !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        text-align: left !important;
+        min-height: auto !important;
+        position: static !important;
+        overflow: visible !important;
+        box-shadow: none !important;
+        text-shadow: none !important;
       }
       
       .choosing {
