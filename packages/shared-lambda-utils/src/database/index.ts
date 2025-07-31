@@ -853,6 +853,62 @@ export async function getActiveGamesWithDetails(): Promise<ActiveQueueWithDetail
   return result;
 }
 
+// Map selection functions for all-pick mode
+export async function updatePlayerMapSelection(gameId: string, steamId: string, mapId: string): Promise<void> {
+  const connection = await getDatabaseConnection();
+  await executeQuery(
+    connection,
+    'UPDATE squidcup_game_players SET map_selection = ? WHERE game_id = ? AND player_steam_id = ?',
+    [mapId, gameId, steamId]
+  );
+}
+
+export async function getMapSelectionStatus(gameId: string): Promise<{ hasAllSelected: boolean; mapSelections: { [playerId: string]: string }; totalPlayers: number; playersWithSelections: number }> {
+  const connection = await getDatabaseConnection();
+  const players = await executeQuery(
+    connection,
+    'SELECT player_steam_id, map_selection FROM squidcup_game_players WHERE game_id = ?',
+    [gameId]
+  );
+
+  const mapSelections: { [playerId: string]: string } = {};
+  let playersWithSelections = 0;
+
+  players.forEach((player: any) => {
+    if (player.map_selection) {
+      mapSelections[player.player_steam_id] = player.map_selection;
+      playersWithSelections++;
+    }
+  });
+
+  const totalPlayers = players.length;
+  const hasAllSelected = playersWithSelections === totalPlayers && totalPlayers > 0;
+
+  return {
+    hasAllSelected,
+    mapSelections,
+    totalPlayers,
+    playersWithSelections
+  };
+}
+
+export async function selectRandomMapFromSelections(gameId: string): Promise<string | null> {
+  const { mapSelections, hasAllSelected } = await getMapSelectionStatus(gameId);
+  
+  if (!hasAllSelected) {
+    return null;
+  }
+
+  const selectedMaps = Object.values(mapSelections);
+  if (selectedMaps.length === 0) {
+    return null;
+  }
+
+  // Select a random map from the player selections
+  const randomIndex = Math.floor(Math.random() * selectedMaps.length);
+  return selectedMaps[randomIndex];
+}
+
 // Raw query execution function
 export async function executeRawQuery(query: string, params: any[] = []): Promise<any> {
   const connection = await getDatabaseConnection();

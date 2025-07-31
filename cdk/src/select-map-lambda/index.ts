@@ -3,6 +3,9 @@ import {
   getSession,
   getGameWithPlayers,
   updateGame,
+  updatePlayerMapSelection,
+  getMapSelectionStatus,
+  selectRandomMapFromSelections,
   createCorsHeaders,
   SelectMapRequest
 } from '@squidcup/shared-lambda-utils';
@@ -107,6 +110,24 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
           body: JSON.stringify({ error: 'Only the game host can select the map in host-pick mode' }),
         };
       }
+
+      // Update the game with the selected map immediately for host-pick
+      await updateGame(gameId, {
+        map: mapId
+      });
+
+      return {
+        statusCode: 200,
+        headers: corsHeaders,
+        body: JSON.stringify({
+          message: 'Map selected successfully',
+          game: {
+            ...game,
+            map: mapId,
+            updatedAt: new Date().toISOString()
+          }
+        }),
+      };
     } else if (game.map_selection_mode === 'all-pick') {
       // Any player in the game can select map in all-pick mode
       const isPlayerInGame = game.players.some(player => player.player_steam_id === steamId);
@@ -117,6 +138,42 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
           body: JSON.stringify({ error: 'Only players in the game can select the map' }),
         };
       }
+
+      // Store the player's map selection
+      await updatePlayerMapSelection(gameId, steamId, mapId);
+
+      // Check if all players have now selected maps
+      const selectionStatus = await getMapSelectionStatus(gameId);
+      
+      let finalMap = null;
+      if (selectionStatus.hasAllSelected) {
+        // All players have selected - choose a random map from the selections
+        finalMap = await selectRandomMapFromSelections(gameId);
+        if (finalMap) {
+          await updateGame(gameId, { map: finalMap });
+        }
+      }
+
+      return {
+        statusCode: 200,
+        headers: corsHeaders,
+        body: JSON.stringify({
+          message: selectionStatus.hasAllSelected 
+            ? `Map selection complete. Selected map: ${finalMap}` 
+            : 'Map selection recorded. Waiting for other players.',
+          selectionStatus: {
+            playersWithSelections: selectionStatus.playersWithSelections,
+            totalPlayers: selectionStatus.totalPlayers,
+            hasAllSelected: selectionStatus.hasAllSelected,
+            finalMap: finalMap
+          },
+          game: selectionStatus.hasAllSelected ? {
+            ...game,
+            map: finalMap,
+            updatedAt: new Date().toISOString()
+          } : undefined
+        }),
+      };
     } else if (game.map_selection_mode === 'random-map') {
       // No manual map selection allowed in random mode
       return {
@@ -126,22 +183,11 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
       };
     }
 
-    // Update the game with the selected map using shared utilities
-    await updateGame(gameId, {
-      map: mapId
-    });
-
+    // Fallback for unknown map selection modes
     return {
-      statusCode: 200,
+      statusCode: 400,
       headers: corsHeaders,
-      body: JSON.stringify({
-        message: 'Map selected successfully',
-        game: {
-          ...game,
-          map: mapId,
-          updatedAt: new Date().toISOString()
-        }
-      }),
+      body: JSON.stringify({ error: 'Unknown map selection mode' }),
     };
 
   } catch (error) {

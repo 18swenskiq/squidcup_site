@@ -257,12 +257,29 @@ export class LobbyComponent implements OnInit, OnDestroy {
       gameId: this.lobby.id,  // Use gameId to match backend expectations
       mapId: selectedMapId
     }, { headers }).subscribe({
-      next: (response) => {
-        console.log('Map selected successfully', response);
+      next: (response: any) => {
+        console.log('Map selection response:', response);
+        
+        if (response.selectionStatus) {
+          // All-pick mode response
+          const status = response.selectionStatus;
+          if (status.hasAllSelected) {
+            alert(`All players have selected! Final map: ${status.finalMap}`);
+          } else {
+            alert(`Map selection recorded! ${status.playersWithSelections}/${status.totalPlayers} players have selected.`);
+          }
+        } else {
+          // Host-pick mode response
+          alert('Map selected successfully!');
+        }
       },
       error: (error) => {
         console.error('Error selecting map:', error);
-        alert('Failed to select map. Please try again.');
+        let errorMessage = 'Failed to select map. Please try again.';
+        if (error.error?.error) {
+          errorMessage = error.error.error;
+        }
+        alert(errorMessage);
       }
     });
   }
