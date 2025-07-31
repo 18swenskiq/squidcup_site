@@ -538,11 +538,22 @@
 }
 
 .selected-map .map-name {
-  color: #4CAF50;
-  font-weight: 500;
-  font-size: 1.1em;
+  color: #ffffff;
+  font-weight: bold;
+  font-size: 3em;
   font-family: Century Gothic, CenturyGothic, AppleGothic, sans-serif;
-  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+  text-shadow: 
+    -2px -2px 0 #000,
+    2px -2px 0 #000,
+    -2px 2px 0 #000,
+    2px 2px 0 #000,
+    0 -2px 0 #000,
+    0 2px 0 #000,
+    -2px 0 0 #000,
+    2px 0 0 #000;
+  background: none;
+  border: none;
+  padding: 0;
 }
 
 .game-status {
