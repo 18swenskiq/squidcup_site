@@ -6,31 +6,7 @@ import { interval, Subscription, EMPTY, timer } from 'rxjs';
 import { switchMap, catchError, takeWhile } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
 import { AuthService } from '../../services/auth.service';
-
-export interface LobbyPlayer {
-  steamId: string;
-  team?: string; // Changed from number to string to match backend team_id
-  mapSelection?: string;
-  hasSelectedMap?: boolean;
-  name?: string; // Add name field
-}
-
-export interface LobbyData {
-  id: string;
-  hostSteamId: string;
-  hostName?: string; // Add host name field
-  gameMode: string;
-  mapSelectionMode: string;
-  serverId: string;
-  hasPassword: boolean;
-  ranked: boolean;
-  players: LobbyPlayer[];
-  mapSelectionComplete: boolean;
-  selectedMap?: string;
-  mapAnimSelectStartTime?: number; // Animation timing for map selection
-  createdAt: string;
-  updatedAt: string;
-}
+import { LobbyPlayer, LobbyData } from '../../shared/interfaces';
 
 export interface GameMap {
   id: string;

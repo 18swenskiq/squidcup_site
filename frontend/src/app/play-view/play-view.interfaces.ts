@@ -1,28 +1,9 @@
-export interface GameServer {
-  id: string;
-  ip: string;
-  port: number;
-  location: string;
-  defaultPassword: string;
-  maxPlayers: number;
-  nickname: string;
-  createdAt: string;
-  updatedAt: string;
-}
+import { LobbyPlayer, LobbyData, GameServer, ActiveQueue, Queue, ViewState } from '../shared/interfaces';
 
-export interface ActiveQueue {
-  queueId: string;
-  host: string;
-  gameMode: string;
-  players: number;
-  maxPlayers: number;
-  server: string;
-  ranked: boolean;
-  hasPassword: boolean;
-  createdAt: string;
-  lastActivity: string;
-}
+// Re-export shared interfaces for backwards compatibility
+export { LobbyPlayer, LobbyData, GameServer, ActiveQueue, Queue, ViewState };
 
+// Keep only the interfaces specific to play-view
 export interface UserActiveQueue {
   id: string;
   hostSteamId: string;
@@ -46,52 +27,4 @@ export interface UserQueueStatus {
   isHost: boolean;
   queue: UserActiveQueue | null;
   lobby: LobbyData | null;
-}
-
-export interface LobbyData {
-  id: string;
-  hostSteamId: string;
-  gameMode: string;
-  mapSelectionMode: string;
-  serverId: string;
-  hasPassword: boolean;
-  ranked: boolean;
-  players: LobbyPlayer[];
-  mapSelectionComplete: boolean;
-  selectedMap?: string;
-  mapAnimSelectStartTime?: number; // Animation timing for map selection
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface LobbyPlayer {
-  steamId: string;
-  team?: number;
-  mapSelection?: string;
-  hasSelectedMap?: boolean;
-}
-
-export interface Queue {
-  id: string;
-  host: string;
-  gameMode: string;
-  players: string;
-  server: string;
-  map: string;
-  hasPassword: boolean;
-  ranked: boolean;
-}
-
-export interface LobbyPlayer {
-  steamId: string;
-  name?: string;
-  avatar?: string;
-  joinTime: string;
-  isHost: boolean;
-}
-
-export interface ViewState {
-  showStartQueue: boolean;
-  showJoinQueue: boolean;
-  showLobby: boolean;
 }
