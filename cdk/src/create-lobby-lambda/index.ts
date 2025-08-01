@@ -8,6 +8,9 @@ import {
   selectRandomMapFromAvailable,
   getSsmParameter,
   createCorsHeaders,
+  getGameTeams,
+  createGameTeam,
+  updatePlayerTeam,
   LobbyPlayerRecord, 
   GameMode, 
   LobbyData,
@@ -22,17 +25,27 @@ interface LobbyResponseData extends LobbyData {
 }
 
 // Function to balance players into teams
-function balancePlayersIntoTeams(players: LobbyPlayerRecord[], gameMode: GameMode): LobbyPlayerRecord[] {
+async function balancePlayersIntoTeams(gameId: string, players: LobbyPlayerRecord[], gameMode: GameMode): Promise<void> {
   const maxPlayers = getMaxPlayersForGamemode(gameMode);
   const playersPerTeam = maxPlayers / 2;
+  
+  // Get existing teams for this game
+  const teams = await getGameTeams(gameId);
+  if (teams.length < 2) {
+    throw new Error('Game must have at least 2 teams');
+  }
   
   // Shuffle players randomly for now (later we can implement skill-based balancing)
   const shuffledPlayers = [...players].sort(() => Math.random() - 0.5);
   
-  return shuffledPlayers.map((player, index) => ({
-    ...player,
-    team: Math.floor(index / playersPerTeam) + 1 // Team numbers as numbers
-  }));
+  // Assign players to teams
+  for (let i = 0; i < shuffledPlayers.length; i++) {
+    const teamIndex = Math.floor(i / playersPerTeam);
+    const team = teams[teamIndex];
+    if (team) {
+      await updatePlayerTeam(gameId, shuffledPlayers[i].player_steam_id, team.id);
+    }
+  }
 }
 
 export const handler = async (event: any) => {
@@ -92,26 +105,29 @@ export const handler = async (event: any) => {
     const lobbyId = gameId; // Use the same game ID
     const now = new Date().toISOString();
 
-    // Create players array from queue data
+    // Create players array from queue data (no team assignment yet)
     const allPlayers: LobbyPlayerRecord[] = [
       { 
         game_id: lobbyId,
         player_steam_id: queueData.host_steam_id, 
-        team: 0,
+        team_id: undefined,
         joined_at: new Date().toISOString() 
       },
       ...queuePlayers.map(player => ({
         game_id: lobbyId,
         player_steam_id: player.player_steam_id,
-        team: 0,
+        team_id: undefined,
         joined_at: player.joined_at
       }))
     ];
 
     // Balance players into teams if gamemode has more than 2 players
-    const playersWithTeams = maxPlayers > 2 
-      ? balancePlayersIntoTeams(allPlayers, queueData.game_mode as GameMode)
-      : allPlayers;
+    if (maxPlayers > 2) {
+      await balancePlayersIntoTeams(gameId, allPlayers, queueData.game_mode as GameMode);
+    }
+
+    // Get updated players with team assignments
+    const updatedPlayers = await getQueuePlayers(gameId);
 
     let mapSelectionMode = queueData.map_selection_mode;
     const needsMapSelection = mapSelectionMode === 'all-pick' || mapSelectionMode === 'host-pick';
@@ -166,7 +182,7 @@ export const handler = async (event: any) => {
     // TODO: Update player teams if required by game mode
 
     // Store lobby creation events for all players
-    for (const player of playersWithTeams) {
+    for (const player of updatedPlayers) {
       await storeLobbyHistoryEvent({
         id: crypto.randomUUID(),
         gameId: lobbyId,
@@ -176,7 +192,7 @@ export const handler = async (event: any) => {
           gameMode: queueData.game_mode,
           mapSelectionMode: mapSelectionMode,
           isHost: player.player_steam_id === queueData.host_steam_id,
-          team: player.team
+          teamId: player.team_id
         }
       });
     }
@@ -192,9 +208,9 @@ export const handler = async (event: any) => {
       server_id: '', // Will be assigned later
       ranked: false, // Default for now
       status: 'active' as any, // Temporary cast, should match LobbyStatus
-      players: playersWithTeams.map(p => ({
+      players: updatedPlayers.map(p => ({
         player_steam_id: p.player_steam_id,
-        team: String(p.team),
+        team: p.team_id || 'unassigned',
         joined_at: p.joined_at
       })),
       mapSelectionComplete,

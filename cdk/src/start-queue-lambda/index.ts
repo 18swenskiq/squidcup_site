@@ -3,6 +3,7 @@ import {
   getSession,
   createQueue,
   addPlayerToGame,
+  createGameTeam,
   storeQueueHistoryEvent,
   createCorsHeaders,
   getMaxPlayersForGamemode,
@@ -120,10 +121,14 @@ export async function handler(event: any): Promise<any> {
       maxPlayers: getMaxPlayersForGamemode(gameMode)
     });
 
+    // Create teams for the game
+    const team1Id = await createGameTeam(gameId, 1, 'Team 1');
+    const team2Id = await createGameTeam(gameId, 2, 'Team 2');
+
     // Add the host as a player in the game_players table
     await addPlayerToGame(gameId, {
       steamId: hostSteamId,
-      team: 0, // Default team
+      teamId: team1Id, // Assign host to Team 1
       joinTime: now
     });
 

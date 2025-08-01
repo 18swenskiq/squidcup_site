@@ -68,7 +68,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
       // Enrich players with names
       const enrichedPlayers = lobby.players.map((player: any) => ({
         steamId: player.player_steam_id,
-        team: player.team,
+        team: player.team_id || 'unassigned', // Use team_id instead of team
         joinedAt: player.joined_at,
         mapSelection: player.map_selection,
         hasSelectedMap: !!player.map_selection,

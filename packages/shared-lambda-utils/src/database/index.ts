@@ -17,7 +17,8 @@ import {
   AddPlayerToGameInput,
   UpdateServerInput,
   UpsertUserInput,
-  GameHistoryEventInput
+  GameHistoryEventInput,
+  GameTeamRecord
 } from '../types';
 
 // Initialize SSM client
@@ -225,14 +226,31 @@ async function ensureTablesExist(connection: mysql.Connection): Promise<void> {
       CREATE TABLE IF NOT EXISTS squidcup_game_players (
         game_id VARCHAR(36) NOT NULL,
         player_steam_id VARCHAR(50) NOT NULL,
-        team INT DEFAULT 0,
+        team_id VARCHAR(36) DEFAULT NULL,
         joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         map_selection VARCHAR(100) DEFAULT NULL,
         PRIMARY KEY (game_id, player_steam_id),
         FOREIGN KEY (game_id) REFERENCES squidcup_games(id) ON DELETE CASCADE,
         FOREIGN KEY (player_steam_id) REFERENCES squidcup_users(steam_id) ON DELETE CASCADE,
+        FOREIGN KEY (team_id) REFERENCES squidcup_game_teams(id) ON DELETE SET NULL,
         INDEX idx_game_id (game_id),
-        INDEX idx_player_steam_id (player_steam_id)
+        INDEX idx_player_steam_id (player_steam_id),
+        INDEX idx_team_id (team_id)
+      )
+    `);
+
+    // Create game teams table for proper team management
+    await connection.execute(`
+      CREATE TABLE IF NOT EXISTS squidcup_game_teams (
+        id VARCHAR(36) PRIMARY KEY,
+        game_id VARCHAR(36) NOT NULL,
+        team_number INT NOT NULL,
+        team_name VARCHAR(100) NOT NULL,
+        average_elo DECIMAL(7,2) DEFAULT 1000.00,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (game_id) REFERENCES squidcup_games(id) ON DELETE CASCADE,
+        UNIQUE KEY unique_game_team_number (game_id, team_number),
+        INDEX idx_game_id (game_id)
       )
     `);
 
@@ -489,7 +507,7 @@ export async function getUserActiveGame(steamId: string): Promise<EnrichedGameWi
       players,
       isHost: false,
       userJoinedAt: playerGame[0].joined_at,
-      userTeam: playerGame[0].team
+      userTeam: playerGame[0].team_id
     };
   }
   
@@ -557,12 +575,12 @@ export async function addPlayerToGame(gameId: string, playerData: AddPlayerToGam
   // Add player to game_players table
   await executeQuery(
     connection,
-    `INSERT INTO squidcup_game_players (game_id, player_steam_id, team, joined_at)
+    `INSERT INTO squidcup_game_players (game_id, player_steam_id, team_id, joined_at)
      VALUES (?, ?, ?, ?)`,
     [
       gameId,
       playerData.steamId,
-      playerData.team || 0,
+      playerData.teamId || null,
       jsDateToMySQLDate(playerData.joinTime ?? new Date())
     ]
   );
@@ -572,6 +590,39 @@ export async function addPlayerToGame(gameId: string, playerData: AddPlayerToGam
     connection,
     'UPDATE squidcup_games SET current_players = current_players + 1 WHERE id = ?',
     [gameId]
+  );
+}
+
+// Team management functions
+export async function createGameTeam(gameId: string, teamNumber: number, teamName: string): Promise<string> {
+  const connection = await getDatabaseConnection();
+  const teamId = crypto.randomUUID();
+  
+  await executeQuery(
+    connection,
+    `INSERT INTO squidcup_game_teams (id, game_id, team_number, team_name, average_elo)
+     VALUES (?, ?, ?, ?, ?)`,
+    [teamId, gameId, teamNumber, teamName, 1000.00]
+  );
+  
+  return teamId;
+}
+
+export async function getGameTeams(gameId: string): Promise<GameTeamRecord[]> {
+  const connection = await getDatabaseConnection();
+  return await executeQuery(
+    connection,
+    'SELECT * FROM squidcup_game_teams WHERE game_id = ? ORDER BY team_number',
+    [gameId]
+  );
+}
+
+export async function updatePlayerTeam(gameId: string, steamId: string, teamId: string): Promise<void> {
+  const connection = await getDatabaseConnection();
+  await executeQuery(
+    connection,
+    'UPDATE squidcup_game_players SET team_id = ? WHERE game_id = ? AND player_steam_id = ?',
+    [teamId, gameId, steamId]
   );
 }
 

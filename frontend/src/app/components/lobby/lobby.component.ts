@@ -9,7 +9,7 @@ import { AuthService } from '../../services/auth.service';
 
 export interface LobbyPlayer {
   steamId: string;
-  team?: number;
+  team?: string; // Changed from number to string to match backend team_id
   mapSelection?: string;
   hasSelectedMap?: boolean;
   name?: string; // Add name field
@@ -285,8 +285,15 @@ export class LobbyComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   getTeamPlayers(teamNumber: number): LobbyPlayer[] {
-    // First try to get players assigned to this team
-    const assignedTeamPlayers = this.lobby?.players?.filter(player => player.team === teamNumber) || [];
+    // Handle new string-based team identifiers
+    const assignedTeamPlayers = this.lobby?.players?.filter(player => {
+      // Try to match by team ID/name that includes the team number
+      return player.team === teamNumber.toString() || 
+             player.team === `Team ${teamNumber}` ||
+             (player.team && player.team.includes(`Team ${teamNumber}`)) ||
+             // Backwards compatibility - check if team was stored as number and converted to string
+             player.team === String(teamNumber)
+    }) || [];
     
     // If we have assigned players, return them
     if (assignedTeamPlayers.length > 0) {
@@ -294,7 +301,9 @@ export class LobbyComponent implements OnInit, OnDestroy, OnChanges {
     }
     
     // If no assigned players, distribute unassigned players across teams for display
-    const unassignedPlayers = this.lobby?.players?.filter(player => !player.team) || [];
+    const unassignedPlayers = this.lobby?.players?.filter(player => 
+      !player.team || player.team === 'unassigned' || player.team === 'undefined'
+    ) || [];
     
     if (unassignedPlayers.length > 0) {
       // For team 1, take the first half (rounded up)

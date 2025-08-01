@@ -296,9 +296,18 @@ export interface DatabaseGame {
 export interface GamePlayerRecord {
   game_id: string;
   player_steam_id: string;
-  team: number;
+  team_id?: string; // Foreign key to squidcup_game_teams table
   joined_at: string;
   map_selection?: string; // Optional map selection (map ID)
+}
+
+export interface GameTeamRecord {
+  id: string;
+  game_id: string;
+  team_number: number;
+  team_name: string;
+  average_elo: number;
+  created_at: string;
 }
 
 export interface GameHistoryRecord {
@@ -429,7 +438,7 @@ export interface UpdateGameInput {
 
 export interface AddPlayerToGameInput {
   steamId: string;
-  team?: number;
+  teamId?: string;
   joinTime?: Date;
 }
 
