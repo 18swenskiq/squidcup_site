@@ -221,6 +221,21 @@ async function ensureTablesExist(connection: mysql.Connection): Promise<void> {
       )
     `);
 
+    // Create game teams table for proper team management
+    await connection.execute(`
+      CREATE TABLE IF NOT EXISTS squidcup_game_teams (
+        id VARCHAR(36) PRIMARY KEY,
+        game_id VARCHAR(36) NOT NULL,
+        team_number INT NOT NULL,
+        team_name VARCHAR(100) NOT NULL,
+        average_elo DECIMAL(7,2) DEFAULT 1000.00,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (game_id) REFERENCES squidcup_games(id) ON DELETE CASCADE,
+        UNIQUE KEY unique_game_team_number (game_id, team_number),
+        INDEX idx_game_id (game_id)
+      )
+    `);
+
     // Create unified game_players table (replaces both queue_players and lobby_players)
     await connection.execute(`
       CREATE TABLE IF NOT EXISTS squidcup_game_players (
@@ -236,21 +251,6 @@ async function ensureTablesExist(connection: mysql.Connection): Promise<void> {
         INDEX idx_game_id (game_id),
         INDEX idx_player_steam_id (player_steam_id),
         INDEX idx_team_id (team_id)
-      )
-    `);
-
-    // Create game teams table for proper team management
-    await connection.execute(`
-      CREATE TABLE IF NOT EXISTS squidcup_game_teams (
-        id VARCHAR(36) PRIMARY KEY,
-        game_id VARCHAR(36) NOT NULL,
-        team_number INT NOT NULL,
-        team_name VARCHAR(100) NOT NULL,
-        average_elo DECIMAL(7,2) DEFAULT 1000.00,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (game_id) REFERENCES squidcup_games(id) ON DELETE CASCADE,
-        UNIQUE KEY unique_game_team_number (game_id, team_number),
-        INDEX idx_game_id (game_id)
       )
     `);
 
@@ -493,7 +493,7 @@ export async function getUserActiveGame(steamId: string): Promise<EnrichedGameWi
   // Check if user is a player in any game
   const playerGame = await executeQuery(
     connection,
-    `SELECT g.*, gp.joined_at, gp.team
+    `SELECT g.*, gp.joined_at, gp.team_id
      FROM squidcup_games g
      INNER JOIN squidcup_game_players gp ON g.id = gp.game_id
      WHERE gp.player_steam_id = ? AND g.status IN ("queue", "lobby")`,
@@ -868,7 +868,7 @@ export async function getActiveGamesWithDetails(): Promise<ActiveQueueWithDetail
       connection,
       `SELECT 
         gp.player_steam_id,
-        gp.team,
+        gp.team_id,
         gp.joined_at,
         u.username
        FROM squidcup_game_players gp
