@@ -393,30 +393,50 @@ export class LobbyComponent implements OnInit, OnDestroy, OnChanges {
     }
   }
 
+  private getPlayerSelectedMaps(): any[] {
+    if (!this.lobby?.players || !this.availableMaps) {
+      return [];
+    }
+    
+    // Get unique map IDs that players have selected
+    const selectedMapIds = new Set<string>();
+    this.lobby.players.forEach(player => {
+      if (player.hasSelectedMap && player.mapSelection) {
+        selectedMapIds.add(player.mapSelection);
+      }
+    });
+    
+    // Return the actual map objects for those IDs
+    return this.availableMaps.filter(map => selectedMapIds.has(map.id));
+  }
+
   private startMapNameCycling(): void {
-    if (!this.availableMaps || this.availableMaps.length === 0) {
-      // If no maps loaded yet, show a placeholder
-      this.currentCyclingMapName = 'Loading maps...';
+    // Get maps that players actually selected for the animation
+    const playerSelectedMaps = this.getPlayerSelectedMaps();
+    
+    if (!playerSelectedMaps || playerSelectedMaps.length === 0) {
+      // If no player selections or maps not loaded yet, show a placeholder
+      this.currentCyclingMapName = 'Loading selections...';
       return;
     }
 
     let mapIndex = 0;
-    let cycleInterval = 200; // Start fast
-    // Start with first map
-    this.currentCyclingMapName = this.availableMaps[mapIndex].name;
+    let cycleInterval = 150; // Start faster for better effect
+    // Start with first player-selected map
+    this.currentCyclingMapName = playerSelectedMaps[mapIndex].name;
     
     const cycleMaps = () => {
       // Gradually slow down the cycling as countdown approaches 0
       const timeRemaining = this.animationCountdown;
-      if (timeRemaining <= 3) {
-        // Slow down dramatically in the last 3 seconds
-        cycleInterval = 800;
-      } else if (timeRemaining <= 5) {
+      if (timeRemaining <= 2) {
+        // Slow down dramatically in the last 2 seconds
+        cycleInterval = 600;
+      } else if (timeRemaining <= 4) {
         // Start slowing down
-        cycleInterval = 400;
+        cycleInterval = 300;
       } else {
         // Keep fast pace
-        cycleInterval = 200;
+        cycleInterval = 150;
       }
       
       // Stop cycling in the last second to build suspense
@@ -428,8 +448,8 @@ export class LobbyComponent implements OnInit, OnDestroy, OnChanges {
         return;
       }
       
-      mapIndex = (mapIndex + 1) % this.availableMaps.length;
-      this.currentCyclingMapName = this.availableMaps[mapIndex].name;
+      mapIndex = (mapIndex + 1) % playerSelectedMaps.length;
+      this.currentCyclingMapName = playerSelectedMaps[mapIndex].name;
       
       // Schedule next cycle with updated interval
       if (this.isAnimating) {
@@ -507,8 +527,9 @@ export class LobbyComponent implements OnInit, OnDestroy, OnChanges {
             // Update lobby data but maintain animation state
             this.lobby = response.lobby;
             
-            // Check if map selection completed during animation
-            if (this.lobby.mapSelectionComplete && this.isAnimating) {
+            // Only complete animation early if server signals completion 
+            // AND we're in the final second (to avoid race condition)
+            if (this.lobby.mapSelectionComplete && this.isAnimating && this.animationCountdown <= 1) {
               this.completeMapSelectionAnimation();
             }
           } else if (!response.inLobby) {

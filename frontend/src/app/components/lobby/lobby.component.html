@@ -49,7 +49,7 @@
           <h4>Maps:</h4>
         </ng-template>
         
-        <div class="map-name" *ngIf="lobby.selectedMap && isMapSelectionComplete">
+        <div class="map-name" *ngIf="lobby.selectedMap && isMapSelectionComplete && !isAnimating">
           {{ getSelectedMapName() }}
         </div>
         
