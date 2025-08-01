@@ -27,6 +27,7 @@ export class PlayViewComponent implements OnInit, OnDestroy {
   isStartingQueue: boolean = false;
   isJoiningQueue: boolean = false;
   isLoadingActiveQueues: boolean = false;
+  isLoadingServers: boolean = false;
   isTransitioningToLobby: boolean = false;
   viewState: ViewState = {
     showStartQueue: true,
@@ -228,10 +229,20 @@ export class PlayViewComponent implements OnInit, OnDestroy {
     this.availableServers = [];
 
     if (gameMode) {
+      // Set loading state for servers
+      this.isLoadingServers = true;
+      
       // Fetch servers based on selected game mode
-      this.http.get<GameServer[]>(`${this.apiBaseUrl}servers?gamemode=${gameMode}`).subscribe(servers => {
-        this.availableServers = servers;
-        this.queueForm.get('server')?.enable();
+      this.http.get<GameServer[]>(`${this.apiBaseUrl}servers?gamemode=${gameMode}`).subscribe({
+        next: (servers) => {
+          this.availableServers = servers;
+          this.queueForm.get('server')?.enable();
+          this.isLoadingServers = false;
+        },
+        error: (error) => {
+          console.error('Error loading servers:', error);
+          this.isLoadingServers = false;
+        }
       });
     }
   }

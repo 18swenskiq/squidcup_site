@@ -107,8 +107,10 @@
 
         <div class="form-group">
           <label for="server">SERVER</label>
-          <select id="server" formControlName="server" [disabled]="!queueForm.get('gameMode')?.value">
-            <option value="" disabled selected>Select a server</option>
+          <select id="server" formControlName="server" [disabled]="!queueForm.get('gameMode')?.value || isLoadingServers">
+            <option value="" disabled selected>
+              {{ isLoadingServers ? 'Loading servers...' : 'Select a server' }}
+            </option>
             <option *ngFor="let server of availableServers" [value]="server.id">{{server.nickname}}</option>
           </select>
         </div>
@@ -123,7 +125,7 @@
           <label for="ranked">Ranked?</label>
         </div>
 
-        <button type="submit" [disabled]="queueForm.invalid || isStartingQueue">
+        <button type="submit" [disabled]="queueForm.invalid || isStartingQueue || isLoadingServers">
           <span *ngIf="!isStartingQueue">Start Queue</span>
           <span *ngIf="isStartingQueue">
             <span class="spinner"></span> Starting...
