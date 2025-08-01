@@ -176,13 +176,27 @@ export class LobbyComponent implements OnInit, OnDestroy, OnChanges {
 
     const headers = this.getAuthHeaders();
     
-    // For now, we'll use a placeholder since there's no public profile endpoint
-    // TODO: Implement when profile endpoint supports looking up other users
-    this.playerProfiles.set(steamId, {
-      steamId: steamId,
-      name: `Player ${steamId.slice(-4)}`,
-      avatar: undefined
-    });
+    // Try to get player profile from a potential profiles endpoint
+    // If this fails, we'll fall back to a placeholder
+    this.http.get(`${this.apiBaseUrl}/profiles/${steamId}`, { headers })
+      .subscribe({
+        next: (response: any) => {
+          this.playerProfiles.set(steamId, {
+            steamId: steamId,
+            name: response.name || response.username || `Player ${steamId.slice(-4)}`,
+            avatar: response.avatar || undefined
+          });
+        },
+        error: (error) => {
+          console.log('Profile endpoint not available, using placeholder for:', steamId);
+          // Fallback to placeholder profile
+          this.playerProfiles.set(steamId, {
+            steamId: steamId,
+            name: `Player ${steamId.slice(-4)}`,
+            avatar: undefined
+          });
+        }
+      });
   }
 
   private startMapRefresh(): void {
@@ -656,6 +670,11 @@ export class LobbyComponent implements OnInit, OnDestroy, OnChanges {
     // Fallback to profile map
     const profile = this.playerProfiles.get(steamId);
     return profile ? profile.name : `Player ${steamId.slice(-4)}`;
+  }
+
+  getPlayerAvatarUrl(steamId: string): string | undefined {
+    const profile = this.playerProfiles.get(steamId);
+    return profile?.avatar;
   }
 
   // Safe getter methods for template

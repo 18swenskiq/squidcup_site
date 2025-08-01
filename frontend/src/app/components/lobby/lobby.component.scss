@@ -252,6 +252,29 @@
   color: #ecf0f1;
 }
 
+.player-left-section {
+  display: flex;
+  align-items: center;
+  gap: 12px; // Space between avatar and name
+}
+
+.player-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  object-fit: cover;
+}
+
+.player-avatar-placeholder {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #3498db, #2980b9);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  flex-shrink: 0;
+}
+
 .player-right-section {
   display: flex;
   align-items: center;

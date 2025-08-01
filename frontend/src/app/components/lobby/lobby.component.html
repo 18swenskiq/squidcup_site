@@ -16,7 +16,17 @@
       <h3>{{ getTeamName(1) }}</h3>
       <div class="players-list">
         <div class="player" *ngFor="let player of getTeamPlayers(1)">
-          <span class="player-name">{{ getPlayerDisplayName(player.steamId) }}</span>
+          <div class="player-left-section">
+            <img 
+              *ngIf="getPlayerAvatarUrl(player.steamId); else avatarPlaceholder"
+              [src]="getPlayerAvatarUrl(player.steamId)" 
+              alt="Player Avatar"
+              class="player-avatar">
+            <ng-template #avatarPlaceholder>
+              <div class="player-avatar-placeholder"></div>
+            </ng-template>
+            <span class="player-name">{{ getPlayerDisplayName(player.steamId) }}</span>
+          </div>
           <div class="player-right-section">
             <span class="host-badge" *ngIf="player.steamId === lobby.hostSteamId">Host</span>
             <span class="map-status" *ngIf="lobby.mapSelectionMode === 'all-pick'">
@@ -80,7 +90,17 @@
       <h3>{{ getTeamName(2) }}</h3>
       <div class="players-list">
         <div class="player" *ngFor="let player of getTeamPlayers(2)">
-          <span class="player-name">{{ getPlayerDisplayName(player.steamId) }}</span>
+          <div class="player-left-section">
+            <img 
+              *ngIf="getPlayerAvatarUrl(player.steamId); else avatarPlaceholder2"
+              [src]="getPlayerAvatarUrl(player.steamId)" 
+              alt="Player Avatar"
+              class="player-avatar">
+            <ng-template #avatarPlaceholder2>
+              <div class="player-avatar-placeholder"></div>
+            </ng-template>
+            <span class="player-name">{{ getPlayerDisplayName(player.steamId) }}</span>
+          </div>
           <div class="player-right-section">
             <span class="host-badge" *ngIf="player.steamId === lobby.hostSteamId">Host</span>
             <span class="map-status" *ngIf="lobby.mapSelectionMode === 'all-pick'">
