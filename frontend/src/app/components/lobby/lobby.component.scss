@@ -226,6 +226,7 @@
   border-radius: 6px;
   border-left: 4px solid #3498db;
   margin-bottom: 8px;
+  min-height: 48px; // Ensure consistent height for avatar
 }
 
 .player.empty-slot {
@@ -256,6 +257,19 @@
   display: flex;
   align-items: center;
   gap: 12px; // Space between avatar and name
+}
+
+.player-middle-section {
+  display: flex;
+  align-items: center;
+  flex: 1; // Take up remaining space in the middle
+  justify-content: center;
+}
+
+.player-elo {
+  font-size: 0.85em;
+  color: #bdc3c7;
+  font-weight: 500;
 }
 
 .player-avatar {

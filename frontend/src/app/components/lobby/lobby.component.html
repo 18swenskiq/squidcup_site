@@ -27,6 +27,9 @@
             </ng-template>
             <span class="player-name">{{ getPlayerDisplayName(player.steamId) }}</span>
           </div>
+          <div class="player-middle-section">
+            <span class="player-elo">Elo: 1000</span>
+          </div>
           <div class="player-right-section">
             <span class="host-badge" *ngIf="player.steamId === lobby.hostSteamId">Host</span>
             <span class="map-status" *ngIf="lobby.mapSelectionMode === 'all-pick'">
@@ -100,6 +103,9 @@
               <div class="player-avatar-placeholder"></div>
             </ng-template>
             <span class="player-name">{{ getPlayerDisplayName(player.steamId) }}</span>
+          </div>
+          <div class="player-middle-section">
+            <span class="player-elo">Elo: 1000</span>
           </div>
           <div class="player-right-section">
             <span class="host-badge" *ngIf="player.steamId === lobby.hostSteamId">Host</span>
