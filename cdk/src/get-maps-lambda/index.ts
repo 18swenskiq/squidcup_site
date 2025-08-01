@@ -1,115 +1,4 @@
-import { getSsmParameter, GameMode, MapResponseObj } from '@squidcup/shared-lambda-utils';
-
-const steamCollectionIds: {"gameMode": GameMode, "id": string}[] = [
-  { gameMode: "5v5", id: '2753947063'},
-  { gameMode: "wingman", id: '2747675401'},
-  { gameMode: "3v3", id: "2752973478"},
-  { gameMode: "1v1", id: "3517834095"} // Use 3529142840 when approved
-]
-
-async function getMapsFromSteamAPI(steamApiKey: string, gameModes: GameMode[]): Promise<MapResponseObj[]>
-{
-  console.log("passed gamemodes", JSON.stringify(gameModes, null, 2));
-
-  let collectionIds = [];
-
-  // If no gamemode is defined, get maps from every collection
-  if (gameModes.length === 0)
-  {
-    collectionIds = steamCollectionIds.map(x => x.id);
-  }
-  else
-  {
-    collectionIds = steamCollectionIds.filter(x => gameModes.includes(x.gameMode)).map(x => x.id);
-  }
-
-  // Create URLSearchParams directly instead of FormData
-  const params = new URLSearchParams();
-  params.append("key", steamApiKey);
-  params.append("collectioncount", `${collectionIds.length}`);
-  collectionIds.forEach((collectionId, index) => {
-    params.append(`publishedfileids[${index}]`, collectionId);
-  });
-
-  console.log("collection request params", JSON.stringify(Object.fromEntries(params), null, 2));
-
-  const rawCollectionResponse = await fetch(`https://api.steampowered.com/ISteamRemoteStorage/GetCollectionDetails/v1/`, {
-    method: 'POST',
-    body: params,
-    headers: {
-      'Accept': 'application/json',
-      'Content-Type': 'application/x-www-form-urlencoded'
-    },
-  });
-
-  const collectionResponse = await rawCollectionResponse.json();
-
-  console.log("collection response", JSON.stringify(collectionResponse, null, 2));
-
-  let mapIdsWithGamemodes: { "id": string, "gameModes": GameMode[]}[] = []
-
-  collectionResponse.response.collectiondetails.forEach((collection: any) => {
-    // Get the game mode of the child collection
-    const gameMode = steamCollectionIds.find(x => x.id === collection.publishedfileid)?.gameMode;
-
-    if (gameMode)
-    {
-      // Flatten children of collection into mapIdsWithGamemodes
-      const ids = collection.children.flatMap((child: any) => child.publishedfileid);
-      mapIdsWithGamemodes = mapIdsWithGamemodes.concat(ids.map((id: string) => { return { "id": id, "gameModes": [gameMode] }}));
-    }
-  });
-
-  // Remove duplicate map entries and collapse gamemodes into a single array
-  mapIdsWithGamemodes = mapIdsWithGamemodes.reduce((acc: { "id": string, "gameModes": GameMode[] }[], current) => {
-    const existing = acc.find(x => x.id === current.id);
-    if (existing)
-    {
-      existing.gameModes.push(...current.gameModes);
-    }
-    else
-    {
-      acc.push(current);
-    }
-    return acc;
-  }, []);
-
-  console.log("map ids with gamemodes", JSON.stringify(mapIdsWithGamemodes, null, 2));
-
-  // Get map details for each map from steam api
-  const mapParams = new URLSearchParams();
-  mapParams.append("key", steamApiKey);
-  mapParams.append("itemcount", `${mapIdsWithGamemodes.length}`);
-  mapIdsWithGamemodes.forEach((mapId, index) => {
-    mapParams.append(`publishedfileids[${index}]`, mapId.id);
-  });
-
-  console.log("map params", JSON.stringify(Object.fromEntries(mapParams), null, 2));
-  
-  const rawMapsResponse = await fetch(`https://api.steampowered.com/ISteamRemoteStorage/GetPublishedFileDetails/v1/`, {
-    method: 'POST',
-    body: mapParams,
-    headers: {
-      'Accept': 'application/json',
-      'Content-Type': 'application/x-www-form-urlencoded'
-    },
-  });
-
-  const mapsResponse = await rawMapsResponse.json();
-
-  console.log("maps response", JSON.stringify(mapsResponse, null, 2));
-
-  return mapsResponse.response.publishedfiledetails
-    .map((map: any) => {
-      return {
-        "name": map.title || "Unknown Map",
-        "id": map.publishedfileid,
-        "thumbnailUrl": map.preview_url || "",
-        "gameModes": mapIdsWithGamemodes.find(x => x.id === map.publishedfileid)?.gameModes || []
-      };
-    })
-    .filter((map: MapResponseObj) => map.name && map.name !== "Unknown Map"); // Filter out maps without proper names
-}
+import { getSsmParameter, GameMode, MapResponseObj, getMapsByGameMode, createCorsHeaders } from '@squidcup/shared-lambda-utils';
 
 export async function handler(event: any): Promise<any> {
   // Extract query parameters and headers
@@ -132,12 +21,7 @@ export async function handler(event: any): Promise<any> {
         error: error,
       }),
       statusCode: 500,
-      headers: {
-        'Access-Control-Allow-Origin': 'https://squidcup.spkymnr.xyz',
-        'Access-Control-Allow-Headers': 'Content-Type,Authorization',
-        'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS',
-        'Access-Control-Allow-Credentials': true,
-      },
+      headers: createCorsHeaders(),
     };
   }
 
@@ -150,53 +34,40 @@ export async function handler(event: any): Promise<any> {
         error: 'No valid Steam API key available',
       }),
       statusCode: 500,
-      headers: {
-        'Access-Control-Allow-Origin': 'https://squidcup.spkymnr.xyz',
-        'Access-Control-Allow-Headers': 'Content-Type,Authorization',
-        'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS',
-        'Access-Control-Allow-Credentials': true,
-      },
+      headers: createCorsHeaders(),
     };
   }
 
-  // Ensure queryparams.gameModes is an array of strings and it is passed to getMapsFromSteamAPI properly
+  // Ensure queryparams.gameModes is an array of strings and it is passed to getMapsByGameMode properly
   // If no gameModes are passed, default to ["5v5", "wingman", "3v3", "1v1"]
   const selectedGameModes: GameMode[] = queryParams.gameModes ? queryParams.gameModes.split(',') as GameMode[] : ["5v5", "wingman", "3v3", "1v1"];
 
   try {
-    const maps: MapResponseObj[] = await getMapsFromSteamAPI(steamApiKey, selectedGameModes);
+    // Use the shared Steam utilities function
+    const steamMaps = await getMapsByGameMode(selectedGameModes, steamApiKey);
+    
+    // Convert SteamMap[] to MapResponseObj[] format expected by frontend
+    const maps: MapResponseObj[] = steamMaps.map(map => ({
+      name: map.name,
+      id: map.id,
+      thumbnailUrl: map.thumbnailUrl,
+      gameModes: map.gameModes as GameMode[]
+    }));
+    
     console.log("Maps Successfully Retrieved:", JSON.stringify(maps, null, 2));
     
-    let sortedMaps;
-    try {
-      sortedMaps = maps.sort((a, b) => a.name.localeCompare(b.name));
-      console.log("Maps successfully sorted");
-    } catch (sortError) {
-      console.error("Error sorting maps:", sortError);
-      sortedMaps = maps; // Return unsorted if sorting fails
-    }
-    
     const responseBody = {
-      data: sortedMaps,
+      data: maps, // Already sorted by shared function
     };
     
     console.log("Response body size:", JSON.stringify(responseBody).length);
     console.log("About to return successful response");
     
-    const response = {
+    return {
       body: JSON.stringify(responseBody),
       statusCode: 200,
-      headers: {
-        'Access-Control-Allow-Origin': 'https://squidcup.spkymnr.xyz',
-        'Access-Control-Allow-Headers': 'Content-Type,Authorization',
-        'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS',
-        'Access-Control-Allow-Credentials': true,
-        'Content-Type': 'application/json',
-      },
+      headers: createCorsHeaders(),
     };
-    
-    console.log("Final response object:", JSON.stringify(response, null, 2));
-    return response;
   } catch (error) {
     console.error("Error in try-catch block:", error);
     console.error("Error stack:", error instanceof Error ? error.stack : 'No stack available');
@@ -211,16 +82,7 @@ export async function handler(event: any): Promise<any> {
         } : error,
       }),
       statusCode: 500,
-      headers: {
-        'Access-Control-Allow-Origin': 'https://squidcup.spkymnr.xyz',
-        'Access-Control-Allow-Headers': 'Content-Type,Authorization',
-        'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS',
-        'Access-Control-Allow-Credentials': true,
-        'Content-Type': 'application/json',
-      },
+      headers: createCorsHeaders(),
     };
   }
 }
-
-// Also export using CommonJS for maximum compatibility
-exports.handler = handler;

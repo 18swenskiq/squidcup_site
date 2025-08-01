@@ -1,5 +1,18 @@
-<div style="display: flex; justify-content: center; align-items: center; height: 80vh; flex-direction: column;">  
-  <button routerLink="/play" style="background-color: #4CAF50; color: white; padding: 30px 60px; border: none; border-radius: 12px; cursor: pointer; font-size: 36px; font-weight: bold; margin-top: 20px; box-shadow: 0 6px 10px rgba(0,0,0,0.2);">
-    Play
-  </button>
+<div class="main-container">
+  <!-- Background Video -->
+  <video class="background-video" autoplay muted loop playsinline>
+    <source src="assets/new_bg_vid.webm" type="video/webm">
+    <!-- Fallback for browsers that don't support webm -->
+    Your browser does not support the video tag.
+  </video>
+  
+  <!-- Video Overlay -->
+  <div class="video-overlay"></div>
+  
+  <!-- Main Content -->
+  <div class="content-container">  
+    <button routerLink="/play" class="play-button">
+      Play
+    </button>
+  </div>
 </div>

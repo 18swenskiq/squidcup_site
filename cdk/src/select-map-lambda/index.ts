@@ -7,6 +7,8 @@ import {
   getMapSelectionStatus,
   selectRandomMapFromSelections,
   replaceRandomMapSelections,
+  getMapsByGameMode,
+  getSsmParameter,
   createCorsHeaders,
   SelectMapRequest
 } from '@squidcup/shared-lambda-utils';
@@ -149,7 +151,12 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
       let finalMap = null;
       if (selectionStatus.hasAllSelected) {
         // All players have selected - replace any "random" selections with actual maps
-        await replaceRandomMapSelections(gameId);
+        // First get available maps from Steam API
+        const steamApiKey = await getSsmParameter('/unencrypted/SteamApiKey');
+        const availableMaps = await getMapsByGameMode(game.game_mode, steamApiKey);
+        const mapNames = availableMaps.map(map => map.name);
+        
+        await replaceRandomMapSelections(gameId, mapNames);
         
         // Now get a random map from the updated selections
         finalMap = await selectRandomMapFromSelections(gameId);

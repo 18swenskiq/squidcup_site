@@ -912,34 +912,16 @@ export async function selectRandomMapFromSelections(gameId: string): Promise<str
   return selectedMaps[randomIndex];
 }
 
-export async function selectRandomMapFromAvailable(gameMode: string): Promise<string | null> {
-  // This would ideally fetch from a maps table or API
-  // For now, we'll use a hardcoded list of popular map IDs per game mode
-  const mapsByGameMode: { [key: string]: string[] } = {
-    '5v5': ['3070291408', '3070581293', '3070308249', '3070347018', '3070550719'], // Example map IDs
-    'wingman': ['3070291408', '3070347018', '3070308249'], 
-    '3v3': ['3070291408', '3070581293', '3070308249'],
-    '1v1': ['3070291408', '3070347018']
-  };
-
-  const availableMaps = mapsByGameMode[gameMode] || mapsByGameMode['5v5'];
-  if (availableMaps.length === 0) {
-    return null;
-  }
-
-  const randomIndex = Math.floor(Math.random() * availableMaps.length);
-  return availableMaps[randomIndex];
+// Raw query execution function
+export async function executeRawQuery(query: string, params: any[] = []): Promise<any> {
+  const connection = await getDatabaseConnection();
+  return await executeQuery(connection, query, params);
 }
 
-export async function replaceRandomMapSelections(gameId: string): Promise<void> {
+// Update the replaceRandomMapSelections function to use the new steam module
+export async function replaceRandomMapSelections(gameId: string, availableMaps: string[]): Promise<void> {
   const connection = await getDatabaseConnection();
   
-  // Get game info first to know the game mode
-  const game = await getGame(gameId);
-  if (!game) {
-    throw new Error('Game not found');
-  }
-
   // Get players who selected "random" map
   const randomSelectors = await executeQuery(
     connection,
@@ -947,9 +929,12 @@ export async function replaceRandomMapSelections(gameId: string): Promise<void> 
     [gameId, 'random']
   );
 
+  // Import the function from steam module
+  const { selectRandomMapFromAvailable } = await import('../steam');
+
   // Replace each random selection with an actual random map
   for (const player of randomSelectors) {
-    const randomMap = await selectRandomMapFromAvailable(game.game_mode);
+    const randomMap = selectRandomMapFromAvailable(availableMaps);
     if (randomMap) {
       await executeQuery(
         connection,
@@ -958,12 +943,6 @@ export async function replaceRandomMapSelections(gameId: string): Promise<void> 
       );
     }
   }
-}
-
-// Raw query execution function
-export async function executeRawQuery(query: string, params: any[] = []): Promise<any> {
-  const connection = await getDatabaseConnection();
-  return await executeQuery(connection, query, params);
 }
 
 // Legacy compatibility functions (deprecated - use unified game functions instead)

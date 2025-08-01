@@ -4,6 +4,9 @@ import {
   updateGame,
   storeLobbyHistoryEvent,
   getMaxPlayersForGamemode,
+  getMapsByGameMode,
+  selectRandomMapFromAvailable,
+  getSsmParameter,
   createCorsHeaders,
   LobbyPlayerRecord, 
   GameMode, 
@@ -117,9 +120,23 @@ export const handler = async (event: any) => {
 
     // Handle Random Map selection immediately
     if (mapSelectionMode === 'random-map') {
-      // TODO: Get random map from maps table based on gameMode
-      // For now, we'll leave it undefined and handle it later
-      mapSelectionComplete = true;
+      try {
+        // Get Steam API key and fetch available maps
+        const steamApiKey = await getSsmParameter('/unencrypted/SteamApiKey');
+        const availableMaps = await getMapsByGameMode(queueData.game_mode, steamApiKey);
+        const mapNames = availableMaps.map(map => map.name);
+        
+        // Select a random map from available maps
+        const randomMap = selectRandomMapFromAvailable(mapNames);
+        if (randomMap) {
+          selectedMap = randomMap;
+        }
+        mapSelectionComplete = true;
+      } catch (error) {
+        console.error('Error selecting random map:', error);
+        // Fallback: leave map undefined and handle later
+        mapSelectionComplete = true;
+      }
     }
 
     // Create lobby data
