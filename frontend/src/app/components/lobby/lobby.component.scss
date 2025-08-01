@@ -252,6 +252,12 @@
   color: #ecf0f1;
 }
 
+.player-right-section {
+  display: flex;
+  align-items: center;
+  gap: 8px; // Space between host badge and map status
+}
+
 .host-badge {
   background: #f39c12;
   color: white;

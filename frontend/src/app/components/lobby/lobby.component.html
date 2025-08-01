@@ -17,11 +17,13 @@
       <div class="players-list">
         <div class="player" *ngFor="let player of getTeamPlayers(1)">
           <span class="player-name">{{ getPlayerDisplayName(player.steamId) }}</span>
-          <span class="host-badge" *ngIf="player.steamId === lobby.hostSteamId">Host</span>
-          <span class="map-status" *ngIf="lobby.mapSelectionMode === 'all-pick'">
-            <span class="material-symbols-outlined check-icon" *ngIf="player.hasSelectedMap">check</span>
-            <span class="selecting-text" *ngIf="!player.hasSelectedMap">⏳ Selecting...</span>
-          </span>
+          <div class="player-right-section">
+            <span class="host-badge" *ngIf="player.steamId === lobby.hostSteamId">Host</span>
+            <span class="map-status" *ngIf="lobby.mapSelectionMode === 'all-pick'">
+              <span class="material-symbols-outlined check-icon" *ngIf="player.hasSelectedMap">check</span>
+              <span class="selecting-text" *ngIf="!player.hasSelectedMap">⏳ Selecting...</span>
+            </span>
+          </div>
         </div>
         <!-- Show empty slots if team has no players -->
         <div class="player empty-slot" *ngIf="getTeamPlayers(1).length === 0">
@@ -79,11 +81,13 @@
       <div class="players-list">
         <div class="player" *ngFor="let player of getTeamPlayers(2)">
           <span class="player-name">{{ getPlayerDisplayName(player.steamId) }}</span>
-          <span class="host-badge" *ngIf="player.steamId === lobby.hostSteamId">Host</span>
-          <span class="map-status" *ngIf="lobby.mapSelectionMode === 'all-pick'">
-            <span class="material-symbols-outlined check-icon" *ngIf="player.hasSelectedMap">check</span>
-            <span class="selecting-text" *ngIf="!player.hasSelectedMap">⏳ Selecting...</span>
-          </span>
+          <div class="player-right-section">
+            <span class="host-badge" *ngIf="player.steamId === lobby.hostSteamId">Host</span>
+            <span class="map-status" *ngIf="lobby.mapSelectionMode === 'all-pick'">
+              <span class="material-symbols-outlined check-icon" *ngIf="player.hasSelectedMap">check</span>
+              <span class="selecting-text" *ngIf="!player.hasSelectedMap">⏳ Selecting...</span>
+            </span>
+          </div>
         </div>
         <!-- Show empty slots if team has no players -->
         <div class="player empty-slot" *ngIf="getTeamPlayers(2).length === 0">
