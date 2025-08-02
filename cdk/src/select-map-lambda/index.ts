@@ -12,6 +12,31 @@ import {
   createCorsHeaders,
   SelectMapRequest
 } from '@squidcup/shared-lambda-utils';
+import { Lambda } from '@aws-sdk/client-lambda';
+
+// Function to call setup-server-lambda asynchronously
+async function triggerServerSetup(gameId: string): Promise<void> {
+  try {
+    const lambda = new Lambda({ region: process.env.AWS_REGION || 'us-east-1' });
+    
+    const setupServerPayload = {
+      gameId: gameId,
+      timestamp: new Date().toISOString()
+    };
+
+    // Invoke setup-server-lambda asynchronously (fire and forget)
+    await lambda.invoke({
+      FunctionName: process.env.SETUP_SERVER_FUNCTION_NAME || 'SquidCupSite-ApiStack-setup-server-function',
+      InvocationType: 'Event', // Asynchronous invocation
+      Payload: JSON.stringify(setupServerPayload)
+    });
+
+    console.log(`Server setup triggered for game: ${gameId}`);
+  } catch (error) {
+    console.error('Error triggering server setup:', error);
+    // Don't throw - we don't want to block map selection if server setup fails to trigger
+  }
+}
 
 export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   const corsHeaders = createCorsHeaders();
@@ -150,6 +175,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
       
       let finalMap = null;
       if (selectionStatus.hasAllSelected) {
+        
         // All players have selected - replace any "random" selections with actual maps
         // First get available maps from Steam API
         const steamApiKey = await getSsmParameter('/unencrypted/SteamApiKey');
@@ -169,6 +195,10 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
             map: finalMap,
             mapAnimSelectStartTime: animStartTime
           });
+
+          // All players have selected - trigger server setup first
+          // This needs to be after the map has been set, so it can properly set up the server
+          await triggerServerSetup(gameId);
         }
       }
 

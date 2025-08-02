@@ -290,6 +290,7 @@ export class ApiStack extends cdk.Stack {
       logRetention: this.LOG_RETENTION,
       environment: {
         REGION: this.REGION,
+        SETUP_SERVER_FUNCTION_NAME: setupServerFunction.functionName,
       },
       bundling: {
         minify: true,
@@ -323,6 +324,7 @@ export class ApiStack extends cdk.Stack {
 
     // Grant Lambda invoke permissions for lobby system
     createLobbyFunction.grantInvoke(joinQueueFunction); // Allow join-queue to invoke create-lobby
+    setupServerFunction.grantInvoke(selectMapFunction); // Allow select-map to invoke setup-server
     
     // Grant database service invoke permissions to all lambdas that need it
     // All lambdas now use shared-lambda-utils directly
