@@ -88,7 +88,7 @@ export class ApiStack extends cdk.Stack {
     const setupServerFunction = new NodejsFunction(this, "setup-server-function", {
       runtime: this.RUNTIME,
       memorySize: this.MEMORY_SIZE,
-      timeout: this.TIMEOUT,
+      timeout: cdk.Duration.seconds(60), // Extended timeout for server setup operations
       handler: 'index.handler',
       code: lambda.Code.fromAsset(path.join(__dirname, '/../src/setup-server-lambda')),
       logRetention: this.LOG_RETENTION,
