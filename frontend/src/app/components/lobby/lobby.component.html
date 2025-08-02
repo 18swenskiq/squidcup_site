@@ -153,7 +153,8 @@
               [style.background-image]="'url(' + map.thumbnailUrl + ')'"
               (click)="selectMapTile(map.id)">
               <div class="map-name">{{ map.name }}</div>
-              <div class="workshop-link" 
+              <div *ngIf="map.id !== 'random'" 
+                   class="workshop-link" 
                    (click)="openWorkshopPage(map.id, $event)"
                    (mouseenter)="onWorkshopLinkHover(true, $event)"
                    (mouseleave)="onWorkshopLinkHover(false, $event)"
@@ -194,7 +195,8 @@
               [style.background-image]="'url(' + map.thumbnailUrl + ')'"
               (click)="selectMapTile(map.id)">
               <div class="map-name">{{ map.name }}</div>
-              <div class="workshop-link" 
+              <div *ngIf="map.id !== 'random'" 
+                   class="workshop-link" 
                    (click)="openWorkshopPage(map.id, $event)"
                    (mouseenter)="onWorkshopLinkHover(true, $event)"
                    (mouseleave)="onWorkshopLinkHover(false, $event)"
@@ -240,7 +242,8 @@
             [style.background-image]="'url(' + map.thumbnailUrl + ')'"
             (click)="selectMapTile(map.id)">
             <div class="map-name">{{ map.name }}</div>
-            <div class="workshop-link" 
+            <div *ngIf="map.id !== 'random'" 
+                 class="workshop-link" 
                  (click)="openWorkshopPage(map.id, $event)"
                  (mouseenter)="onWorkshopLinkHover(true, $event)"
                  (mouseleave)="onWorkshopLinkHover(false, $event)"
