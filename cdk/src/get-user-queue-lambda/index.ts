@@ -65,14 +65,15 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
       console.log('User found in lobby:', userStatus.lobby.id);
       const lobby = userStatus.lobby;
       
-      // Enrich players with names
+      // Enrich players with names and avatars
       const enrichedPlayers = lobby.players.map((player: any) => ({
         steamId: player.player_steam_id,
         team: player.team_id || 'unassigned', // Use team_id instead of team
         joinedAt: player.joined_at,
         mapSelection: player.map_selection,
         hasSelectedMap: !!player.map_selection,
-        name: lobby.playerNames[player.player_steam_id] || `Player ${player.player_steam_id.slice(-4)}`
+        name: lobby.playerNames[player.player_steam_id] || `Player ${player.player_steam_id.slice(-4)}`,
+        avatar: lobby.playerAvatars ? lobby.playerAvatars[player.player_steam_id] : null
       }));
       
       const totalTime = Date.now() - startTime;
@@ -110,7 +111,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
       console.log('User found in queue:', userStatus.queue.id);
       const queue = userStatus.queue;
       
-      // Enrich players with names (converting from queue players to joiners format)
+      // Enrich players with names and avatars (converting from queue players to joiners format)
       const enrichedJoiners = queue.players
         .filter((player: any) => player.player_steam_id !== queue.host_steam_id) // Exclude host from joiners
         .map((player: any) => ({
@@ -118,7 +119,8 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
           joinTime: player.joined_at,
           mapSelection: player.map_selection,
           hasSelectedMap: !!player.map_selection,
-          name: queue.playerNames[player.player_steam_id] || `Player ${player.player_steam_id.slice(-4)}`
+          name: queue.playerNames[player.player_steam_id] || `Player ${player.player_steam_id.slice(-4)}`,
+          avatar: queue.playerAvatars ? queue.playerAvatars[player.player_steam_id] : null
         }));
       
       const totalTime = Date.now() - startTime;

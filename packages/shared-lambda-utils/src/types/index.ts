@@ -256,6 +256,7 @@ export interface LambdaResponse {
 
 export interface EnrichedQueueData extends QueueData {
   playerNames: Record<string, string>;
+  playerAvatars?: Record<string, string | null>;
   joiners: Array<{
     steamId: string;
     joinTime: string;
@@ -265,6 +266,7 @@ export interface EnrichedQueueData extends QueueData {
 
 export interface EnrichedLobbyData extends LobbyData {
   playerNames: Record<string, string>;
+  playerAvatars?: Record<string, string | null>;
   enrichedPlayers: Array<{
     steamId: string;
     team?: string;
@@ -350,6 +352,7 @@ export interface UserCompleteStatus {
     isHost: boolean;
     players: GamePlayerRecord[];
     playerNames: Record<string, string>;
+    playerAvatars?: Record<string, string | null>;
   };
   // Legacy compatibility properties
   queue?: {
@@ -371,6 +374,7 @@ export interface UserCompleteStatus {
     isHost: boolean;
     players: GamePlayerRecord[];
     playerNames: Record<string, string>;
+    playerAvatars?: Record<string, string | null>;
   };
   lobby?: {
     id: string;
@@ -391,6 +395,7 @@ export interface UserCompleteStatus {
     isHost: boolean;
     players: GamePlayerRecord[];
     playerNames: Record<string, string>;
+    playerAvatars?: Record<string, string | null>;
   };
 }
 

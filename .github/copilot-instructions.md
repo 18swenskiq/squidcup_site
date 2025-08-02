@@ -12,3 +12,5 @@ When a lambda is attempting to access the database, it should call the local sha
 
 Types that will need to be shared between lambdas or between the backend/frontend should be stored in and used from the local types-squidcup package.
 
+When refactoring/updating code, we should mostly focus on getting everything clean and updated to a new style, rather than supporting legacy code.
+

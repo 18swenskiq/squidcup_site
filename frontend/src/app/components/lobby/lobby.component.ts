@@ -658,6 +658,13 @@ export class LobbyComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   getPlayerAvatarUrl(steamId: string): string | undefined {
+    // First check if the lobby player data has an avatar
+    const lobbyPlayer = this.lobby?.players?.find(p => p.steamId === steamId);
+    if (lobbyPlayer?.avatar) {
+      return lobbyPlayer.avatar;
+    }
+    
+    // Fallback to profile map
     const profile = this.playerProfiles.get(steamId);
     return profile?.avatar;
   }

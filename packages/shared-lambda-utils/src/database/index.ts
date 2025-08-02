@@ -752,6 +752,7 @@ export async function getUserCompleteStatus(sessionToken: string): Promise<UserC
   // Step 4: If in game, get game players and their names
   let gamePlayers = [];
   let gamePlayerNames = new Map();
+  let gamePlayerAvatars = new Map();
   
   if (activeGame) {
     console.log('User found in game:', activeGame.id, 'status:', activeGame.status);
@@ -770,22 +771,24 @@ export async function getUserCompleteStatus(sessionToken: string): Promise<UserC
       [activeGame.id]
     );
     
-    // Get player names for game
+    // Get player names and avatars for game
     const allGameIds = [activeGame.host_steam_id, ...gamePlayers.map((p: any) => p.player_steam_id)];
     const gameUsers = await executeQuery(
       connection,
-      `SELECT steam_id, username FROM squidcup_users WHERE steam_id IN (${allGameIds.map(() => '?').join(',')})`,
+      `SELECT steam_id, username, avatar FROM squidcup_users WHERE steam_id IN (${allGameIds.map(() => '?').join(',')})`,
       allGameIds
     );
     
     for (const user of gameUsers) {
       gamePlayerNames.set(user.steam_id, user.username || `Player ${user.steam_id.slice(-4)}`);
+      gamePlayerAvatars.set(user.steam_id, user.avatar || null);
     }
     
     // Add fallback names for missing users
     for (const steamId of allGameIds) {
       if (!gamePlayerNames.has(steamId)) {
         gamePlayerNames.set(steamId, `Player ${steamId.slice(-4)}`);
+        gamePlayerAvatars.set(steamId, null);
       }
     }
     
@@ -794,6 +797,7 @@ export async function getUserCompleteStatus(sessionToken: string): Promise<UserC
       isHost: isGameHost,
       players: gamePlayers,
       playerNames: Object.fromEntries(gamePlayerNames),
+      playerAvatars: Object.fromEntries(gamePlayerAvatars),
       teams: gameTeams // Add teams to the response
     };
     
