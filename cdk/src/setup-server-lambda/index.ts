@@ -255,33 +255,73 @@ export async function handler(event: any): Promise<any> {
         const configFileUrl = await generateAndUploadMatchZyConfig(gameId, serverInfo);
         console.log('MatchZy config uploaded successfully:', configFileUrl);
         
-        return {
-          statusCode: 200,
-          headers: {
-            'Access-Control-Allow-Origin': 'https://squidcup.spkymnr.xyz',
-            'Access-Control-Allow-Headers': 'Content-Type,Authorization',
-            'Access-Control-Allow-Methods': 'POST,OPTIONS',
-          },
-          body: JSON.stringify({ 
-            message: `Server setup completed successfully for game ${gameId} - MatchZy config uploaded`,
-            serverInfo: {
-              id: serverInfo.id,
-              ip: serverInfo.ip,
-              port: serverInfo.port,
-              nickname: serverInfo.nickname
+        // Load the match configuration on the server via RCON
+        console.log(`Loading MatchZy config on server ${serverInfo.ip}:${serverInfo.port}...`);
+        const loadMatchResult = await sendRconCommand(
+          serverInfo.ip,
+          serverInfo.port,
+          serverInfo.rcon_password,
+          `matchzy_loadmatch_url "${configFileUrl}"`
+        );
+        
+        if (loadMatchResult.success) {
+          console.log('MatchZy config loaded successfully:', loadMatchResult.response);
+          
+          return {
+            statusCode: 200,
+            headers: {
+              'Access-Control-Allow-Origin': 'https://squidcup.spkymnr.xyz',
+              'Access-Control-Allow-Headers': 'Content-Type,Authorization',
+              'Access-Control-Allow-Methods': 'POST,OPTIONS',
             },
-            pluginCheck: {
-              success: true,
-              matchZyFound: true,
-              pluginsList: rconResult.response
+            body: JSON.stringify({ 
+              message: `Server setup completed successfully for game ${gameId} - MatchZy config loaded`,
+              serverInfo: {
+                id: serverInfo.id,
+                ip: serverInfo.ip,
+                port: serverInfo.port,
+                nickname: serverInfo.nickname
+              },
+              pluginCheck: {
+                success: true,
+                matchZyFound: true,
+                pluginsList: rconResult.response
+              },
+              configFile: {
+                url: configFileUrl,
+                uploaded: true,
+                loaded: true,
+                loadResponse: loadMatchResult.response
+              },
+              timestamp: new Date().toISOString()
+            }),
+          };
+        } else {
+          console.error('Failed to load MatchZy config on server:', loadMatchResult.error);
+          return {
+            statusCode: 500,
+            headers: {
+              'Access-Control-Allow-Origin': 'https://squidcup.spkymnr.xyz',
             },
-            configFile: {
-              url: configFileUrl,
-              uploaded: true
-            },
-            timestamp: new Date().toISOString()
-          }),
-        };
+            body: JSON.stringify({ 
+              error: 'MatchZy config uploaded but failed to load on server',
+              gameId: gameId,
+              serverInfo: {
+                id: serverInfo.id,
+                ip: serverInfo.ip,
+                port: serverInfo.port,
+                nickname: serverInfo.nickname
+              },
+              configFile: {
+                url: configFileUrl,
+                uploaded: true,
+                loaded: false
+              },
+              loadError: loadMatchResult.error,
+              timestamp: new Date().toISOString()
+            }),
+          };
+        }
       } catch (configError) {
         console.error('Failed to generate or upload MatchZy config:', configError);
         return {
