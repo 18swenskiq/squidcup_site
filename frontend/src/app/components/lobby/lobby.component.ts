@@ -453,23 +453,15 @@ export class LobbyComponent implements OnInit, OnDestroy, OnChanges {
 
   private startMapCyclingAnimation(): void {
     console.log('Starting map cycling animation');
-    this.animationCountdown = 10; // Fixed 10-second animation
+    this.animationCountdown = 0; // Clear countdown - no countdown during map cycling
     this.startMapNameCycling();
     
-    // Start the 10-second animation countdown
-    this.animationSubscription = timer(0, 1000)
-      .pipe(
-        takeWhile(() => this.animationCountdown > 0 && this.isAnimating)
-      )
+    // Start the 10-second animation timer (without displaying countdown)
+    this.animationSubscription = timer(10000) // Single timer for 10 seconds
       .subscribe(() => {
         this.ngZone.run(() => {
-          this.animationCountdown--;
-          console.log('Animation countdown:', this.animationCountdown);
-          
-          // When animation countdown reaches 0, complete the animation
-          if (this.animationCountdown <= 0) {
-            this.completeMapSelectionAnimation();
-          }
+          console.log('Map cycling animation completed');
+          this.completeMapSelectionAnimation();
         });
       });
     
@@ -525,16 +517,21 @@ export class LobbyComponent implements OnInit, OnDestroy, OnChanges {
 
     let mapIndex = 0;
     let cycleInterval = 150; // Start faster for better effect
+    let startTime = Date.now();
+    const animationDuration = 10000; // 10 seconds total
+    
     // Start with first player-selected map
     this.currentCyclingMapName = playerSelectedMaps[mapIndex].name;
     
     const cycleMaps = () => {
-      // Gradually slow down the cycling as countdown approaches 0
-      const timeRemaining = this.animationCountdown;
-      if (timeRemaining <= 2) {
+      const elapsed = Date.now() - startTime;
+      const timeRemaining = animationDuration - elapsed;
+      
+      // Gradually slow down the cycling as time progresses
+      if (timeRemaining <= 2000) {
         // Slow down dramatically in the last 2 seconds
         cycleInterval = 600;
-      } else if (timeRemaining <= 4) {
+      } else if (timeRemaining <= 4000) {
         // Start slowing down
         cycleInterval = 300;
       } else {
@@ -543,7 +540,7 @@ export class LobbyComponent implements OnInit, OnDestroy, OnChanges {
       }
       
       // Stop cycling in the last second to build suspense
-      if (timeRemaining <= 1) {
+      if (timeRemaining <= 1000) {
         if (this.mapCyclingSubscription) {
           this.mapCyclingSubscription.unsubscribe();
           this.mapCyclingSubscription = undefined;
@@ -555,7 +552,7 @@ export class LobbyComponent implements OnInit, OnDestroy, OnChanges {
       this.currentCyclingMapName = playerSelectedMaps[mapIndex].name;
       
       // Schedule next cycle with updated interval
-      if (this.isAnimating) {
+      if (this.isAnimating && timeRemaining > 1000) {
         setTimeout(() => {
           if (this.isAnimating) {
             cycleMaps();
@@ -630,9 +627,8 @@ export class LobbyComponent implements OnInit, OnDestroy, OnChanges {
             // Update lobby data but maintain animation state
             this.lobby = response.lobby;
             
-            // Only complete animation early if server signals completion 
-            // AND we're in the final second (to avoid race condition)
-            if (this.lobby.mapSelectionComplete && this.isAnimating && this.animationCountdown <= 1) {
+            // Complete animation early if server signals completion
+            if (this.lobby.mapSelectionComplete && this.isAnimating) {
               this.completeMapSelectionAnimation();
             }
           } else if (!response.inLobby) {
