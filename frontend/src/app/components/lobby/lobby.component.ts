@@ -542,6 +542,31 @@ export class LobbyComponent implements OnInit, OnDestroy, OnChanges {
     this.mapSelectionForm.patchValue({ selectedMap: mapId });
   }
 
+  openWorkshopPage(mapId: string, event: Event): void {
+    // Prevent the map tile click event from firing
+    event.stopPropagation();
+    
+    // Only open in browser environment
+    if (this.isBrowser) {
+      const workshopUrl = `https://steamcommunity.com/sharedfiles/filedetails/?id=${mapId}`;
+      window.open(workshopUrl, '_blank');
+    }
+  }
+
+  onWorkshopLinkHover(isHovering: boolean, event: Event): void {
+    // Find the parent map tile and toggle the workshop-link-hovered class
+    const target = event.target as HTMLElement;
+    const mapTile = target.closest('.map-tile') as HTMLElement;
+    
+    if (mapTile) {
+      if (isHovering) {
+        mapTile.classList.add('workshop-link-hovered');
+      } else {
+        mapTile.classList.remove('workshop-link-hovered');
+      }
+    }
+  }
+
   canSelectMap(): boolean {
     const currentUser = this.authService.getCurrentUser();
     if (!currentUser || !this.lobby || this.isAnimating) return false;

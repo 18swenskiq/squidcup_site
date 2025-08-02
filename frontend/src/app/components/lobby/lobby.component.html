@@ -153,6 +153,13 @@
               [style.background-image]="'url(' + map.thumbnailUrl + ')'"
               (click)="selectMapTile(map.id)">
               <div class="map-name">{{ map.name }}</div>
+              <div class="workshop-link" 
+                   (click)="openWorkshopPage(map.id, $event)"
+                   (mouseenter)="onWorkshopLinkHover(true, $event)"
+                   (mouseleave)="onWorkshopLinkHover(false, $event)"
+                   title="Open in Steam Workshop">
+                <span class="material-symbols-outlined">open_in_new</span>
+              </div>
             </div>
           </div>
           <button type="submit" [disabled]="!mapSelectionForm.get('selectedMap')?.value || mapSelectionLoading" class="select-btn" [class.loading]="mapSelectionLoading">
@@ -187,6 +194,13 @@
               [style.background-image]="'url(' + map.thumbnailUrl + ')'"
               (click)="selectMapTile(map.id)">
               <div class="map-name">{{ map.name }}</div>
+              <div class="workshop-link" 
+                   (click)="openWorkshopPage(map.id, $event)"
+                   (mouseenter)="onWorkshopLinkHover(true, $event)"
+                   (mouseleave)="onWorkshopLinkHover(false, $event)"
+                   title="Open in Steam Workshop">
+                <span class="material-symbols-outlined">open_in_new</span>
+              </div>
             </div>
           </div>
           <button type="submit" [disabled]="!mapSelectionForm.get('selectedMap')?.value || mapSelectionLoading" class="select-btn" [class.loading]="mapSelectionLoading">
@@ -226,6 +240,13 @@
             [style.background-image]="'url(' + map.thumbnailUrl + ')'"
             (click)="selectMapTile(map.id)">
             <div class="map-name">{{ map.name }}</div>
+            <div class="workshop-link" 
+                 (click)="openWorkshopPage(map.id, $event)"
+                 (mouseenter)="onWorkshopLinkHover(true, $event)"
+                 (mouseleave)="onWorkshopLinkHover(false, $event)"
+                 title="Open in Steam Workshop">
+              <span class="material-symbols-outlined">open_in_new</span>
+            </div>
           </div>
         </div>
         <button type="submit" [disabled]="!mapSelectionForm.get('selectedMap')?.value || mapSelectionLoading" class="select-btn" [class.loading]="mapSelectionLoading">

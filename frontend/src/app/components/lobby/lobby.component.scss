@@ -439,6 +439,45 @@
   border-color: #27ae60;
 }
 
+.workshop-link {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 32px;
+  height: 32px;
+  background: rgba(0, 0, 0, 0.7);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  z-index: 10;
+  
+  &:hover {
+    background: rgba(0, 0, 0, 0.9);
+    transform: scale(1.1);
+  }
+  
+  .material-symbols-outlined {
+    color: #ffffff;
+    font-size: 18px;
+  }
+}
+
+// Prevent map tile hover when workshop link is hovered
+.map-tile.workshop-link-hovered {
+  &:hover {
+    border-color: rgba(255, 255, 255, 0.1) !important;
+    transform: none !important;
+    box-shadow: none !important;
+  }
+  
+  &:hover::before {
+    background: rgba(0, 0, 0, 0.3) !important;
+  }
+}
+
 // Special styling for random map tile
 .map-tile[style*="dice_roll.jpg"] {
   background-size: cover !important;
