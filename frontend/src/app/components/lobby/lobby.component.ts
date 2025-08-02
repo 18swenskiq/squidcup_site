@@ -63,7 +63,8 @@ export class LobbyComponent implements OnInit, OnDestroy, OnChanges {
   ngOnInit(): void {
     this.initMapSelectionForm();
     this.loadAvailableMaps();
-    this.loadPlayerProfiles();
+    // Note: We don't need to load individual player profiles since 
+    // names and avatars are already included in the lobby response
     this.startMapRefresh();
   }
 
@@ -239,10 +240,10 @@ export class LobbyComponent implements OnInit, OnDestroy, OnChanges {
               }
             }
             
-            // If new players joined, load their profiles
+            // If new players joined, their data is already included in the lobby response
             const newPlayerCount = this.lobby.players?.length || 0;
             if (newPlayerCount > oldPlayerCount) {
-              this.loadPlayerProfiles();
+              console.log('New players joined, player count increased from', oldPlayerCount, 'to', newPlayerCount);
             }
           } else if (!response.inLobby) {
             // Lobby was disbanded
@@ -261,7 +262,17 @@ export class LobbyComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   getTeamPlayers(teamNumber: number): LobbyPlayer[] {
-    // Handle new string-based team identifiers
+    // Check if we have teams data from the API
+    if (this.lobby?.teams && this.lobby.teams.length > 0) {
+      // Find the team with the matching team number
+      const team = this.lobby.teams.find(t => t.team_number === teamNumber);
+      if (team) {
+        // Return players assigned to this specific team UUID
+        return this.lobby.players?.filter(player => player.team === team.id) || [];
+      }
+    }
+    
+    // Fallback: Handle legacy string-based team identifiers
     const assignedTeamPlayers = this.lobby?.players?.filter(player => {
       // Try to match by team ID/name that includes the team number
       return player.team === teamNumber.toString() || 

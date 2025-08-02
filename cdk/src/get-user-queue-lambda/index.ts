@@ -96,6 +96,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
             hasPassword: false, // Lobbies don't have passwords
             ranked: !!lobby.ranked, // Use actual ranked status from database
             players: enrichedPlayers,
+            teams: lobby.teams || [], // Include teams data for team assignment mapping
             mapSelectionComplete: lobby.map ? true : false, // Check if final map has been selected
             selectedMap: lobby.map, // Include the final selected map if available
             mapAnimSelectStartTime: lobby.map_anim_select_start_time, // Animation timing for map selection
