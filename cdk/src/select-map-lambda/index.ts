@@ -180,9 +180,9 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
         // First get available maps from Steam API
         const steamApiKey = await getSsmParameter('/unencrypted/SteamApiKey');
         const availableMaps = await getMapsByGameMode(game.game_mode, steamApiKey);
-        const mapNames = availableMaps.map(map => map.name);
+        const mapIds = availableMaps.map(map => map.id); // Use map IDs instead of names
         
-        await replaceRandomMapSelections(gameId, mapNames);
+        await replaceRandomMapSelections(gameId, mapIds);
         
         // Now get a random map from the updated selections
         finalMap = await selectRandomMapFromSelections(gameId);
