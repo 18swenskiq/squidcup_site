@@ -121,8 +121,8 @@ export const handler = async (event: any) => {
       }))
     ];
 
-    // Balance players into teams if gamemode has more than 2 players
-    if (maxPlayers > 2) {
+    // Balance players into teams for all game modes with 2 or more players
+    if (maxPlayers >= 2) {
       await balancePlayersIntoTeams(gameId, allPlayers, queueData.game_mode as GameMode);
     }
 

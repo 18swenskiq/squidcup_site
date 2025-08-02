@@ -11,6 +11,15 @@ export interface LobbyPlayer {
   isHost?: boolean; // Whether this player is the host
 }
 
+export interface GameTeam {
+  id: string; // Team UUID
+  game_id: string; // Game this team belongs to
+  team_number: number; // Team number (1, 2, etc.)
+  team_name: string; // Team display name
+  average_elo: number; // Team's average Elo rating
+  created_at: string; // When team was created
+}
+
 export interface LobbyData {
   id: string;
   hostSteamId: string; // Using camelCase for frontend consistency
@@ -20,6 +29,7 @@ export interface LobbyData {
   ranked: boolean;
   status: string;
   players: LobbyPlayer[];
+  teams?: GameTeam[]; // Add teams array to provide team metadata
   mapSelectionComplete?: boolean;
   selectedMap?: string;
   mapAnimSelectStartTime?: number; // Animation timing for map selection

@@ -1,4 +1,5 @@
 import * as mysql from 'mysql2/promise';
+import * as crypto from 'crypto';
 import { SSMClient, GetParameterCommand } from '@aws-sdk/client-ssm';
 import { 
   User, 
@@ -762,6 +763,13 @@ export async function getUserCompleteStatus(sessionToken: string): Promise<UserC
       [activeGame.id]
     );
     
+    // Get teams for the game
+    const gameTeams = await executeQuery(
+      connection,
+      'SELECT * FROM squidcup_game_teams WHERE game_id = ? ORDER BY team_number',
+      [activeGame.id]
+    );
+    
     // Get player names for game
     const allGameIds = [activeGame.host_steam_id, ...gamePlayers.map((p: any) => p.player_steam_id)];
     const gameUsers = await executeQuery(
@@ -785,7 +793,8 @@ export async function getUserCompleteStatus(sessionToken: string): Promise<UserC
       ...activeGame,
       isHost: isGameHost,
       players: gamePlayers,
-      playerNames: Object.fromEntries(gamePlayerNames)
+      playerNames: Object.fromEntries(gamePlayerNames),
+      teams: gameTeams // Add teams to the response
     };
     
     return {
