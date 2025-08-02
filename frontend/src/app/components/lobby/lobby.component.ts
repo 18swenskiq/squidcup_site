@@ -49,6 +49,9 @@ export class LobbyComponent implements OnInit, OnDestroy, OnChanges {
   private animationSubscription?: Subscription;
   private mapCyclingSubscription?: Subscription;
   private isBrowser: boolean;
+  
+  // Track previous map selections to detect changes from "random" to actual maps
+  private previousMapSelections: Map<string, string> = new Map();
 
   constructor(
     private fb: FormBuilder, 
@@ -66,6 +69,20 @@ export class LobbyComponent implements OnInit, OnDestroy, OnChanges {
     // Note: We don't need to load individual player profiles since 
     // names and avatars are already included in the lobby response
     this.startMapRefresh();
+    
+    // Initialize map selection tracking
+    this.initializeMapSelectionTracking();
+  }
+
+  private initializeMapSelectionTracking(): void {
+    // Initialize tracking with current lobby state
+    if (this.lobby?.players) {
+      this.lobby.players.forEach((player: any) => {
+        if (player.mapSelection) {
+          this.previousMapSelections.set(player.steamId, player.mapSelection);
+        }
+      });
+    }
   }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -176,6 +193,50 @@ export class LobbyComponent implements OnInit, OnDestroy, OnChanges {
       });
   }
 
+  private detectMapSelectionChanges(newLobby: any): void {
+    if (!newLobby?.players) return;
+    
+    let hasChanges = false;
+    const newSelections = new Map<string, string>();
+    
+    // Build map of current selections
+    newLobby.players.forEach((player: any) => {
+      if (player.mapSelection) {
+        newSelections.set(player.steamId, player.mapSelection);
+        
+        // Check if this player's selection changed from "random" to an actual map
+        const previousSelection = this.previousMapSelections.get(player.steamId);
+        if (previousSelection === 'random' && player.mapSelection !== 'random') {
+          console.log(`Player ${player.name} map selection resolved from "random" to "${player.mapSelection}"`);
+          hasChanges = true;
+        }
+      }
+    });
+    
+    // Update the tracking map
+    this.previousMapSelections = newSelections;
+    
+    // If we detected random->actual map changes and we're currently animating, update the animation
+    if (hasChanges && this.isAnimating) {
+      console.log('Map selections changed during animation, updating...');
+      this.updateMapCycling();
+    }
+  }
+
+  private updateMapCycling(): void {
+    // Get updated player selected maps
+    const playerSelectedMaps = this.getPlayerSelectedMaps();
+    
+    // If the map cycling is running, update it with new maps
+    if (this.mapCyclingSubscription && !this.mapCyclingSubscription.closed) {
+      console.log('Updating map cycling with new selections:', playerSelectedMaps.map(m => m.name));
+      
+      // Restart the cycling with updated maps
+      this.mapCyclingSubscription.unsubscribe();
+      this.startMapNameCycling();
+    }
+  }
+
   private startMapRefresh(): void {
     // Only start polling in the browser and if not paused
     if (!this.isBrowser || this.isPollingPaused) return;
@@ -209,6 +270,10 @@ export class LobbyComponent implements OnInit, OnDestroy, OnChanges {
             // Update lobby data
             const oldPlayerCount = this.lobby.players?.length || 0;
             const previousAnimStartTime = this.lobby.mapAnimSelectStartTime;
+            
+            // Detect map selection changes before updating lobby
+            this.detectMapSelectionChanges(response.lobby);
+            
             this.lobby = response.lobby;
             
             // Debug logging for animation timing
@@ -420,16 +485,24 @@ export class LobbyComponent implements OnInit, OnDestroy, OnChanges {
       return [];
     }
     
-    // Get unique map IDs that players have selected
+    // Get unique map IDs that players have selected (excluding "random")
     const selectedMapIds = new Set<string>();
     this.lobby.players.forEach(player => {
-      if (player.hasSelectedMap && player.mapSelection) {
+      if (player.hasSelectedMap && player.mapSelection && player.mapSelection !== 'random') {
         selectedMapIds.add(player.mapSelection);
       }
     });
     
+    // If no valid map selections yet (all still "random"), return empty array
+    if (selectedMapIds.size === 0) {
+      console.log('No resolved map selections found, all players may still have "random" selections');
+      return [];
+    }
+    
     // Return the actual map objects for those IDs
-    return this.availableMaps.filter(map => selectedMapIds.has(map.id));
+    const filteredMaps = this.availableMaps.filter(map => selectedMapIds.has(map.id));
+    console.log('Player selected maps for animation:', filteredMaps.map(m => m.name));
+    return filteredMaps;
   }
 
   private startMapNameCycling(): void {
@@ -437,8 +510,16 @@ export class LobbyComponent implements OnInit, OnDestroy, OnChanges {
     const playerSelectedMaps = this.getPlayerSelectedMaps();
     
     if (!playerSelectedMaps || playerSelectedMaps.length === 0) {
-      // If no player selections or maps not loaded yet, show a placeholder
-      this.currentCyclingMapName = 'Loading selections...';
+      // Check if players are still resolving random selections
+      const hasRandomSelections = this.lobby?.players?.some(player => 
+        player.hasSelectedMap && player.mapSelection === 'random'
+      );
+      
+      if (hasRandomSelections) {
+        this.currentCyclingMapName = 'Resolving random selections...';
+      } else {
+        this.currentCyclingMapName = 'Loading selections...';
+      }
       return;
     }
 
