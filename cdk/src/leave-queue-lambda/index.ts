@@ -4,7 +4,6 @@ import {
   getSession, 
   getUserActiveQueue, 
   storeQueueHistoryEvent, 
-  deleteQueue, 
   removePlayerFromQueue, 
   updateQueue,
   createCorsHeaders,

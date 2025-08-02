@@ -4,8 +4,7 @@ import {
   getSession, 
   getLobbyWithPlayers, 
   storeLobbyHistoryEvent, 
-  deleteLobby,
-  deleteQueue,
+  updateLobby,
   createCorsHeaders,
 } from '@squidcup/shared-lambda-utils';
 
@@ -111,19 +110,16 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
       });
     }
     
-    // Delete the lobby using shared utilities
-    await deleteLobby(lobbyData.id);
+    // Cancel the lobby instead of deleting it to preserve historical data
+    await updateLobby(lobbyData.id, { status: 'cancelled' });
 
-    // Note: In unified architecture, there's no separate queue to delete
-    // The game record itself handles both queue and lobby states
-
-    console.log('Lobby disbanded successfully');
+    console.log('Lobby cancelled successfully');
     return {
       statusCode: 200,
       headers: corsHeaders,
       body: JSON.stringify({
-        action: 'disbanded',
-        message: 'Lobby disbanded successfully',
+        action: 'cancelled',
+        message: 'Lobby cancelled successfully',
         wasHost: isHost,
       }),
     };

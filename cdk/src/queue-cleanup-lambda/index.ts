@@ -3,7 +3,6 @@ import {
   getActiveQueuesForCleanup,
   getQueuePlayers,
   storeQueueHistoryEvent,
-  deleteQueue,
   updateQueue
 } from '@squidcup/shared-lambda-utils';
 
