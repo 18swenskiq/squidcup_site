@@ -4,14 +4,18 @@ export async function handler(event: any): Promise<any> {
   console.log('Hello world - setup server lambda called');
   console.log('Event received:', JSON.stringify(event, null, 2));
 
+  // Extract gameId from the event payload
+  const gameId = event.gameId;
+  console.log('Game ID:', gameId);
+
   // Test RCON functionality with a hardcoded server for now
-  // TODO: Get actual server details from the game data
+  // TODO: Get actual server details from the game data using gameId
   try {
     const testServerIp = '127.0.0.1'; // Placeholder IP
     const testServerPort = 27015; // Default CS2 port
     const testRconPassword = 'test123'; // Placeholder password
     
-    console.log('Testing RCON connection...');
+    console.log(`Testing RCON connection for game ${gameId}...`);
     const rconResult = await sendRconCommand(testServerIp, testServerPort, testRconPassword, 'status');
     
     if (rconResult.success) {
