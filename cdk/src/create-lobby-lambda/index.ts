@@ -14,6 +14,7 @@ import {
   updateTeamName,
   getPlayerUsernamesBySteamIds,
   LobbyPlayerRecord, 
+  GamePlayerRecord,
   GameMode, 
   LobbyData,
   CreateLobbyInput,
@@ -85,7 +86,7 @@ async function generateAndUpdateTeamNames(gameId: string, teams: any[], gameMode
 
 async function balancePlayersIntoTeams(
   gameId: string,
-  players: LobbyPlayerRecord[],
+  players: GamePlayerRecord[],
   gameMode: GameMode
 ): Promise<void> {
   const maxPlayers = getMaxPlayersForGamemode(gameMode);
@@ -170,25 +171,12 @@ export const handler = async (event: any) => {
     const lobbyId = gameId; // Use the same game ID
     const now = new Date().toISOString();
 
-    // Create players array from queue data (no team assignment yet)
-    const allPlayers: LobbyPlayerRecord[] = [
-      { 
-        game_id: lobbyId,
-        player_steam_id: queueData.host_steam_id, 
-        team_id: undefined,
-        joined_at: new Date().toISOString() 
-      },
-      ...queuePlayers.map(player => ({
-        game_id: lobbyId,
-        player_steam_id: player.player_steam_id,
-        team_id: undefined,
-        joined_at: player.joined_at
-      }))
-    ];
+    // Get actual players from database to balance into teams
+    const existingPlayers = await getQueuePlayers(gameId);
 
     // Balance players into teams for all game modes with 2 or more players
     if (maxPlayers >= 2) {
-      await balancePlayersIntoTeams(gameId, allPlayers, queueData.game_mode as GameMode);
+      await balancePlayersIntoTeams(gameId, existingPlayers, queueData.game_mode as GameMode);
     }
 
     // Get updated players with team assignments
