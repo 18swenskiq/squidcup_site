@@ -85,6 +85,21 @@ export class ApiStack extends cdk.Stack {
       }
     });
 
+    const setupServerFunction = new NodejsFunction(this, "setup-server-function", {
+      runtime: this.RUNTIME,
+      memorySize: this.MEMORY_SIZE,
+      timeout: this.TIMEOUT,
+      handler: 'index.handler',
+      code: lambda.Code.fromAsset(path.join(__dirname, '/../src/setup-server-lambda')),
+      logRetention: this.LOG_RETENTION,
+      environment: {
+        REGION: this.REGION,
+      },
+      bundling: {
+        minify: true,
+      }
+    });
+
     const deleteServerFunction = new NodejsFunction(this, "delete-server-function", {
       runtime: this.RUNTIME,
       memorySize: this.MEMORY_SIZE,
@@ -634,6 +649,58 @@ export class ApiStack extends cdk.Stack {
     
     // Add OPTIONS method for addServer endpoint
     addServerResource.addMethod('OPTIONS', new apigw.MockIntegration({
+      integrationResponses: [{
+        statusCode: '200',
+        responseParameters: {
+          'method.response.header.Access-Control-Allow-Origin': "'https://squidcup.spkymnr.xyz'",
+          'method.response.header.Access-Control-Allow-Headers': "'Content-Type,Authorization'",
+          'method.response.header.Access-Control-Allow-Methods': "'POST,OPTIONS'",
+        },
+      }],
+      requestTemplates: {
+        'application/json': '{"statusCode": 200}'
+      }
+    }), {
+      methodResponses: [{
+        statusCode: '200',
+        responseParameters: {
+          'method.response.header.Access-Control-Allow-Origin': true,
+          'method.response.header.Access-Control-Allow-Headers': true,
+          'method.response.header.Access-Control-Allow-Methods': true,
+        },
+      }]
+    });
+
+    // Add a resource for /setupServer endpoint
+    const setupServerResource = api.root.addResource('setupServer');
+    setupServerResource.addMethod('POST', new apigw.LambdaIntegration(setupServerFunction), {
+      methodResponses: [{
+        statusCode: '200',
+        responseParameters: {
+          'method.response.header.Access-Control-Allow-Origin': true,
+          'method.response.header.Access-Control-Allow-Headers': true,
+          'method.response.header.Access-Control-Allow-Methods': true,
+        },
+      }, {
+        statusCode: '401',
+        responseParameters: {
+          'method.response.header.Access-Control-Allow-Origin': true,
+        },
+      }, {
+        statusCode: '403',
+        responseParameters: {
+          'method.response.header.Access-Control-Allow-Origin': true,
+        },
+      }, {
+        statusCode: '500',
+        responseParameters: {
+          'method.response.header.Access-Control-Allow-Origin': true,
+        },
+      }]
+    });
+    
+    // Add OPTIONS method for setupServer endpoint
+    setupServerResource.addMethod('OPTIONS', new apigw.MockIntegration({
       integrationResponses: [{
         statusCode: '200',
         responseParameters: {
