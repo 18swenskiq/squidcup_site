@@ -6,6 +6,7 @@ import * as iam from 'aws-cdk-lib/aws-iam';
 import * as logs from 'aws-cdk-lib/aws-logs';
 import * as events from 'aws-cdk-lib/aws-events';
 import * as targets from 'aws-cdk-lib/aws-events-targets';
+import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as path from 'path';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 
@@ -326,6 +327,29 @@ export class ApiStack extends cdk.Stack {
     // Grant Lambda invoke permissions for lobby system
     createLobbyFunction.grantInvoke(joinQueueFunction); // Allow join-queue to invoke create-lobby
     setupServerFunction.grantInvoke(selectMapFunction); // Allow select-map to invoke setup-server
+    
+    // Create S3 bucket for game configuration files
+    const gameConfigsBucket = new s3.Bucket(this, 'squidcup-game-configs', {
+      bucketName: 'squidcup-game-configs',
+      publicReadAccess: true,
+      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ACLS,
+      objectOwnership: s3.ObjectOwnership.BUCKET_OWNER_ENFORCED,
+      cors: [
+        {
+          allowedMethods: [s3.HttpMethods.GET],
+          allowedOrigins: ['*'],
+          allowedHeaders: ['*'],
+        },
+      ],
+      removalPolicy: cdk.RemovalPolicy.RETAIN, // Keep bucket when stack is deleted
+    });
+
+    // Grant setup-server-lambda permission to write to the S3 bucket
+    gameConfigsBucket.grantPut(setupServerFunction);
+    gameConfigsBucket.grantPutAcl(setupServerFunction);
+
+    // Add S3 bucket name as environment variable for setup-server-lambda
+    setupServerFunction.addEnvironment('GAME_CONFIGS_BUCKET', gameConfigsBucket.bucketName);
     
     // Grant database service invoke permissions to all lambdas that need it
     // All lambdas now use shared-lambda-utils directly
