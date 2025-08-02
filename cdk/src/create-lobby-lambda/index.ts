@@ -11,6 +11,8 @@ import {
   getGameTeams,
   createGameTeam,
   updatePlayerTeam,
+  updateTeamName,
+  getPlayerUsernamesBySteamIds,
   LobbyPlayerRecord, 
   GameMode, 
   LobbyData,
@@ -24,8 +26,68 @@ interface LobbyResponseData extends LobbyData {
   selectedMap?: string;
 }
 
-// Function to balance players into teams
-async function balancePlayersIntoTeams(gameId: string, players: LobbyPlayerRecord[], gameMode: GameMode): Promise<void> {
+async function generateAndUpdateTeamNames(gameId: string, teams: any[], gameMode: GameMode): Promise<void> {
+  // Get all players for this game
+  const allPlayers = await getQueuePlayers(gameId);
+  
+  // Group players by team
+  const teamPlayers: Record<string, any[]> = {};
+  for (const player of allPlayers) {
+    if (player.team_id) {
+      if (!teamPlayers[player.team_id]) {
+        teamPlayers[player.team_id] = [];
+      }
+      teamPlayers[player.team_id].push(player);
+    }
+  }
+  
+  // Get all steam IDs to fetch usernames
+  const allSteamIds = allPlayers.map(p => p.player_steam_id);
+  const usernameMap = await getPlayerUsernamesBySteamIds(allSteamIds);
+  
+  // Calculate team size based on game mode
+  const maxPlayers = getMaxPlayersForGamemode(gameMode);
+  const teamSize = maxPlayers / 2;
+  
+  // Generate and update team names
+  for (const team of teams) {
+    const playersInTeam = teamPlayers[team.id] || [];
+    
+    if (playersInTeam.length > 0) {
+      // Generate team name using the algorithm
+      const nameParts: string[] = [];
+      
+      for (let i = 0; i < playersInTeam.length; i++) {
+        const playerSteamId = playersInTeam[i].player_steam_id;
+        const playerName = usernameMap[playerSteamId] || `Player${i + 1}`;
+        const nameLength = playerName.length;
+        const portionSize = Math.max(1, Math.floor(nameLength / teamSize));
+        
+        // Calculate which portion to take based on player position
+        const portionIndex = i % teamSize;
+        const startIndex = portionIndex * portionSize;
+        const endIndex = Math.min(startIndex + portionSize, nameLength);
+        
+        // Extract the portion (make sure we get at least 1 character)
+        const portion = playerName.substring(startIndex, endIndex) || playerName.charAt(0);
+        nameParts.push(portion);
+      }
+      
+      // Combine all portions
+      const combinedName = nameParts.join('');
+      const teamName = `Team ${combinedName}`;
+      
+      // Update team name in database
+      await updateTeamName(team.id, teamName);
+    }
+  }
+}
+
+async function balancePlayersIntoTeams(
+  gameId: string,
+  players: LobbyPlayerRecord[],
+  gameMode: GameMode
+): Promise<void> {
   const maxPlayers = getMaxPlayersForGamemode(gameMode);
   const playersPerTeam = maxPlayers / 2;
   
@@ -46,6 +108,9 @@ async function balancePlayersIntoTeams(gameId: string, players: LobbyPlayerRecor
       await updatePlayerTeam(gameId, shuffledPlayers[i].player_steam_id, team.id);
     }
   }
+  
+  // Generate and update team names based on assigned players
+  await generateAndUpdateTeamNames(gameId, teams, gameMode);
 }
 
 export const handler = async (event: any) => {

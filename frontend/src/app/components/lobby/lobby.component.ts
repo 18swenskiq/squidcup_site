@@ -312,10 +312,22 @@ export class LobbyComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   getTeamName(teamNumber: number): string {
+    // First check if we have teams data from the API with proper team names
+    if (this.lobby?.teams && this.lobby.teams.length > 0) {
+      const team = this.lobby.teams.find(t => t.team_number === teamNumber);
+      if (team && team.team_name) {
+        return team.team_name;
+      }
+    }
+    
     const teamPlayers = this.getTeamPlayers(teamNumber);
     
-    // For 1v1, use simple "Player 1" and "Player 2" naming
+    // For 1v1, if no specific team names available, use player names or fallback
     if (this.lobby?.gameMode === '1v1') {
+      if (teamPlayers.length > 0) {
+        const playerName = teamPlayers[0].name || this.getPlayerDisplayName(teamPlayers[0].steamId);
+        return playerName;
+      }
       return `Player ${teamNumber}`;
     }
     

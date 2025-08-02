@@ -609,6 +609,33 @@ export async function createGameTeam(gameId: string, teamNumber: number, teamNam
   return teamId;
 }
 
+export async function updateTeamName(teamId: string, teamName: string): Promise<void> {
+  const connection = await getDatabaseConnection();
+  await executeQuery(
+    connection,
+    'UPDATE squidcup_game_teams SET team_name = ? WHERE id = ?',
+    [teamName, teamId]
+  );
+}
+
+export async function getPlayerUsernamesBySteamIds(steamIds: string[]): Promise<Record<string, string>> {
+  if (steamIds.length === 0) return {};
+  
+  const connection = await getDatabaseConnection();
+  const placeholders = steamIds.map(() => '?').join(',');
+  const results = await executeQuery(
+    connection,
+    `SELECT steam_id, username FROM squidcup_users WHERE steam_id IN (${placeholders})`,
+    steamIds
+  );
+  
+  const usernameMap: Record<string, string> = {};
+  for (const row of results) {
+    usernameMap[row.steam_id] = row.username;
+  }
+  return usernameMap;
+}
+
 export async function getGameTeams(gameId: string): Promise<GameTeamRecord[]> {
   const connection = await getDatabaseConnection();
   return await executeQuery(
