@@ -5,7 +5,7 @@ import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 const s3Client = new S3Client({ region: process.env.AWS_REGION || 'us-east-1' });
 
 interface MatchZyConfig {
-  matchid: string;
+  matchid: number;
   team1: {
     name: string;
     players: Record<string, string>;
@@ -62,11 +62,11 @@ async function generateAndUploadMatchZyConfig(gameId: string, serverInfo: any): 
     
     if (team1) {
       team1Name = team1.team_name;
-      team1AvgElo = team1.average_elo;
+      team1AvgElo = Math.round(team1.average_elo); // Round to integer
     }
     if (team2) {
       team2Name = team2.team_name;
-      team2AvgElo = team2.average_elo;
+      team2AvgElo = Math.round(team2.average_elo); // Round to integer
     }
   }
 
@@ -103,7 +103,7 @@ async function generateAndUploadMatchZyConfig(gameId: string, serverInfo: any): 
 
   // Build the MatchZy configuration
   const config: MatchZyConfig = {
-    matchid: gameId,
+    matchid: gameWithPlayers.match_number,
     team1: {
       name: team1Name,
       players: team1Players
@@ -113,7 +113,7 @@ async function generateAndUploadMatchZyConfig(gameId: string, serverInfo: any): 
       players: team2Players
     },
     num_maps: 1,
-    maplist: [gameWithPlayers.map || 'de_dust2'], // Use selected map or default
+    maplist: [gameWithPlayers.map || 'de_dust2'],
     map_sides: [
       'team1_ct',
       'team2_ct',
@@ -136,7 +136,7 @@ async function generateAndUploadMatchZyConfig(gameId: string, serverInfo: any): 
     throw new Error('GAME_CONFIGS_BUCKET environment variable not set');
   }
   
-  const fileName = `${gameId}.json`;
+  const fileName = `${gameWithPlayers.match_number}_${gameId}.json`;
   
   const putCommand = new PutObjectCommand({
     Bucket: bucketName,
@@ -257,12 +257,19 @@ export async function handler(event: any): Promise<any> {
         
         // Load the match configuration on the server via RCON
         console.log(`Loading MatchZy config on server ${serverInfo.ip}:${serverInfo.port}...`);
+        console.log(`RCON Command: matchzy_loadmatch_url "${configFileUrl}"`);
         const loadMatchResult = await sendRconCommand(
           serverInfo.ip,
           serverInfo.port,
           serverInfo.rcon_password,
           `matchzy_loadmatch_url "${configFileUrl}"`
         );
+        
+        console.log('MatchZy load command result:', {
+          success: loadMatchResult.success,
+          response: loadMatchResult.response,
+          error: loadMatchResult.error
+        });
         
         if (loadMatchResult.success) {
           console.log('MatchZy config loaded successfully:', loadMatchResult.response);

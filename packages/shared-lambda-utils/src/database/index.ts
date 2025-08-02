@@ -198,6 +198,7 @@ async function ensureTablesExist(connection: mysql.Connection): Promise<void> {
     await connection.execute(`
       CREATE TABLE IF NOT EXISTS squidcup_games (
         id VARCHAR(36) PRIMARY KEY,
+        match_number INT AUTO_INCREMENT UNIQUE,
         game_mode VARCHAR(20) NOT NULL,
         map VARCHAR(100),
         map_selection_mode ENUM('all-pick', 'host-pick', 'random-map') NOT NULL,
@@ -218,7 +219,8 @@ async function ensureTablesExist(connection: mysql.Connection): Promise<void> {
         INDEX idx_game_mode (game_mode),
         INDEX idx_server_id (server_id),
         INDEX idx_start_time (start_time),
-        INDEX idx_host_steam_id (host_steam_id)
+        INDEX idx_host_steam_id (host_steam_id),
+        INDEX idx_match_number (match_number)
       )
     `);
 

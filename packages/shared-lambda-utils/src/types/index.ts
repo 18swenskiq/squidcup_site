@@ -279,6 +279,7 @@ export interface EnrichedLobbyData extends LobbyData {
 
 export interface DatabaseGame {
   id: string;
+  match_number: number;
   game_mode: GameMode;
   map?: string;
   map_selection_mode: MapSelectionMode;
