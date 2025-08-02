@@ -36,19 +36,84 @@ export async function handler(event: any): Promise<any> {
       nickname: serverInfo.nickname
     });
 
-    // Test RCON connection with actual server details
-    console.log(`Testing RCON connection to ${serverInfo.ip}:${serverInfo.port} for game ${gameId}...`);
+    // Check for CounterStrikeSharp and MatchZy plugin
+    console.log(`Checking for CounterStrikeSharp and MatchZy plugin on ${serverInfo.ip}:${serverInfo.port} for game ${gameId}...`);
     const rconResult = await sendRconCommand(
       serverInfo.ip, 
       serverInfo.port, 
       serverInfo.rcon_password, 
-      'status'
+      'css_plugins list'
     );
     
     if (rconResult.success) {
-      console.log('RCON Status Response:', rconResult.response);
+      console.log('RCON css_plugins Response:', rconResult.response);
+      
+      // Check if CounterStrikeSharp is installed
+      if (rconResult.response?.includes("Unknown command 'css_plugins'")) {
+        console.error('CounterStrikeSharp is not installed on the server');
+        return {
+          statusCode: 500,
+          headers: {
+            'Access-Control-Allow-Origin': 'https://squidcup.spkymnr.xyz',
+          },
+          body: JSON.stringify({ 
+            error: 'CounterStrikeSharp is not installed on the server',
+            gameId: gameId,
+            serverInfo: {
+              id: serverInfo.id,
+              ip: serverInfo.ip,
+              port: serverInfo.port,
+              nickname: serverInfo.nickname
+            },
+            timestamp: new Date().toISOString()
+          }),
+        };
+      }
+      
+      // Check if MatchZy plugin is loaded
+      if (!rconResult.response?.includes('MatchZy')) {
+        console.error('MatchZy plugin is not loaded on the server');
+        return {
+          statusCode: 500,
+          headers: {
+            'Access-Control-Allow-Origin': 'https://squidcup.spkymnr.xyz',
+          },
+          body: JSON.stringify({ 
+            error: 'MatchZy plugin is not loaded on the server',
+            gameId: gameId,
+            serverInfo: {
+              id: serverInfo.id,
+              ip: serverInfo.ip,
+              port: serverInfo.port,
+              nickname: serverInfo.nickname
+            },
+            pluginsList: rconResult.response,
+            timestamp: new Date().toISOString()
+          }),
+        };
+      }
+      
+      console.log('MatchZy plugin found and loaded successfully');
     } else {
       console.log('RCON Error:', rconResult.error);
+      return {
+        statusCode: 500,
+        headers: {
+          'Access-Control-Allow-Origin': 'https://squidcup.spkymnr.xyz',
+        },
+        body: JSON.stringify({ 
+          error: 'Failed to connect to server via RCON',
+          gameId: gameId,
+          serverInfo: {
+            id: serverInfo.id,
+            ip: serverInfo.ip,
+            port: serverInfo.port,
+            nickname: serverInfo.nickname
+          },
+          rconError: rconResult.error,
+          timestamp: new Date().toISOString()
+        }),
+      };
     }
 
     return {
@@ -59,16 +124,17 @@ export async function handler(event: any): Promise<any> {
         'Access-Control-Allow-Methods': 'POST,OPTIONS',
       },
       body: JSON.stringify({ 
-        message: `Server setup initiated for game ${gameId}`,
+        message: `Server setup initiated successfully for game ${gameId} - MatchZy plugin verified`,
         serverInfo: {
           id: serverInfo.id,
           ip: serverInfo.ip,
           port: serverInfo.port,
           nickname: serverInfo.nickname
         },
-        rconTest: {
-          success: rconResult.success,
-          response: rconResult.success ? rconResult.response : rconResult.error
+        pluginCheck: {
+          success: true,
+          matchZyFound: true,
+          pluginsList: rconResult.response
         },
         timestamp: new Date().toISOString()
       }),
