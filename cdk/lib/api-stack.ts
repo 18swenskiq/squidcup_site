@@ -305,6 +305,7 @@ export class ApiStack extends cdk.Stack {
 
     // Add the SSM policy to all Lambda functions
     addServerFunction.addToRolePolicy(ssmPolicy);
+    setupServerFunction.addToRolePolicy(ssmPolicy);
     deleteServerFunction.addToRolePolicy(ssmPolicy);
     getAllQueuesFunction.addToRolePolicy(ssmPolicy);
     getMapsFunction.addToRolePolicy(ssmPolicy);
