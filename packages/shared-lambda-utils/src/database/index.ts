@@ -450,6 +450,20 @@ export async function deleteServer(serverId: string): Promise<void> {
   await executeQuery(connection, 'DELETE FROM squidcup_servers WHERE id = ?', [serverId]);
 }
 
+export async function getServerInfoForGame(gameId: string): Promise<GameServer | null> {
+  const connection = await getDatabaseConnection();
+  const result = await executeQuery(
+    connection,
+    `SELECT s.* 
+     FROM squidcup_servers s 
+     JOIN squidcup_games g ON s.id = g.server_id 
+     WHERE g.id = ?`,
+    [gameId]
+  );
+  
+  return result.length > 0 ? result[0] : null;
+}
+
 // Game management functions (unified queue/lobby)
 export async function getGame(gameId: string): Promise<DatabaseGame | null> {
   const connection = await getDatabaseConnection();
