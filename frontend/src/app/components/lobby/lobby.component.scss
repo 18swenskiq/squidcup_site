@@ -1,29 +1,51 @@
-// Ensure all elements use inherited font
 * {
   font-family: inherit;
 }
 
-// Ensure material icons display correctly
 .material-symbols-outlined {
   font-family: 'Material Symbols Outlined' !important;
+}
+
+:host {
+  --white-05: rgba(255, 255, 255, 0.05);
+  --white-08: rgba(255, 255, 255, 0.08);
+  --white-1: rgba(255, 255, 255, 0.1);
+  --white-2: rgba(255, 255, 255, 0.2);
+  --white-3: rgba(255, 255, 255, 0.3);
+  --white-5: rgba(255, 255, 255, 0.5);
+  --white-6: rgba(255, 255, 255, 0.6);
+  --white-7: rgba(255, 255, 255, 0.7);
+  --white-8: rgba(255, 255, 255, 0.8);
+  --black-3: rgba(0, 0, 0, 0.3);
+  --black-4: rgba(0, 0, 0, 0.4);
+  --black-7: rgba(0, 0, 0, 0.7);
+  --black-8: rgba(0, 0, 0, 0.8);
+  --black-9: rgba(0, 0, 0, 0.9);
+  --blue-1: rgba(52, 152, 219, 0.1);
+  --blue-3: rgba(52, 152, 219, 0.3);
+  --blue-4: rgba(52, 152, 219, 0.4);
+  --blue-5: rgba(52, 152, 219, 0.5);
+  --blue-6: rgba(52, 152, 219, 0.6);
+  --green-6: rgba(39, 174, 96, 0.6);
+  --green-7: rgba(39, 174, 96, 0.7);
+  --red-1: rgba(231, 76, 60, 0.1);
 }
 
 .lobby-container {
   max-width: 1200px;
   margin: 0 auto;
   padding: 20px;
-  background-color: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background-color: var(--white-05);
+  border: 1px solid var(--white-1);
   border-radius: 12px;
   color: #ffffff;
-  font-family: inherit;
 }
 
 .lobby-header {
   text-align: center;
   margin-bottom: 30px;
   padding-bottom: 20px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid var(--white-1);
 }
 
 .lobby-header h2 {
@@ -72,9 +94,8 @@
   align-items: flex-start;
 }
 
-// Central map display between teams
 .selected-map-display {
-  flex: 0 0 250px; // Increased width for better map name display
+  flex: 0 0 250px;
   text-align: center;
   padding: 20px 15px;
   
@@ -100,13 +121,13 @@
   }
   
   .no-selection {
-    color: rgba(255, 255, 255, 0.6);
+    color: var(--white-6);
     font-style: italic;
   }
   
   .map-selection-table {
-    background: rgba(255, 255, 255, 0.08);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: var(--white-08);
+    border: 1px solid var(--white-1);
     border-radius: 8px;
     padding: 15px;
     margin-top: 10px;
@@ -116,7 +137,7 @@
       justify-content: space-between;
       align-items: center;
       padding: 8px 12px;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      border-bottom: 1px solid var(--white-1);
       
       &:last-child {
         border-bottom: none;
@@ -146,7 +167,7 @@
       }
       
       .choosing {
-        color: rgba(255, 255, 255, 0.5);
+        color: var(--white-5);
         font-size: 0.8em;
         font-style: italic;
       }
@@ -155,9 +176,9 @@
 }
 
 .team {
-  flex: 1; // Teams take equal space on either side
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  flex: 1;
+  background: var(--white-08);
+  border: 1px solid var(--white-1);
   padding: 20px;
   border-radius: 8px;
 }
@@ -167,11 +188,10 @@
   margin-bottom: 15px;
   text-align: center;
   padding-bottom: 10px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid var(--white-1);
   position: relative;
 }
 
-// Team-specific header styling
 .team:nth-child(1) h3::before {
   content: '';
   position: absolute;
@@ -180,7 +200,7 @@
   transform: translateX(-50%);
   width: 60px;
   height: 2px;
-  background: #3498db; // Blue accent for team 1
+  background: #3498db;
 }
 
 .team:nth-child(2) h3::before {
@@ -191,12 +211,12 @@
   transform: translateX(-50%);
   width: 60px;
   height: 2px;
-  background: #e74c3c; // Red accent for team 2
+  background: #e74c3c;
 }
 
 .players-container {
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--white-08);
+  border: 1px solid var(--white-1);
   padding: 20px;
   border-radius: 8px;
   margin-bottom: 30px;
@@ -207,7 +227,7 @@
   margin-bottom: 15px;
   text-align: center;
   padding-bottom: 10px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid var(--white-1);
 }
 
 .players-list {
@@ -221,12 +241,12 @@
   align-items: center;
   justify-content: space-between;
   padding: 12px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--white-05);
+  border: 1px solid var(--white-1);
   border-radius: 6px;
   border-left: 4px solid #3498db;
   margin-bottom: 8px;
-  min-height: 48px; // Ensure consistent height for avatar
+  min-height: 48px;
 }
 
 .player.empty-slot {
@@ -239,13 +259,12 @@
   color: #95a5a6;
 }
 
-// Team-specific player styling
 .team:nth-child(1) .player {
-  border-left-color: #3498db; // Blue for team 1
+  border-left-color: #3498db;
 }
 
 .team:nth-child(2) .player {
-  border-left-color: #e74c3c; // Red for team 2
+  border-left-color: #e74c3c;
 }
 
 .player-name {
@@ -256,13 +275,13 @@
 .player-left-section {
   display: flex;
   align-items: center;
-  gap: 12px; // Space between avatar and name
+  gap: 12px;
 }
 
 .player-middle-section {
   display: flex;
   align-items: center;
-  flex: 1; // Take up remaining space in the middle
+  flex: 1;
   justify-content: center;
 }
 
@@ -276,7 +295,7 @@
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  border: 2px solid rgba(255, 255, 255, 0.2);
+  border: 2px solid var(--white-2);
   object-fit: cover;
 }
 
@@ -285,14 +304,14 @@
   height: 32px;
   border-radius: 50%;
   background: linear-gradient(135deg, #3498db, #2980b9);
-  border: 2px solid rgba(255, 255, 255, 0.2);
+  border: 2px solid var(--white-2);
   flex-shrink: 0;
 }
 
 .player-right-section {
   display: flex;
   align-items: center;
-  gap: 8px; // Space between host badge and map status
+  gap: 8px;
 }
 
 .host-badge {
@@ -310,20 +329,20 @@
   border-radius: 12px;
   
   .check-icon {
-    color: #4CAF50; // Green color for checkmark
+    color: #4CAF50;
     font-size: 1.2em;
     font-weight: 600;
-    font-family: 'Material Symbols Outlined', sans-serif !important; // Ensure material icons display correctly
+    font-family: 'Material Symbols Outlined', sans-serif !important;
   }
   
   .selecting-text {
-    color: rgba(255, 255, 255, 0.7);
+    color: var(--white-7);
   }
 }
 
 .map-selection {
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--white-08);
+  border: 1px solid var(--white-1);
   padding: 20px;
   border-radius: 8px;
   margin-bottom: 20px;
@@ -345,18 +364,18 @@
 
 .map-picker {
   text-align: center;
-}
-
-.map-picker p {
-  margin-bottom: 15px;
-  color: #bdc3c7;
-}
-
-.map-picker form {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 15px;
+  
+  p {
+    margin-bottom: 15px;
+    color: #bdc3c7;
+  }
+  
+  form {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 15px;
+  }
 }
 
 .map-tiles {
@@ -391,11 +410,11 @@
 }
 
 .map-tile {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--white-05);
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--white-1);
   border-radius: 8px;
   padding: 20px;
   cursor: pointer;
@@ -408,35 +427,35 @@
   position: relative;
   overflow: hidden;
   z-index: 1;
-}
 
-.map-tile::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.3);
-  transition: all 0.3s ease;
-}
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: var(--black-3);
+    transition: all 0.3s ease;
+  }
 
-.map-tile:hover::before {
-  background: rgba(52, 152, 219, 0.4);
-}
+  &:hover::before {
+    background: var(--blue-4);
+  }
 
-.map-tile.selected::before {
-  background: rgba(39, 174, 96, 0.6);
-}
+  &.selected::before {
+    background: var(--green-6);
+  }
 
-.map-tile:hover {
-  border-color: #3498db;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-}
+  &:hover {
+    border-color: #3498db;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px var(--black-3);
+  }
 
-.map-tile.selected {
-  border-color: #27ae60;
+  &.selected {
+    border-color: #27ae60;
+  }
 }
 
 .workshop-link {
@@ -445,7 +464,7 @@
   right: 8px;
   width: 32px;
   height: 32px;
-  background: rgba(0, 0, 0, 0.7);
+  background: var(--black-7);
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -455,7 +474,7 @@
   z-index: 10;
   
   &:hover {
-    background: rgba(0, 0, 0, 0.9);
+    background: var(--black-9);
     transform: scale(1.1);
   }
   
@@ -468,13 +487,13 @@
 // Prevent map tile hover when workshop link is hovered
 .map-tile.workshop-link-hovered {
   &:hover {
-    border-color: rgba(255, 255, 255, 0.1) !important;
+    border-color: var(--white-1) !important;
     transform: none !important;
     box-shadow: none !important;
   }
   
   &:hover::before {
-    background: rgba(0, 0, 0, 0.3) !important;
+    background: var(--black-3) !important;
   }
 }
 
@@ -483,15 +502,15 @@
   background-size: cover !important;
   
   &::before {
-    background: rgba(0, 0, 0, 0.4); // Slightly darker overlay for better text visibility
+    background: var(--black-4); // Slightly darker overlay for better text visibility
   }
   
   &:hover::before {
-    background: rgba(52, 152, 219, 0.5);
+    background: var(--blue-5);
   }
   
   &.selected::before {
-    background: rgba(39, 174, 96, 0.7);
+    background: var(--green-7);
   }
   
   .map-name {
@@ -547,7 +566,7 @@
 .spinner {
   width: 40px;
   height: 40px;
-  border: 4px solid rgba(255, 255, 255, 0.1);
+  border: 4px solid var(--white-1);
   border-top: 4px solid #3498db;
   border-radius: 50%;
   animation: spin 1s linear infinite;
@@ -598,7 +617,7 @@
 .select-btn .spinner {
   width: 20px;
   height: 20px;
-  border: 2px solid rgba(255, 255, 255, 0.3);
+  border: 2px solid var(--white-3);
   border-top: 2px solid white;
   border-radius: 50%;
   animation: spin 1s linear infinite;
@@ -607,11 +626,11 @@
 .selection-progress {
   margin-top: 10px;
   padding: 10px;
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--white-05);
   border-radius: 6px;
   color: #3498db;
   font-weight: 500;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--white-1);
 }
 
 .selected-map {
@@ -635,7 +654,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.7);
+  background: var(--black-7);
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -646,7 +665,7 @@
 .selected-map h3 {
   color: #ffffff;
   margin-bottom: 15px;
-  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+  text-shadow: 2px 2px 4px var(--black-8);
 }
 
 .selected-map .map-name {
@@ -817,9 +836,9 @@
   padding: 15px 20px;
   border: 2px solid #3498db;
   border-radius: 12px;
-  background: rgba(52, 152, 219, 0.1);
+  background: var(--blue-1);
   transition: all 0.1s ease-in-out;
-  box-shadow: 0 0 20px rgba(52, 152, 219, 0.3);
+  box-shadow: 0 0 20px var(--blue-3);
   animation: mapCyclePulse 0.2s ease-in-out;
   font-family: Century Gothic, CenturyGothic, AppleGothic, sans-serif;
   overflow: hidden;
@@ -831,14 +850,14 @@
   font-size: 1.5em;
   font-weight: bold;
   color: #e74c3c;
-  background: rgba(231, 76, 60, 0.1);
+  background: var(--red-1);
   padding: 10px 20px;
   border-radius: 25px;
   border: 2px solid #e74c3c;
 }
 
 .animation-status {
-  color: rgba(255, 255, 255, 0.8);
+  color: var(--white-8);
   font-size: 0.9em;
   margin: 0;
 }
@@ -851,22 +870,22 @@
 @keyframes mapCyclePulse {
   0% { 
     transform: scale(1);
-    box-shadow: 0 0 20px rgba(52, 152, 219, 0.3);
+    box-shadow: 0 0 20px var(--blue-3);
   }
   50% { 
     transform: scale(1.05);
-    box-shadow: 0 0 30px rgba(52, 152, 219, 0.6);
+    box-shadow: 0 0 30px var(--blue-6);
   }
   100% { 
     transform: scale(1);
-    box-shadow: 0 0 20px rgba(52, 152, 219, 0.3);
+    box-shadow: 0 0 20px var(--blue-3);
   }
 }
 
 // Server preparation section
 .server-preparation {
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--white-08);
+  border: 1px solid var(--white-1);
   border-radius: 8px;
   padding: 20px;
   margin: 20px 0;
