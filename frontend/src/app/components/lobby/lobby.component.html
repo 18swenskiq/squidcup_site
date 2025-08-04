@@ -270,6 +270,13 @@
         <span class="map-name">{{ selectedMapName }}</span>
       </div>
     </div>
+    <button 
+      *ngIf="lobby?.selectedMap && lobby.selectedMap !== 'random'" 
+      class="map-link-btn"
+      (click)="openSelectedMapWorkshopPage()"
+      title="View map on Steam Workshop">
+      MAP LINK
+    </button>
   </div>
 
   <!-- Server Preparation -->

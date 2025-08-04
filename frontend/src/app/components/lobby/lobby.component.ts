@@ -653,6 +653,18 @@ export class LobbyComponent implements OnInit, OnDestroy, OnChanges {
     }
   }
 
+  openSelectedMapWorkshopPage(): void {
+    if (!this.lobby?.selectedMap || this.lobby.selectedMap === 'random') {
+      return;
+    }
+    
+    // Only open in browser environment
+    if (this.isBrowser) {
+      const workshopUrl = `https://steamcommunity.com/sharedfiles/filedetails/?id=${this.lobby.selectedMap}`;
+      window.open(workshopUrl, '_blank');
+    }
+  }
+
   onWorkshopLinkHover(isHovering: boolean, event: Event): void {
     // Find the parent map tile and toggle the workshop-link-hovered class
     const target = event.target as HTMLElement;
