@@ -14,6 +14,7 @@ interface MatchZyConfig {
     name: string;
     players: Record<string, string>;
   };
+  wingman: boolean;
   num_maps: number;
   maplist: string[];
   map_sides: string[];
@@ -99,6 +100,12 @@ async function generateAndUploadMatchZyConfig(gameId: string, serverInfo: any): 
 
   const playersPerTeam = Math.max(Object.keys(team1Players).length, Object.keys(team2Players).length);
 
+  let isWingman = false;
+
+  if (gameWithPlayers.game_mode == 'wingman' || gameWithPlayers.game_mode == '1v1') {
+    isWingman = true;
+  }
+
   // Build the MatchZy configuration
   const config: MatchZyConfig = {
     matchid: gameWithPlayers.match_number,
@@ -110,6 +117,7 @@ async function generateAndUploadMatchZyConfig(gameId: string, serverInfo: any): 
       name: team2Name,
       players: team2Players
     },
+    wingman: isWingman,
     num_maps: 1,
     maplist: [gameWithPlayers.map || 'de_dust2'],
     map_sides: [
@@ -248,15 +256,6 @@ export async function handler(event: any): Promise<any> {
       }
       
       console.log('MatchZy plugin found and loaded successfully');
-      
-      // Set the game mode to Wingman, this should hopefully cause matchzy to load properly
-      // TODO: Set this based on gamemode properly
-      await sendRconCommand(
-            serverInfo.ip, 
-            serverInfo.port, 
-            serverInfo.rcon_password, 
-            'game_alias wingman'
-          );
 
       // Generate MatchZy configuration and upload to S3
       try {
