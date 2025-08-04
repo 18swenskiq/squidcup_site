@@ -18,10 +18,7 @@ interface MatchZyConfig {
   maplist: string[];
   map_sides: string[];
   players_per_team: number;
-  cvars: {
-    hostname: string;
-    exec: string;
-  };
+  cvars: Record<string, string>;
 }
 
 async function generateAndUploadMatchZyConfig(gameId: string, serverInfo: any): Promise<string> {
@@ -123,7 +120,7 @@ async function generateAndUploadMatchZyConfig(gameId: string, serverInfo: any): 
     players_per_team: playersPerTeam,
     cvars: {
       hostname: `Squidcup: ${team1Name} (${team1AvgElo}) vs ${team2Name} (${team2AvgElo})`,
-      exec: 'gamemode_competitive2v2',
+      sv_human_autojoin_team: '1'
     }
   };
 
@@ -252,6 +249,15 @@ export async function handler(event: any): Promise<any> {
       
       console.log('MatchZy plugin found and loaded successfully');
       
+      // Set the game mode to Wingman, this should hopefully cause matchzy to load properly
+      // TODO: Set this based on gamemode properly
+      await sendRconCommand(
+            serverInfo.ip, 
+            serverInfo.port, 
+            serverInfo.rcon_password, 
+            'game_alias wingman'
+          );
+
       // Generate MatchZy configuration and upload to S3
       try {
         const configFileUrl = await generateAndUploadMatchZyConfig(gameId, serverInfo);
