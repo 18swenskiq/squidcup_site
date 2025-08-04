@@ -20,6 +20,7 @@ interface MatchZyConfig {
   players_per_team: number;
   cvars: {
     hostname: string;
+    exec: string;
   };
 }
 
@@ -121,7 +122,8 @@ async function generateAndUploadMatchZyConfig(gameId: string, serverInfo: any): 
     ],
     players_per_team: playersPerTeam,
     cvars: {
-      hostname: `Squidcup: ${team1Name} (${team1AvgElo}) vs ${team2Name} (${team2AvgElo})`
+      hostname: `Squidcup: ${team1Name} (${team1AvgElo}) vs ${team2Name} (${team2AvgElo})`,
+      exec: 'gamemode_competitive2v2',
     }
   };
 
