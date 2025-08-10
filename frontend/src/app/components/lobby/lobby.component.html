@@ -311,14 +311,9 @@
     </div>
   </div>
 
-  <!-- Debug info -->
-  <div style="background: red; color: white; padding: 10px; margin: 10px;">
-    DEBUG: lobby.status = "{{ lobby.status }}"
-  </div>
-
   <!-- Match Completed -->
   <div class="match-completed" 
-       *ngIf="lobby.status === 'completed'">
+       *ngIf="lobby?.status === 'completed'">
     <div class="match-completed-content">
       <h2>MATCH COMPLETED</h2>
       <div class="completion-message">
@@ -335,7 +330,8 @@
   </div>
 
   <!-- Action Buttons -->
-  <div class="lobby-actions">
+  <div class="lobby-actions" 
+       *ngIf="!isAnimating && lobby?.status !== 'in_progress' && lobby?.status !== 'completed'">
     <button class="leave-btn danger" (click)="leaveLobby()" [disabled]="isLeavingLobby">
       <span *ngIf="!isLeavingLobby">Leave Lobby</span>
       <span *ngIf="isLeavingLobby">Leaving...</span>
