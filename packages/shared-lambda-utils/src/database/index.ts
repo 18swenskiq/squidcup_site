@@ -631,6 +631,35 @@ export async function addPlayerToGame(gameId: string, playerData: AddPlayerToGam
   );
 }
 
+export async function updateGamePlayerAcceptance(gameId: string, steamId: string, accepted: boolean): Promise<{ success: boolean; error?: string }> {
+  const connection = await getDatabaseConnection();
+  
+  try {
+    // First check if the player exists in the game
+    const checkResult = await executeQuery(
+      connection,
+      'SELECT id FROM squidcup_game_players WHERE game_id = ? AND player_steam_id = ?',
+      [gameId, steamId]
+    );
+    
+    if (checkResult.length === 0) {
+      return { success: false, error: 'PLAYER_NOT_FOUND' };
+    }
+    
+    // Update the player's acceptance status
+    await executeQuery(
+      connection,
+      'UPDATE squidcup_game_players SET player_accepted_match_result = ? WHERE game_id = ? AND player_steam_id = ?',
+      [accepted ? 1 : 0, gameId, steamId]
+    );
+    
+    return { success: true };
+  } catch (error) {
+    console.error('Error updating player acceptance:', error);
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+  }
+}
+
 // Team management functions
 export async function createGameTeam(gameId: string, teamNumber: number, teamName: string): Promise<string> {
   const connection = await getDatabaseConnection();

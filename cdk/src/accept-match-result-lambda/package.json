@@ -1,0 +1,19 @@
+{
+  "name": "accept-match-result-lambda",
+  "version": "1.0.0",
+  "description": "Lambda function to accept match results",
+  "main": "index.js",
+  "scripts": {
+    "build": "tsc",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "shared-lambda-utils": "file:../../../packages/shared-lambda-utils"
+  },
+  "devDependencies": {
+    "@aws-sdk/client-lambda": "^3.0.0",
+    "@types/aws-lambda": "^8.10.119",
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
+  }
+}
