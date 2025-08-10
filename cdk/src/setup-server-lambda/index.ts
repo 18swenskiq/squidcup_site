@@ -123,7 +123,7 @@ async function generateAndUploadMatchZyConfig(gameId: string, serverInfo: any): 
       sv_human_autojoin_team: '1'
     },
     gamemode: gameWithPlayers.game_mode,
-    match_end_route: `${process.env.API_BASE_URL}/endMatch`
+    match_end_route: `https://9zea3urakj.execute-api.us-east-1.amazonaws.com/prod/endMatch` // TODO: This is not auto-populated by the CDK and thus could become stale. This is just a really easy fix
   };
 
   console.log('Generated MatchZy config:', JSON.stringify(config, null, 2));

@@ -291,7 +291,8 @@ export class ApiStack extends cdk.Stack {
       logRetention: this.LOG_RETENTION,
       environment: {
         REGION: this.REGION,
-        SETUP_SERVER_FUNCTION_NAME: setupServerFunction.functionName,
+        // Note: Removed SETUP_SERVER_FUNCTION_NAME to avoid circular dependency
+        // The lambda will use the default fallback name instead
       },
       bundling: {
         minify: true,
@@ -1399,8 +1400,8 @@ export class ApiStack extends cdk.Stack {
       }]
     });
 
-    // Add API base URL as environment variable for setup-server-lambda
-    setupServerFunction.addEnvironment('API_BASE_URL', api.url);
+    // Note: Removed API_BASE_URL environment variable to avoid circular dependency
+    // The setup-server-lambda will use a hardcoded API URL instead
 
     // Create EventBridge rule to run queue cleanup every 5 minutes
     const cleanupRule = new events.Rule(this, 'queue-cleanup-rule', {
