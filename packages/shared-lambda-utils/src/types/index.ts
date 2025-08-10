@@ -302,6 +302,7 @@ export interface GamePlayerRecord {
   team_id?: string; // Foreign key to squidcup_game_teams table
   joined_at: string;
   map_selection?: string; // Optional map selection (map ID)
+  player_accepted_match_result?: boolean; // Whether player accepted the match result
 }
 
 export interface GameTeamRecord {

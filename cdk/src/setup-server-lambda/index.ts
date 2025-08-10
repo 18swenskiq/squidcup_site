@@ -1,4 +1,4 @@
-import { sendRconCommand, getServerInfoForGame, getGameWithPlayers, getGameTeams, getUsersBySteamIds } from '@squidcup/shared-lambda-utils';
+import { sendRconCommand, getServerInfoForGame, getGameWithPlayers, getGameTeams, getUsersBySteamIds, updateGame } from '@squidcup/shared-lambda-utils';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 
 // Initialize S3 client
@@ -274,6 +274,15 @@ export async function handler(event: any): Promise<any> {
         
         if (loadMatchResult.success) {
           console.log('MatchZy config loaded successfully:', loadMatchResult.response);
+          
+          // Update game status to 'in_progress' since server setup is complete
+          try {
+            await updateGame(gameId, { status: 'in_progress' });
+            console.log(`Game ${gameId} status updated to 'in_progress'`);
+          } catch (statusUpdateError) {
+            console.error(`Failed to update game ${gameId} status to 'in_progress':`, statusUpdateError);
+            // Continue with success response even if status update fails
+          }
           
           return {
             statusCode: 200,
