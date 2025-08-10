@@ -258,12 +258,12 @@ export async function handler(event: any): Promise<any> {
         
         // Load the match configuration on the server via RCON
         console.log(`Loading MatchZy config on server ${serverInfo.ip}:${serverInfo.port}...`);
-        console.log(`RCON Command: matchzy_loadmatch_url "${configFileUrl}"`);
+        console.log(`RCON Command: squidcup_loadmatch_url "${configFileUrl}"`);
         const loadMatchResult = await sendRconCommand(
           serverInfo.ip,
           serverInfo.port,
           serverInfo.rcon_password,
-          `matchzy_loadmatch_url "${configFileUrl}"`
+          `squidcup_loadmatch_url "${configFileUrl}"`
         );
         
         console.log('MatchZy load command result:', {
