@@ -650,7 +650,7 @@ export async function updateGamePlayerAcceptance(gameId: string, steamId: string
     // First check if the player exists in the game
     const checkResult = await executeQuery(
       connection,
-      'SELECT id FROM squidcup_game_players WHERE game_id = ? AND player_steam_id = ?',
+      'SELECT game_id FROM squidcup_game_players WHERE game_id = ? AND player_steam_id = ?',
       [gameId, steamId]
     );
     
