@@ -38,6 +38,7 @@ export class LobbyComponent implements OnInit, OnDestroy, OnChanges {
   availableMaps: GameMap[] = [];
   mapsLoading: boolean = false;
   mapSelectionLoading: boolean = false;
+  acceptingResult: boolean = false;
   playerProfiles: Map<string, PlayerProfile> = new Map();
   private apiBaseUrl: string = environment.apiUrl;
   private mapRefreshSubscription?: Subscription;
@@ -900,5 +901,45 @@ export class LobbyComponent implements OnInit, OnDestroy, OnChanges {
         console.error('Failed to copy connect command:', err);
       });
     }
+  }
+
+  acceptMatchResult(): void {
+    if (this.acceptingResult) return;
+
+    const currentUser = this.authService.getCurrentUser();
+    if (!currentUser || !this.lobby) return;
+
+    this.acceptingResult = true;
+
+    const requestBody = {
+      matchId: this.lobby.id,
+      steamId: currentUser.steamId
+    };
+
+    this.http.post(`${this.apiBaseUrl}/acceptMatchResult`, requestBody, {
+      headers: this.getAuthHeaders()
+    }).pipe(
+      catchError(error => {
+        console.error('Error accepting match result:', error);
+        this.acceptingResult = false;
+        
+        // You could add error handling/toast notification here
+        if (error.status === 404) {
+          console.error('Player not found for this match');
+        } else if (error.status === 400) {
+          console.error('Invalid request parameters');
+        } else {
+          console.error('Failed to accept match result');
+        }
+        
+        return EMPTY;
+      })
+    ).subscribe(() => {
+      console.log('Match result accepted successfully');
+      this.acceptingResult = false;
+      
+      // The lobby polling should automatically update and remove the user from the lobby
+      // since they've now accepted the match result
+    });
   }
 }

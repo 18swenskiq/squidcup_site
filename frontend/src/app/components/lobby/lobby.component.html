@@ -302,6 +302,24 @@
     </div>
   </div>
 
+  <!-- Match Completed -->
+  <div class="match-completed" 
+       *ngIf="lobby.status === 'completed'">
+    <div class="match-completed-content">
+      <h2>MATCH COMPLETED</h2>
+      <div class="completion-message">
+        <p>PLACEHOLDER: match is over. There will be stats/elo changes later, but not yet. Click the button below to continue</p>
+      </div>
+      <button class="continue-btn" 
+              (click)="acceptMatchResult()" 
+              [disabled]="acceptingResult"
+              [class.loading]="acceptingResult">
+        <span *ngIf="!acceptingResult">Continue</span>
+        <div *ngIf="acceptingResult" class="spinner"></div>
+      </button>
+    </div>
+  </div>
+
   <!-- Action Buttons -->
   <div class="lobby-actions">
     <button class="leave-btn danger" (click)="leaveLobby()">
