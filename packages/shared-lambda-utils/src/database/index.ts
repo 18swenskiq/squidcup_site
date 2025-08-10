@@ -477,6 +477,16 @@ export async function getGame(gameId: string): Promise<DatabaseGame | null> {
   return rows.length > 0 ? rows[0] : null;
 }
 
+export async function getGameByMatchNumber(matchNumber: string): Promise<DatabaseGame | null> {
+  const connection = await getDatabaseConnection();
+  const rows = await executeQuery(
+    connection,
+    'SELECT * FROM squidcup_games WHERE match_number = ?',
+    [matchNumber]
+  );
+  return rows.length > 0 ? rows[0] : null;
+}
+
 export async function getGameWithPlayers(gameId: string): Promise<EnrichedGameWithPlayers | null> {
   const game = await getGame(gameId);
   if (!game) return null;

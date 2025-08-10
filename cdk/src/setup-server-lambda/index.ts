@@ -14,12 +14,12 @@ interface MatchZyConfig {
     name: string;
     players: Record<string, string>;
   };
-  wingman: boolean;
-  num_maps: number;
   maplist: string[];
   map_sides: string[];
   players_per_team: number;
   cvars: Record<string, string>;
+  match_end_route: string;
+  gamemode: string;
 }
 
 async function generateAndUploadMatchZyConfig(gameId: string, serverInfo: any): Promise<string> {
@@ -100,12 +100,6 @@ async function generateAndUploadMatchZyConfig(gameId: string, serverInfo: any): 
 
   const playersPerTeam = Math.max(Object.keys(team1Players).length, Object.keys(team2Players).length);
 
-  let isWingman = false;
-
-  if (gameWithPlayers.game_mode == 'wingman' || gameWithPlayers.game_mode == '1v1') {
-    isWingman = true;
-  }
-
   // Build the MatchZy configuration
   const config: MatchZyConfig = {
     matchid: gameWithPlayers.match_number,
@@ -117,8 +111,6 @@ async function generateAndUploadMatchZyConfig(gameId: string, serverInfo: any): 
       name: team2Name,
       players: team2Players
     },
-    wingman: isWingman,
-    num_maps: 1,
     maplist: [gameWithPlayers.map || 'de_dust2'],
     map_sides: [
       'team1_ct',
@@ -129,7 +121,9 @@ async function generateAndUploadMatchZyConfig(gameId: string, serverInfo: any): 
     cvars: {
       hostname: `Squidcup: ${team1Name} (${team1AvgElo}) vs ${team2Name} (${team2AvgElo})`,
       sv_human_autojoin_team: '1'
-    }
+    },
+    gamemode: gameWithPlayers.game_mode,
+    match_end_route: ""
   };
 
   console.log('Generated MatchZy config:', JSON.stringify(config, null, 2));
