@@ -7,6 +7,7 @@ export { LobbyPlayer, LobbyData, GameServer, ActiveQueue, Queue, ViewState };
 export interface UserActiveQueue {
   id: string;
   hostSteamId: string;
+  hostName: string; // Display name for the host
   gameMode: string;
   mapSelectionMode: string;
   serverId: string;
@@ -16,6 +17,8 @@ export interface UserActiveQueue {
   joiners: Array<{
     steamId: string;
     joinTime: string;
+    name: string; // Display name for joiners
+    avatar?: string; // Steam avatar URL
   }>;
   createdAt: string;
   updatedAt: string;

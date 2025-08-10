@@ -461,4 +461,13 @@ export class PlayViewComponent implements OnInit, OnDestroy {
     const maxPlayers = this.getMaxPlayers();
     return currentPlayers >= maxPlayers;
   }
+
+  formatMapSelectionMode(mode: string): string {
+    switch (mode) {
+      case 'all-pick': return 'All Pick';
+      case 'host-pick': return 'Host Pick';
+      case 'random-map': return 'Random Map';
+      default: return mode;
+    }
+  }
 }

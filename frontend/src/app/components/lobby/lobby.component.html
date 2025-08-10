@@ -224,7 +224,7 @@
                 lobby.mapSelectionMode !== 'random-map' && 
                 lobby.mapSelectionMode !== 'host-pick' && 
                 lobby.mapSelectionMode !== 'all-pick'" class="map-picker">
-      <p>Select a map ({{ lobby.mapSelectionMode }}):</p>
+      <p>Select a map ({{ getMapSelectionModeFriendlyName() }}):</p>
       
       <!-- Loading spinner -->
       <div *ngIf="mapsLoading" class="maps-loading">

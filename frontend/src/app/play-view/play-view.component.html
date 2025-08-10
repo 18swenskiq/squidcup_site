@@ -27,8 +27,8 @@
       <div class="lobby-info">
         <div class="queue-details">
           <h3>{{ userQueueStatus?.queue?.gameMode?.toUpperCase() }} - {{ userQueueStatus?.queue?.ranked ? 'Ranked' : 'Unranked' }}</h3>
-          <p><strong>Map Selection:</strong> {{ userQueueStatus?.queue?.mapSelectionMode }}</p>
-          <p><strong>Host:</strong> {{ userQueueStatus?.isHost ? 'You' : userQueueStatus?.queue?.hostSteamId }}</p>
+          <p><strong>Map Selection:</strong> {{ formatMapSelectionMode(userQueueStatus?.queue?.mapSelectionMode || '') }}</p>
+          <p><strong>Host:</strong> {{ userQueueStatus?.isHost ? 'You' : userQueueStatus?.queue?.hostName }}</p>
           <p><strong>Queue Duration:</strong> {{ getQueueDuration() }}</p>
           <p><strong>Players:</strong> {{ getJoinersCount() + 1 }} / {{ getMaxPlayers() }}</p>
         </div>
@@ -38,12 +38,12 @@
           <div class="player-list">
             <!-- Host slot -->
             <div class="player-slot filled">
-              <span class="player-name">{{ userQueueStatus?.isHost ? 'You (Host)' : (userQueueStatus?.queue?.hostSteamId || 'Host') + ' (Host)' }}</span>
+              <span class="player-name">{{ userQueueStatus?.isHost ? 'You (Host)' : (userQueueStatus?.queue?.hostName || 'Host') + ' (Host)' }}</span>
             </div>
             
             <!-- Joiner slots -->
             <div *ngFor="let joiner of userQueueStatus?.queue?.joiners || []" class="player-slot filled">
-              <span class="player-name">{{ joiner.steamId === authService.getCurrentUser()?.steamId ? 'You' : joiner.steamId }}</span>
+              <span class="player-name">{{ joiner.steamId === authService.getCurrentUser()?.steamId ? 'You' : joiner.name }}</span>
             </div>
             
             <!-- Empty slots -->
