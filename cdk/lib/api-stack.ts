@@ -361,6 +361,13 @@ export class ApiStack extends cdk.Stack {
     createLobbyFunction.grantInvoke(joinQueueFunction); // Allow join-queue to invoke create-lobby
     setupServerFunction.grantInvoke(selectMapFunction); // Allow select-map to invoke setup-server
     
+    // Add explicit Lambda invoke permissions for select-map to invoke setup-server
+    const lambdaInvokePolicy = new iam.PolicyStatement({
+      actions: ['lambda:InvokeFunction'],
+      resources: [setupServerFunction.functionArn],
+    });
+    selectMapFunction.addToRolePolicy(lambdaInvokePolicy);
+    
     // Create S3 bucket for game configuration files
     const gameConfigsBucket = new s3.Bucket(this, 'squidcup-game-configs', {
       bucketName: 'squidcup-game-configs',
