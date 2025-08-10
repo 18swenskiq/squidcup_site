@@ -304,9 +304,8 @@ export class PlayViewComponent implements OnInit, OnDestroy {
       }, { headers }).subscribe({
         next: (response) => {
           console.log('Joined queue successfully', response);
-          alert('Successfully joined the queue!');
+          // Keep loading state until page reflows when userQueue returns new data
           this.selectedQueue = null; // Clear selection
-          this.isJoiningQueue = false;
         },
         error: (error) => {
           console.error('Error joining queue', error);
@@ -327,9 +326,8 @@ export class PlayViewComponent implements OnInit, OnDestroy {
       }, { headers }).subscribe({
         next: (response) => {
           console.log('Joined queue successfully', response);
-          alert('Successfully joined the queue!');
+          // Keep loading state until page reflows when userQueue returns new data
           this.selectedQueue = null; // Clear selection
-          this.isJoiningQueue = false;
         },
         error: (error) => {
           console.error('Error joining queue', error);

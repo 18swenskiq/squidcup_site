@@ -331,8 +331,9 @@
 
   <!-- Action Buttons -->
   <div class="lobby-actions">
-    <button class="leave-btn danger" (click)="leaveLobby()">
-      Leave Lobby
+    <button class="leave-btn danger" (click)="leaveLobby()" [disabled]="isLeavingLobby">
+      <span *ngIf="!isLeavingLobby">Leave Lobby</span>
+      <span *ngIf="isLeavingLobby">Leaving...</span>
     </button>
   </div>
 </div>

@@ -39,6 +39,7 @@ export class LobbyComponent implements OnInit, OnDestroy, OnChanges {
   mapsLoading: boolean = false;
   mapSelectionLoading: boolean = false;
   acceptingResult: boolean = false;
+  isLeavingLobby: boolean = false;
   playerProfiles: Map<string, PlayerProfile> = new Map();
   private apiBaseUrl: string = environment.apiUrl;
   private mapRefreshSubscription?: Subscription;
@@ -734,11 +735,15 @@ export class LobbyComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   leaveLobby(): void {
+    if (this.isLeavingLobby) return;
+
     const confirmed = confirm(
       'Leaving the lobby will disband it for all players. Are you sure you want to continue?'
     );
     
     if (!confirmed) return;
+
+    this.isLeavingLobby = true;
 
     const currentUser = this.authService.getCurrentUser();
     if (!currentUser) return;
@@ -753,10 +758,11 @@ export class LobbyComponent implements OnInit, OnDestroy, OnChanges {
     }).subscribe({
       next: (response: any) => {
         console.log('Left lobby successfully', response);
-        alert('Lobby has been disbanded.');
+        // Don't reset isLeavingLobby - let the page reflow handle it
         this.lobbyLeft.emit();
       },
       error: (error) => {
+        this.isLeavingLobby = false; // Only reset on error
         console.error('Error leaving lobby:', error);
         let errorMessage = 'Failed to leave lobby. Please try again.';
         if (error.status === 400 && error.error?.error) {
