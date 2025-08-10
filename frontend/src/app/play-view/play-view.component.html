@@ -83,10 +83,10 @@
       <div *ngIf="!isLoggedIn" class="login-required">
         <p>Please log in to start a queue.</p>
       </div>
-      <form [formGroup]="queueForm" (ngSubmit)="startQueue()" *ngIf="isLoggedIn">
+      <form [formGroup]="queueForm" (ngSubmit)="startQueue()" *ngIf="isLoggedIn" [class.disabled]="isJoiningQueue || isStartingQueue">
         <div class="form-group">
           <label for="gameMode">GAME MODE</label>
-          <select id="gameMode" formControlName="gameMode" (change)="onGameModeChange()">
+          <select id="gameMode" formControlName="gameMode" (change)="onGameModeChange()" [disabled]="isJoiningQueue || isStartingQueue">
             <option value="" disabled selected>Select a game mode</option>
             <option value="1v1">1v1</option>
             <option value="wingman">Wingman</option>
@@ -97,7 +97,7 @@
 
         <div class="form-group">
           <label for="mapSelectionMode">MAP SELECTION MODE</label>
-          <select id="mapSelectionMode" formControlName="mapSelectionMode">
+          <select id="mapSelectionMode" formControlName="mapSelectionMode" [disabled]="isJoiningQueue || isStartingQueue">
             <option value="" disabled selected>Select map selection mode</option>
             <option value="all-pick">All Pick</option>
             <option value="host-pick">Host Pick</option>
@@ -107,7 +107,7 @@
 
         <div class="form-group">
           <label for="server">SERVER</label>
-          <select id="server" formControlName="server" [disabled]="!queueForm.get('gameMode')?.value || isLoadingServers">
+          <select id="server" formControlName="server" [disabled]="!queueForm.get('gameMode')?.value || isLoadingServers || isJoiningQueue || isStartingQueue">
             <option value="" disabled selected>
               {{ isLoadingServers ? 'Loading servers...' : 'Select a server' }}
             </option>
@@ -117,15 +117,15 @@
 
         <div class="form-group">
           <label for="password">PASSWORD (OPTIONAL)</label>
-          <input type="text" id="password" formControlName="password">
+          <input type="text" id="password" formControlName="password" [disabled]="isJoiningQueue || isStartingQueue">
         </div>
 
         <div class="form-group checkbox">
-          <input type="checkbox" id="ranked" formControlName="ranked">
+          <input type="checkbox" id="ranked" formControlName="ranked" [disabled]="isJoiningQueue || isStartingQueue">
           <label for="ranked">Ranked?</label>
         </div>
 
-        <button type="submit" [disabled]="queueForm.invalid || isStartingQueue || isLoadingServers">
+        <button type="submit" [disabled]="queueForm.invalid || isStartingQueue || isJoiningQueue || isLoadingServers">
           <span *ngIf="!isStartingQueue">Start Queue</span>
           <span *ngIf="isStartingQueue">
             <span class="spinner"></span> Starting...
@@ -159,8 +159,9 @@
           <!-- Show queue items -->
           <div class="queue-item" 
                *ngFor="let queue of activeQueues" 
-               (click)="selectQueue(queue)"
-               [class.selected]="selectedQueue?.id === queue.id">
+               (click)="!isStartingQueue && !isJoiningQueue && selectQueue(queue)"
+               [class.selected]="selectedQueue?.id === queue.id"
+               [class.disabled]="isStartingQueue || isJoiningQueue">
             <span>{{ queue.host }}</span>
             <span>{{ queue.gameMode }}</span>
             <span>{{ queue.players }}</span>
@@ -177,7 +178,7 @@
         </div>
         <p class="queue-refresh-info">Queue list automatically refreshes every few seconds</p>
       </div>
-      <button class="join-button" [disabled]="!selectedQueue || !isLoggedIn || isJoiningQueue" (click)="joinQueue()" *ngIf="isLoggedIn">
+      <button class="join-button" [disabled]="!selectedQueue || !isLoggedIn || isJoiningQueue || isStartingQueue" (click)="joinQueue()" *ngIf="isLoggedIn">
         <span *ngIf="!isJoiningQueue">Join Queue</span>
         <span *ngIf="isJoiningQueue">
           <span class="spinner"></span> Joining...

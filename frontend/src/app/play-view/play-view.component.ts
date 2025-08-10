@@ -250,16 +250,25 @@ export class PlayViewComponent implements OnInit, OnDestroy {
   startQueue(): void {
     if (this.queueForm.valid && !this.isStartingQueue) {
       this.isStartingQueue = true;
+      
+      // Stop polling for active queues since we're starting our own
+      if (this.queueSubscription) {
+        this.queueSubscription.unsubscribe();
+        this.queueSubscription = undefined;
+      }
+      
       const headers = this.authService.getAuthHeaders();
       this.http.post(`${this.apiBaseUrl}/startQueue`, this.queueForm.value, { headers }).subscribe({
         next: (response) => {
           console.log('Queue started successfully', response);
-          this.isStartingQueue = false;
+          // Keep loading state until userQueue polling detects the new queue
           // The user queue status polling will automatically update the view
         },
         error: (error) => {
           console.error('Error starting queue', error);
           this.isStartingQueue = false;
+          // Restart queue polling on error
+          this.startQueuePolling();
           // You might want to show an error message
         }
       });
@@ -280,6 +289,12 @@ export class PlayViewComponent implements OnInit, OnDestroy {
     }
     
     this.isJoiningQueue = true;
+    
+    // Stop polling for active queues since we're joining one
+    if (this.queueSubscription) {
+      this.queueSubscription.unsubscribe();
+      this.queueSubscription = undefined;
+    }
     
     const headers = {
       'Authorization': `Bearer ${currentUser.sessionToken}`,
@@ -317,6 +332,8 @@ export class PlayViewComponent implements OnInit, OnDestroy {
           }
           alert(errorMessage);
           this.isJoiningQueue = false;
+          // Restart queue polling on error
+          this.startQueuePolling();
         }
       });
     } else {
@@ -339,6 +356,8 @@ export class PlayViewComponent implements OnInit, OnDestroy {
           }
           alert(errorMessage);
           this.isJoiningQueue = false;
+          // Restart queue polling on error
+          this.startQueuePolling();
         }
       });
     }
