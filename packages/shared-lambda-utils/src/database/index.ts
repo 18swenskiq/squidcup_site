@@ -926,7 +926,8 @@ export async function getUserCompleteStatus(sessionToken: string): Promise<UserC
       // Legacy compatibility - populate queue or lobby based on status
       ...(activeGame.status === 'queue' ? { queue: gameData } : {}),
       ...(activeGame.status === 'lobby' ? { lobby: gameData } : {}),
-      ...(activeGame.status === 'in_progress' ? { lobby: gameData } : {}) // Also return as lobby for in_progress games
+      ...(activeGame.status === 'in_progress' ? { lobby: gameData } : {}), // Also return as lobby for in_progress games
+      ...(activeGame.status === 'completed' ? { lobby: gameData } : {}) // Also return as lobby for completed games where player hasn't accepted
     };
   }
   
