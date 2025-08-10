@@ -505,8 +505,15 @@ export async function getUserActiveGame(steamId: string): Promise<EnrichedGameWi
   // First check if user is hosting a game
   const hostGame = await executeQuery(
     connection,
-    'SELECT * FROM squidcup_games WHERE host_steam_id = ? AND status IN ("queue", "lobby")',
-    [steamId]
+    `SELECT * FROM squidcup_games g
+     WHERE g.host_steam_id = ? AND (
+       g.status IN ('queue', 'lobby', 'in_progress') OR 
+       (g.status = 'completed' AND EXISTS (
+         SELECT 1 FROM squidcup_game_players gp 
+         WHERE gp.game_id = g.id AND gp.player_steam_id = ? AND gp.player_accepted_match_result = FALSE
+       ))
+     )`,
+    [steamId, steamId]
   );
   
   if (hostGame.length > 0) {
@@ -524,7 +531,10 @@ export async function getUserActiveGame(steamId: string): Promise<EnrichedGameWi
     `SELECT g.*, gp.joined_at, gp.team_id
      FROM squidcup_games g
      INNER JOIN squidcup_game_players gp ON g.id = gp.game_id
-     WHERE gp.player_steam_id = ? AND g.status IN ("queue", "lobby")`,
+     WHERE gp.player_steam_id = ? AND (
+       g.status IN ('queue', 'lobby', 'in_progress') OR 
+       (g.status = 'completed' AND gp.player_accepted_match_result = FALSE)
+     )`,
     [steamId]
   );
   
@@ -773,8 +783,14 @@ export async function getUserCompleteStatus(sessionToken: string): Promise<UserC
     connection,
     `SELECT g.*, 'host' as user_role
      FROM squidcup_games g 
-     WHERE g.host_steam_id = ? AND g.status IN ('queue', 'lobby', 'in_progress')`,
-    [userSteamId]
+     WHERE g.host_steam_id = ? AND (
+       g.status IN ('queue', 'lobby', 'in_progress') OR 
+       (g.status = 'completed' AND EXISTS (
+         SELECT 1 FROM squidcup_game_players gp 
+         WHERE gp.game_id = g.id AND gp.player_steam_id = ? AND gp.player_accepted_match_result = FALSE
+       ))
+     )`,
+    [userSteamId, userSteamId]
   );
   
   // Step 3: Check for active game (as player)
@@ -783,7 +799,10 @@ export async function getUserCompleteStatus(sessionToken: string): Promise<UserC
     `SELECT g.*, 'player' as user_role
      FROM squidcup_games g 
      JOIN squidcup_game_players gp ON g.id = gp.game_id 
-     WHERE gp.player_steam_id = ? AND g.status IN ('queue', 'lobby', 'in_progress')`,
+     WHERE gp.player_steam_id = ? AND (
+       g.status IN ('queue', 'lobby', 'in_progress') OR 
+       (g.status = 'completed' AND gp.player_accepted_match_result = FALSE)
+     )`,
     [userSteamId]
   );
   
