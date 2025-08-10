@@ -291,8 +291,7 @@ export class ApiStack extends cdk.Stack {
       logRetention: this.LOG_RETENTION,
       environment: {
         REGION: this.REGION,
-        // Note: Removed SETUP_SERVER_FUNCTION_NAME to avoid circular dependency
-        // The lambda will use the default fallback name instead
+        SETUP_SERVER_FUNCTION_NAME: setupServerFunction.functionName,
       },
       bundling: {
         minify: true,
@@ -397,9 +396,6 @@ export class ApiStack extends cdk.Stack {
 
     // Add environment variable to join queue function for create lobby function name
     joinQueueFunction.addEnvironment('CREATE_LOBBY_FUNCTION_NAME', createLobbyFunction.functionName);
-    
-    // Add environment variable to select map function for setup server function name
-    selectMapFunction.addEnvironment('SETUP_SERVER_FUNCTION_NAME', setupServerFunction.functionName);
 
     // Create CloudWatch log group for API Gateway
     const apiLogGroup = new logs.LogGroup(this, 'ApiGatewayLogGroup', {
