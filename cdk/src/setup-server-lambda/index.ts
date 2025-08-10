@@ -227,7 +227,7 @@ export async function handler(event: any): Promise<any> {
       }
       
       // Check if MatchZy plugin is loaded
-      if (!rconResult.response?.includes('MatchZy')) {
+      if (!rconResult.response?.includes('Squidcup')) {
         console.error('MatchZy plugin is not loaded on the server');
         return {
           statusCode: 500,
