@@ -921,7 +921,7 @@ export class LobbyComponent implements OnInit, OnDestroy, OnChanges {
     }).pipe(
       catchError(error => {
         console.error('Error accepting match result:', error);
-        this.acceptingResult = false;
+        this.acceptingResult = false; // Only reset on error
         
         // You could add error handling/toast notification here
         if (error.status === 404) {
@@ -936,10 +936,8 @@ export class LobbyComponent implements OnInit, OnDestroy, OnChanges {
       })
     ).subscribe(() => {
       console.log('Match result accepted successfully');
-      this.acceptingResult = false;
-      
-      // The lobby polling should automatically update and remove the user from the lobby
-      // since they've now accepted the match result
+      // Don't reset acceptingResult - let the page reflow handle it
+      // The userQueue polling will return empty and reset the view
     });
   }
 }
