@@ -412,15 +412,27 @@ export async function addServer(serverData: GameServer): Promise<void> {
 
 export async function getServers(minPlayers?: number): Promise<GameServer[]> {
   const connection = await getDatabaseConnection();
-  let query = 'SELECT * FROM squidcup_servers';
+  
+  // Build the query to exclude servers that are currently in use by active games
+  let query = `
+    SELECT s.* 
+    FROM squidcup_servers s
+    WHERE s.id NOT IN (
+      SELECT DISTINCT g.server_id 
+      FROM squidcup_games g 
+      WHERE g.server_id IS NOT NULL 
+      AND g.status IN ('queue', 'lobby', 'in_progress')
+    )
+  `;
+  
   const params: any[] = [];
   
   if (minPlayers && minPlayers > 0) {
-    query += ' WHERE max_players >= ?';
+    query += ' AND s.max_players >= ?';
     params.push(minPlayers);
   }
   
-  query += ' ORDER BY created_at DESC';
+  query += ' ORDER BY s.created_at DESC';
   
   return await executeQuery(connection, query, params);
 }
