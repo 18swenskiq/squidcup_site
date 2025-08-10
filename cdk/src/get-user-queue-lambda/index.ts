@@ -95,6 +95,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
             serverId: lobby.server_id,
             hasPassword: false, // Lobbies don't have passwords
             ranked: !!lobby.ranked, // Use actual ranked status from database
+            status: lobby.status, // Include game status
             players: enrichedPlayers,
             teams: lobby.teams || [], // Include teams data for team assignment mapping
             mapSelectionComplete: lobby.map ? true : false, // Check if final map has been selected
@@ -102,6 +103,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
             mapAnimSelectStartTime: lobby.map_anim_select_start_time, // Animation timing for map selection
             createdAt: lobby.created_at,
             updatedAt: lobby.updated_at,
+            ...((lobby as any).server && { server: (lobby as any).server }) // Include server info if available
           }
         }),
       };

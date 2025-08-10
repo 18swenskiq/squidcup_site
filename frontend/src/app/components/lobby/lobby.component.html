@@ -281,10 +281,24 @@
 
   <!-- Server Preparation -->
   <div class="server-preparation" 
-       *ngIf="isMapSelectionComplete && !isAnimating">
+       *ngIf="isMapSelectionComplete && !isAnimating && lobby.status === 'lobby'">
     <div class="preparation-content">
       <div class="spinner"></div>
       <p>Server is being prepared...</p>
+    </div>
+  </div>
+
+  <!-- Server Ready -->
+  <div class="server-ready" 
+       *ngIf="lobby.status === 'in_progress' && lobby.server">
+    <div class="server-ready-content">
+      <h2>SERVER READY</h2>
+      <div class="connect-info">
+        <div class="connect-command" (click)="copyConnectCommand()">
+          {{ getConnectCommand() }}
+        </div>
+        <p class="connect-hint">Click to copy connect command</p>
+      </div>
     </div>
   </div>
 

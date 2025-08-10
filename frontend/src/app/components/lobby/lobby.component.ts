@@ -881,4 +881,24 @@ export class LobbyComponent implements OnInit, OnDestroy, OnChanges {
     const match = userId.match(/\/id\/(\d+)$/);
     return match && match[1] ? match[1] : userId;
   }
+
+  getConnectCommand(): string {
+    if (!this.lobby?.server) {
+      return '';
+    }
+    
+    return `connect ${this.lobby.server.ip}:${this.lobby.server.port};password ${this.lobby.server.password}`;
+  }
+
+  copyConnectCommand(): void {
+    const command = this.getConnectCommand();
+    if (command && this.isBrowser) {
+      navigator.clipboard.writeText(command).then(() => {
+        console.log('Connect command copied to clipboard');
+        // You could add a toast notification here if desired
+      }).catch(err => {
+        console.error('Failed to copy connect command:', err);
+      });
+    }
+  }
 }

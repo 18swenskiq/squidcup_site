@@ -930,3 +930,121 @@
   font-weight: 500;
   margin: 0;
 }
+
+// Server ready section
+.server-ready {
+  background: linear-gradient(135deg, var(--green-6), var(--green-7));
+  border: 1px solid rgba(39, 174, 96, 0.8);
+  border-radius: 8px;
+  padding: 30px 20px;
+  margin: 20px 0;
+  text-align: center;
+  box-shadow: 0 4px 15px rgba(39, 174, 96, 0.3);
+}
+
+.server-ready-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+
+  h2 {
+    color: #ffffff;
+    font-size: 2.2em;
+    font-weight: bold;
+    margin: 0;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    letter-spacing: 1px;
+  }
+}
+
+.connect-info {
+  background: var(--black-8);
+  border: 1px solid var(--white-2);
+  border-radius: 6px;
+  padding: 15px;
+  max-width: 600px;
+  width: 100%;
+}
+
+.connect-command {
+  background: var(--black-9);
+  border: 1px solid var(--white-1);
+  border-radius: 4px;
+  padding: 12px;
+  font-family: 'Courier New', monospace;
+  font-size: 1em;
+  color: #00ff88;
+  cursor: pointer;
+  user-select: all;
+  transition: all 0.2s ease;
+  word-break: break-all;
+
+  &:hover {
+    background: var(--white-05);
+    border-color: var(--white-3);
+  }
+}
+
+.connect-hint {
+  color: var(--white-7);
+  font-size: 0.85em;
+  margin: 8px 0 0 0;
+  font-style: italic;
+}
+
+// Server ready section
+.server-ready {
+  background: var(--green-7);
+  border: 1px solid var(--green-6);
+  border-radius: 8px;
+  padding: 20px;
+  margin: 20px 0;
+  text-align: center;
+}
+
+.server-ready-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+
+.server-ready h2 {
+  color: #ffffff;
+  font-size: 2em;
+  font-weight: bold;
+  margin: 0;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.connect-info {
+  width: 100%;
+}
+
+.connect-command {
+  background: var(--black-8);
+  border: 1px solid var(--white-2);
+  border-radius: 6px;
+  padding: 15px;
+  font-family: 'Courier New', monospace;
+  font-size: 1.1em;
+  color: #00ff00;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  user-select: all;
+  margin-bottom: 10px;
+}
+
+.connect-command:hover {
+  background: var(--black-7);
+  border-color: var(--white-3);
+  transform: scale(1.02);
+}
+
+.connect-hint {
+  color: var(--white-7);
+  font-size: 0.9em;
+  margin: 0;
+  font-style: italic;
+}

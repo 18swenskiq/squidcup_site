@@ -903,13 +903,30 @@ export async function getUserCompleteStatus(sessionToken: string): Promise<UserC
       teams: gameTeams // Add teams to the response
     };
     
+    // If game is in progress, include server connection information
+    if (activeGame.status === 'in_progress' && activeGame.server_id) {
+      try {
+        const serverInfo = await getServerInfoForGame(activeGame.id);
+        if (serverInfo) {
+          gameData.server = {
+            ip: serverInfo.ip,
+            port: serverInfo.port,
+            password: serverInfo.default_password
+          };
+        }
+      } catch (error) {
+        console.error('Failed to get server info for game:', activeGame.id, error);
+      }
+    }
+    
     return {
       session: session[0],
       userSteamId,
       game: gameData,
       // Legacy compatibility - populate queue or lobby based on status
       ...(activeGame.status === 'queue' ? { queue: gameData } : {}),
-      ...(activeGame.status === 'lobby' ? { lobby: gameData } : {})
+      ...(activeGame.status === 'lobby' ? { lobby: gameData } : {}),
+      ...(activeGame.status === 'in_progress' ? { lobby: gameData } : {}) // Also return as lobby for in_progress games
     };
   }
   

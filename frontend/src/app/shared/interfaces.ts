@@ -35,6 +35,11 @@ export interface LobbyData {
   mapAnimSelectStartTime?: number; // Animation timing for map selection
   createdAt: string; // Using camelCase for frontend consistency
   updatedAt: string; // Using camelCase for frontend consistency
+  server?: {
+    ip: string;
+    port: number;
+    password: string;
+  }; // Server connection info for in_progress games
 }
 
 export interface GameServer {
