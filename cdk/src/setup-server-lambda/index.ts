@@ -123,7 +123,7 @@ async function generateAndUploadMatchZyConfig(gameId: string, serverInfo: any): 
       sv_human_autojoin_team: '1'
     },
     gamemode: gameWithPlayers.game_mode,
-    match_end_route: ""
+    match_end_route: `${process.env.API_BASE_URL}/endMatch`
   };
 
   console.log('Generated MatchZy config:', JSON.stringify(config, null, 2));

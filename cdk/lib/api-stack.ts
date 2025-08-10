@@ -1331,6 +1331,9 @@ export class ApiStack extends cdk.Stack {
       }]
     });
 
+    // Add API base URL as environment variable for setup-server-lambda
+    setupServerFunction.addEnvironment('API_BASE_URL', api.url);
+
     // Create EventBridge rule to run queue cleanup every 5 minutes
     const cleanupRule = new events.Rule(this, 'queue-cleanup-rule', {
       description: 'Triggers queue cleanup every 5 minutes to remove inactive queues',
