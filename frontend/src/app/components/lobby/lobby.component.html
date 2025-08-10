@@ -290,7 +290,7 @@
 
   <!-- Server Ready -->
   <div class="server-ready" 
-       *ngIf="lobby.status === 'in_progress' && lobby.server">
+       *ngIf="lobby.status === 'in_progress' && lobby.server && !isAnimating">
     <div class="server-ready-content">
       <h2>SERVER READY</h2>
       <div class="connect-info">
@@ -299,6 +299,15 @@
         </div>
         <p class="connect-hint">Click to copy connect command</p>
       </div>
+    </div>
+  </div>
+
+  <!-- Loading state while animation is running and server is ready -->
+  <div class="server-preparation" 
+       *ngIf="lobby.status === 'in_progress' && lobby.server && isAnimating">
+    <div class="preparation-content">
+      <div class="spinner"></div>
+      <p>Finalizing map selection...</p>
     </div>
   </div>
 
