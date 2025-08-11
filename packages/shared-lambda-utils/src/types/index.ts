@@ -567,3 +567,36 @@ export interface MatchHistoryMatch {
   team2: MatchHistoryTeam;
   players: MatchHistoryPlayer[];
 }
+
+export interface PlayerLeaderboardStats {
+  steamId: string;
+  username: string;
+  avatarUrl?: string;
+  countryCode?: string;
+  stateCode?: string;
+  // Combined stats from sqlidcup_stats_players
+  kills: number;
+  deaths: number;
+  assists: number;
+  damage: number;
+  enemy5ks: number;
+  enemy4ks: number;
+  enemy3ks: number;
+  enemy2ks: number;
+  utilityDamage: number;
+  shotsFiredTotal: number;
+  shotsOnTargetTotal: number;
+  entryCount: number;
+  entryWins: number;
+  liveTime: number;
+  headShotKills: number;
+  cashEarned: number;
+  enemiesFlashed: number;
+  totalRounds: number; // Total rounds played across all matches
+  // Calculated stats
+  kdr: number;
+  adr: number; // Average damage per round (if we have round data)
+  headShotPercentage: number;
+  accuracy: number; // shots on target / shots fired
+  entryWinRate: number; // entry wins / entry count
+}

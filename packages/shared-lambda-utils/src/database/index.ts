@@ -22,7 +22,8 @@ import {
   GameTeamRecord,
   MatchHistoryMatch,
   MatchHistoryPlayer,
-  MatchHistoryTeam
+  MatchHistoryTeam,
+  PlayerLeaderboardStats
 } from '../types';
 import { getWorkshopMapInfo } from '../steam';
 
@@ -1372,6 +1373,135 @@ export const addLobbyPlayers = (gameId: string, players: any[]) => {
 };
 export const deleteLobby = deleteGame;
 export const storeLobbyHistoryEvent = storeGameHistoryEvent;
+
+// Helper function to get total rounds played for all players
+async function getTotalRoundsPlayedByPlayers(connection: mysql.Connection): Promise<Map<string, number>> {
+  const roundsQuery = `
+    SELECT 
+      gp.player_steam_id,
+      SUM(COALESCE(sm.team1_score, 0) + COALESCE(sm.team2_score, 0)) as total_rounds
+    FROM squidcup_game_players gp
+    JOIN squidcup_game_teams gt ON gp.team_id = gt.id
+    JOIN squidcup_games g ON gt.game_id = g.id
+    LEFT JOIN squidcup_stats_maps sm ON g.match_number = sm.matchid
+    WHERE g.status = 'completed'
+    GROUP BY gp.player_steam_id
+  `;
+
+  const roundsRows = await executeQuery(connection, roundsQuery, []);
+  const roundsMap = new Map<string, number>();
+  
+  for (const row of roundsRows as any[]) {
+    roundsMap.set(row.player_steam_id, row.total_rounds || 0);
+  }
+  
+  return roundsMap;
+}
+
+export async function getPlayerLeaderboardStats(): Promise<PlayerLeaderboardStats[]> {
+  const connection = await getDatabaseConnection();
+  
+  try {
+    // Get total rounds played for all players
+    const totalRoundsMap = await getTotalRoundsPlayedByPlayers(connection);
+    
+    // Query to get aggregated player stats from squidcup_stats_players joined with user info
+    const query = `
+      SELECT 
+        sp.steamid64,
+        u.username,
+        u.avatar as avatar_url,
+        u.country_code,
+        u.state_code,
+        
+        -- Aggregated stats from all matches
+        SUM(sp.kills) as total_kills,
+        SUM(sp.deaths) as total_deaths,
+        SUM(sp.assists) as total_assists,
+        SUM(sp.damage) as total_damage,
+        SUM(sp.enemy5ks) as total_enemy5ks,
+        SUM(sp.enemy4ks) as total_enemy4ks,
+        SUM(sp.enemy3ks) as total_enemy3ks,
+        SUM(sp.enemy2ks) as total_enemy2ks,
+        SUM(sp.utility_damage) as total_utility_damage,
+        SUM(sp.shots_fired_total) as total_shots_fired,
+        SUM(sp.shots_on_target_total) as total_shots_on_target,
+        SUM(sp.entry_count) as total_entry_count,
+        SUM(sp.entry_wins) as total_entry_wins,
+        SUM(sp.live_time) as total_live_time,
+        SUM(sp.head_shot_kills) as total_head_shot_kills,
+        SUM(sp.cash_earned) as total_cash_earned,
+        SUM(sp.enemies_flashed) as total_enemies_flashed
+        
+      FROM squidcup_stats_players sp
+      LEFT JOIN squidcup_users u ON CAST(sp.steamid64 AS CHAR) COLLATE utf8mb4_general_ci = u.steam_id COLLATE utf8mb4_general_ci
+      GROUP BY sp.steamid64, u.username, u.avatar, u.country_code, u.state_code
+      HAVING total_kills > 0 OR total_deaths > 0  -- Only include players who have actually played
+      ORDER BY total_kills DESC
+    `;
+
+    const rows = await executeQuery(connection, query, []);
+
+    // Process the results and calculate derived stats
+    const playerStats: PlayerLeaderboardStats[] = (rows as any[]).map(row => {
+      const steamId = String(row.steamid64);
+      const kills = row.total_kills || 0;
+      const deaths = row.total_deaths || 0;
+      const damage = row.total_damage || 0;
+      const headShotKills = row.total_head_shot_kills || 0;
+      const shotsFired = row.total_shots_fired || 0;
+      const shotsOnTarget = row.total_shots_on_target || 0;
+      const entryCount = row.total_entry_count || 0;
+      const entryWins = row.total_entry_wins || 0;
+      const totalRounds = totalRoundsMap.get(steamId) || 0;
+
+      // Calculate derived statistics
+      const kdr = deaths > 0 ? Number((kills / deaths).toFixed(2)) : kills;
+      const headShotPercentage = kills > 0 ? Number(((headShotKills / kills) * 100).toFixed(1)) : 0;
+      const accuracy = shotsFired > 0 ? Number(((shotsOnTarget / shotsFired) * 100).toFixed(1)) : 0;
+      const entryWinRate = entryCount > 0 ? Number(((entryWins / entryCount) * 100).toFixed(1)) : 0;
+      const adr = totalRounds > 0 ? Number((damage / totalRounds).toFixed(1)) : 0;
+
+      return {
+        steamId,
+        username: row.username || `Player ${steamId.slice(-4)}`,
+        avatarUrl: row.avatar_url || undefined,
+        countryCode: row.country_code || undefined,
+        stateCode: row.state_code || undefined,
+        kills,
+        deaths,
+        assists: row.total_assists || 0,
+        damage,
+        enemy5ks: row.total_enemy5ks || 0,
+        enemy4ks: row.total_enemy4ks || 0,
+        enemy3ks: row.total_enemy3ks || 0,
+        enemy2ks: row.total_enemy2ks || 0,
+        utilityDamage: row.total_utility_damage || 0,
+        shotsFiredTotal: shotsFired,
+        shotsOnTargetTotal: shotsOnTarget,
+        entryCount,
+        entryWins,
+        liveTime: row.total_live_time || 0,
+        headShotKills,
+        cashEarned: row.total_cash_earned || 0,
+        enemiesFlashed: row.total_enemies_flashed || 0,
+        totalRounds,
+        // Calculated stats
+        kdr,
+        adr,
+        headShotPercentage,
+        accuracy,
+        entryWinRate
+      };
+    });
+
+    console.log(`Retrieved leaderboard stats for ${playerStats.length} players`);
+    return playerStats;
+
+  } finally {
+    await connection.end();
+  }
+}
 
 function jsDateToMySQLDate(date: Date): string {
   const dateISOString = date.toISOString();
