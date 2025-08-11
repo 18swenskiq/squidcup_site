@@ -1225,7 +1225,7 @@ export async function getMatchHistory(): Promise<MatchHistoryMatch[]> {
       ORDER BY g.start_time DESC, gp.player_steam_id
     `;
 
-    const [rows] = await executeQuery(connection, query, []);
+    const rows = await executeQuery(connection, query, []);
 
     // Group the results by match
     const matchesMap = new Map<string, MatchHistoryMatch>();
