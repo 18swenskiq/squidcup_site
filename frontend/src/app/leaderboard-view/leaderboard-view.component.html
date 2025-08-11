@@ -4,9 +4,82 @@
 ></app-page-header>
 
 <div class="leaderboard-container">
-  <div class="placeholder-content">
-    <h2>Leaderboard Coming Soon</h2>
-    <p>This section will display player rankings, match statistics, and competitive standings.</p>
-    <p>Stay tuned for updates!</p>
+  <!-- Loading State -->
+  <div *ngIf="isLoading" class="loading-container">
+    <div class="loading-spinner"></div>
+    <p>Loading leaderboard...</p>
+  </div>
+
+  <!-- Error State -->
+  <div *ngIf="error && !isLoading" class="error-container">
+    <h3>Error</h3>
+    <p>{{ error }}</p>
+    <button (click)="loadLeaderboardData()" class="retry-button">Retry</button>
+  </div>
+
+  <!-- Leaderboard Table -->
+  <div *ngIf="!isLoading && !error && players.length > 0" class="leaderboard-table-container">
+    <div class="table-header">
+      <h2>Player Statistics</h2>
+      <p>{{ players.length }} players ranked</p>
+    </div>
+
+    <div class="table-wrapper">
+      <table class="leaderboard-table">
+        <thead>
+          <tr>
+            <th class="rank-column">#</th>
+            <th class="player-column sortable" 
+                (click)="sortBy('username')"
+                [class]="getSortClass('username')"
+                title="Click to sort by player name">
+              Player <span class="sort-icon">{{ getSortIcon('username') }}</span>
+            </th>
+            <th *ngFor="let column of columns" 
+                class="stat-column sortable" 
+                [class]="getSortClass(column.key)"
+                [title]="column.tooltip + ' - Click to sort'"
+                (click)="sortBy(column.key)">
+              {{ column.label }} <span class="sort-icon">{{ getSortIcon(column.key) }}</span>
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let player of players; let i = index" class="player-row">
+            <!-- Rank -->
+            <td class="rank-cell">{{ getPlayerRank(i) }}</td>
+            
+            <!-- Player Info -->
+            <td class="player-cell">
+              <div class="player-info">
+                <div class="avatar-container">
+                  <img 
+                    [src]="player.avatarUrl || '/assets/default-avatar.png'" 
+                    [alt]="player.username + ' avatar'"
+                    class="player-avatar"
+                    onerror="this.src='/assets/default-avatar.png'"
+                  />
+                </div>
+                <div class="player-details">
+                  <div class="player-flag">{{ getCountryFlag(player.countryCode) }}</div>
+                  <div class="player-name">{{ player.username }}</div>
+                </div>
+              </div>
+            </td>
+            
+            <!-- Stats -->
+            <td *ngFor="let column of columns" class="stat-cell">
+              {{ getStatValue(player, column.key) }}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Empty State -->
+  <div *ngIf="!isLoading && !error && players.length === 0" class="empty-container">
+    <h3>No Data Available</h3>
+    <p>No player statistics found. Play some matches to see rankings!</p>
   </div>
 </div>
