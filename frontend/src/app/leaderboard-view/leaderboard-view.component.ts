@@ -15,10 +15,6 @@ export interface PlayerLeaderboardStats {
   deaths: number;
   assists: number;
   damage: number;
-  enemy5ks: number;
-  enemy4ks: number;
-  enemy3ks: number;
-  enemy2ks: number;
   utilityDamage: number;
   shotsFiredTotal: number;
   shotsOnTargetTotal: number;
@@ -68,10 +64,6 @@ export class LeaderboardViewComponent implements OnInit {
     { key: 'headShotKills', label: 'HS', tooltip: 'Headshot Kills' },
     { key: 'headShotPercentage', label: 'HS%', tooltip: 'Headshot Percentage' },
     { key: 'accuracy', label: 'ACC%', tooltip: 'Accuracy Percentage' },
-    { key: 'enemy5ks', label: '5K', tooltip: '5-Kill Rounds (Aces)' },
-    { key: 'enemy4ks', label: '4K', tooltip: '4-Kill Rounds' },
-    { key: 'enemy3ks', label: '3K', tooltip: '3-Kill Rounds' },
-    { key: 'enemy2ks', label: '2K', tooltip: '2-Kill Rounds' },
     { key: 'entryCount', label: 'ENT', tooltip: 'Entry Attempts' },
     { key: 'entryWins', label: 'ENTW', tooltip: 'Entry Wins' },
     { key: 'entryWinRate', label: 'ENT%', tooltip: 'Entry Win Rate' },

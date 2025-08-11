@@ -1388,12 +1388,21 @@ async function getTotalRoundsPlayedByPlayers(connection: mysql.Connection): Prom
     GROUP BY gp.player_steam_id
   `;
 
+  console.log('Executing rounds query:', roundsQuery);
   const roundsRows = await executeQuery(connection, roundsQuery, []);
+  console.log('Rounds query returned', roundsRows.length, 'rows');
+  
   const roundsMap = new Map<string, number>();
   
   for (const row of roundsRows as any[]) {
-    roundsMap.set(row.player_steam_id, row.total_rounds || 0);
+    const steamId = String(row.player_steam_id);
+    const totalRounds = Number(row.total_rounds) || 0;
+    console.log(`Player ${steamId} (type: ${typeof row.player_steam_id}): ${totalRounds} rounds (type: ${typeof row.total_rounds})`);
+    roundsMap.set(steamId, totalRounds);
   }
+  
+  console.log('Final rounds map size:', roundsMap.size);
+  console.log('Sample map entries:', Array.from(roundsMap.entries()).slice(0, 3));
   
   return roundsMap;
 }
@@ -1419,10 +1428,6 @@ export async function getPlayerLeaderboardStats(): Promise<PlayerLeaderboardStat
         SUM(sp.deaths) as total_deaths,
         SUM(sp.assists) as total_assists,
         SUM(sp.damage) as total_damage,
-        SUM(sp.enemy5ks) as total_enemy5ks,
-        SUM(sp.enemy4ks) as total_enemy4ks,
-        SUM(sp.enemy3ks) as total_enemy3ks,
-        SUM(sp.enemy2ks) as total_enemy2ks,
         SUM(sp.utility_damage) as total_utility_damage,
         SUM(sp.shots_fired_total) as total_shots_fired,
         SUM(sp.shots_on_target_total) as total_shots_on_target,
@@ -1455,12 +1460,19 @@ export async function getPlayerLeaderboardStats(): Promise<PlayerLeaderboardStat
       const entryWins = row.total_entry_wins || 0;
       const totalRounds = totalRoundsMap.get(steamId) || 0;
 
+      console.log(`Processing player ${steamId} (from steamid64: ${row.steamid64}, type: ${typeof row.steamid64})`);
+      console.log(`  Looking up in rounds map...`);
+      console.log(`  Found totalRounds: ${totalRounds}`);
+      console.log(`  Map has key: ${totalRoundsMap.has(steamId)}`);
+
       // Calculate derived statistics
       const kdr = deaths > 0 ? Number((kills / deaths).toFixed(2)) : kills;
       const headShotPercentage = kills > 0 ? Number(((headShotKills / kills) * 100).toFixed(1)) : 0;
       const accuracy = shotsFired > 0 ? Number(((shotsOnTarget / shotsFired) * 100).toFixed(1)) : 0;
       const entryWinRate = entryCount > 0 ? Number(((entryWins / entryCount) * 100).toFixed(1)) : 0;
       const adr = totalRounds > 0 ? Number((damage / totalRounds).toFixed(1)) : 0;
+
+      console.log(`  Final ADR calculation: ${damage} / ${totalRounds} = ${adr}`);
 
       return {
         steamId,
@@ -1472,10 +1484,6 @@ export async function getPlayerLeaderboardStats(): Promise<PlayerLeaderboardStat
         deaths,
         assists: row.total_assists || 0,
         damage,
-        enemy5ks: row.total_enemy5ks || 0,
-        enemy4ks: row.total_enemy4ks || 0,
-        enemy3ks: row.total_enemy3ks || 0,
-        enemy2ks: row.total_enemy2ks || 0,
         utilityDamage: row.total_utility_damage || 0,
         shotsFiredTotal: shotsFired,
         shotsOnTargetTotal: shotsOnTarget,

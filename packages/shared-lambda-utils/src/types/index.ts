@@ -574,15 +574,11 @@ export interface PlayerLeaderboardStats {
   avatarUrl?: string;
   countryCode?: string;
   stateCode?: string;
-  // Combined stats from sqlidcup_stats_players
+  // Combined stats from squidcup_stats_players
   kills: number;
   deaths: number;
   assists: number;
   damage: number;
-  enemy5ks: number;
-  enemy4ks: number;
-  enemy3ks: number;
-  enemy2ks: number;
   utilityDamage: number;
   shotsFiredTotal: number;
   shotsOnTargetTotal: number;
