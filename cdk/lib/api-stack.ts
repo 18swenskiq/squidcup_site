@@ -328,6 +328,21 @@ export class ApiStack extends cdk.Stack {
       }
     });
 
+    const getMatchHistoryFunction = new NodejsFunction(this, "get-match-history-function", {
+      runtime: this.RUNTIME,
+      memorySize: this.MEMORY_SIZE,
+      timeout: this.TIMEOUT,
+      handler: 'index.handler',
+      code: lambda.Code.fromAsset(path.join(__dirname, '/../src/get-match-history-lambda')),
+      logRetention: this.LOG_RETENTION,
+      environment: {
+        REGION: this.REGION,
+      },
+      bundling: {
+        minify: true,
+      }
+    });
+
     // Create an SSM parameter access policy
     const ssmPolicy = new iam.PolicyStatement({
       actions: ['ssm:GetParameter'],
@@ -355,6 +370,7 @@ export class ApiStack extends cdk.Stack {
     steamLoginFunction.addToRolePolicy(ssmPolicy);
     endMatchFunction.addToRolePolicy(ssmPolicy);
     acceptMatchResultFunction.addToRolePolicy(ssmPolicy);
+    getMatchHistoryFunction.addToRolePolicy(ssmPolicy);
 
     // Grant Lambda invoke permissions for lobby system
     createLobbyFunction.grantInvoke(joinQueueFunction); // Allow join-queue to invoke create-lobby
@@ -1390,6 +1406,53 @@ export class ApiStack extends cdk.Stack {
           'method.response.header.Access-Control-Allow-Origin': "'https://squidcup.spkymnr.xyz'",
           'method.response.header.Access-Control-Allow-Headers': "'Content-Type,Authorization'",
           'method.response.header.Access-Control-Allow-Methods': "'POST,OPTIONS'",
+        },
+      }],
+      requestTemplates: {
+        'application/json': '{"statusCode": 200}'
+      }
+    }), {
+      methodResponses: [{
+        statusCode: '200',
+        responseParameters: {
+          'method.response.header.Access-Control-Allow-Origin': true,
+          'method.response.header.Access-Control-Allow-Headers': true,
+          'method.response.header.Access-Control-Allow-Methods': true,
+        },
+      }]
+    });
+
+    // Add /matchHistory endpoint
+    const matchHistoryResource = api.root.addResource('matchHistory');
+    matchHistoryResource.addMethod('GET', new apigw.LambdaIntegration(getMatchHistoryFunction), {
+      methodResponses: [{
+        statusCode: '200',
+        responseParameters: {
+          'method.response.header.Access-Control-Allow-Origin': true,
+          'method.response.header.Access-Control-Allow-Headers': true,
+          'method.response.header.Access-Control-Allow-Methods': true,
+        },
+      }, {
+        statusCode: '400',
+        responseParameters: {
+          'method.response.header.Access-Control-Allow-Origin': true,
+        },
+      }, {
+        statusCode: '500',
+        responseParameters: {
+          'method.response.header.Access-Control-Allow-Origin': true,
+        },
+      }]
+    });
+
+    // Add OPTIONS method for matchHistory endpoint
+    matchHistoryResource.addMethod('OPTIONS', new apigw.MockIntegration({
+      integrationResponses: [{
+        statusCode: '200',
+        responseParameters: {
+          'method.response.header.Access-Control-Allow-Origin': "'https://squidcup.spkymnr.xyz'",
+          'method.response.header.Access-Control-Allow-Headers': "'Content-Type,Authorization'",
+          'method.response.header.Access-Control-Allow-Methods': "'GET,OPTIONS'",
         },
       }],
       requestTemplates: {

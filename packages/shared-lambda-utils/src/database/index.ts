@@ -19,7 +19,10 @@ import {
   UpdateServerInput,
   UpsertUserInput,
   GameHistoryEventInput,
-  GameTeamRecord
+  GameTeamRecord,
+  MatchHistoryMatch,
+  MatchHistoryPlayer,
+  MatchHistoryTeam
 } from '../types';
 
 // Initialize SSM client
@@ -1157,6 +1160,138 @@ export async function replaceRandomMapSelections(gameId: string, availableMaps: 
         [randomMap, gameId, player.player_steam_id]
       );
     }
+  }
+}
+
+export async function getMatchHistory(): Promise<MatchHistoryMatch[]> {
+  const connection = await getDatabaseConnection();
+  
+  try {
+    // Complex query to get all match history data in one go
+    const query = `
+      SELECT 
+        g.id as game_id,
+        g.match_number,
+        g.game_mode,
+        g.map as map_id,
+        g.ranked,
+        g.start_time,
+        
+        -- Team 1 data
+        gt1.id as team1_id,
+        gt1.team_name as team1_name,
+        gt1.average_elo as team1_average_elo,
+        COALESCE(sm.team1_score, 0) as team1_score,
+        
+        -- Team 2 data  
+        gt2.id as team2_id,
+        gt2.team_name as team2_name,
+        gt2.average_elo as team2_average_elo,
+        COALESCE(sm.team2_score, 0) as team2_score,
+        
+        -- Player data
+        gp.player_steam_id,
+        gp.team_id,
+        gt.team_number,
+        u.username as player_name,
+        
+        -- Player stats
+        COALESCE(sp.kills, 0) as kills,
+        COALESCE(sp.deaths, 0) as deaths,
+        COALESCE(sp.assists, 0) as assists,
+        COALESCE(sp.damage, 0) as damage
+        
+      FROM squidcup_games g
+      
+      -- Join team 1
+      LEFT JOIN squidcup_game_teams gt1 ON g.id = gt1.game_id AND gt1.team_number = 1
+      
+      -- Join team 2
+      LEFT JOIN squidcup_game_teams gt2 ON g.id = gt2.game_id AND gt2.team_number = 2
+      
+      -- Join match scores (use match_number for stats tables)
+      LEFT JOIN squidcup_stats_maps sm ON g.match_number = sm.matchid
+      
+      -- Join players
+      LEFT JOIN squidcup_game_players gp ON g.id = gp.game_id
+      LEFT JOIN squidcup_game_teams gt ON gp.team_id = gt.id
+      LEFT JOIN squidcup_users u ON gp.player_steam_id = u.steam_id
+      
+      -- Join player stats (use match_number for stats tables, convert steam_id string to BIGINT for matching)
+      LEFT JOIN squidcup_stats_players sp ON g.match_number = sp.matchid 
+        AND CAST(gp.player_steam_id AS UNSIGNED) = sp.steamid64
+      
+      WHERE g.status = 'completed'
+      ORDER BY g.start_time DESC, gp.player_steam_id
+    `;
+
+    const [rows] = await executeQuery(connection, query, []);
+
+    // Group the results by match
+    const matchesMap = new Map<string, MatchHistoryMatch>();
+    
+    for (const row of rows as any[]) {
+      const matchNumber = row.match_number;
+      
+      if (!matchesMap.has(matchNumber)) {
+        // Initialize match data
+        matchesMap.set(matchNumber, {
+          matchNumber,
+          gameMode: row.game_mode,
+          mapId: row.map_id || '',
+          mapName: '', // Will be populated when we get map data
+          ranked: !!row.ranked,
+          startTime: row.start_time,
+          team1: {
+            teamNumber: 1,
+            teamName: row.team1_name || 'Team 1',
+            averageElo: row.team1_average_elo || 0,
+            score: row.team1_score
+          },
+          team2: {
+            teamNumber: 2,
+            teamName: row.team2_name || 'Team 2', 
+            averageElo: row.team2_average_elo || 0,
+            score: row.team2_score
+          },
+          players: []
+        });
+      }
+
+      // Add player to match if we have player data
+      if (row.player_steam_id) {
+        const match = matchesMap.get(matchNumber)!;
+        
+        // Check if player already added (avoid duplicates from joins)
+        const existingPlayer = match.players.find(p => p.steamId === row.player_steam_id);
+        if (!existingPlayer) {
+          match.players.push({
+            steamId: row.player_steam_id,
+            name: row.player_name || `Player ${row.player_steam_id.slice(-4)}`,
+            team: row.team_number || 1,
+            kills: row.kills,
+            deaths: row.deaths,
+            assists: row.assists,
+            damage: row.damage
+          });
+        }
+      }
+    }
+
+    const matches = Array.from(matchesMap.values());
+
+    // Set map names for matches that have map IDs
+    // For now, we'll just use a placeholder format
+    // In the future, this could be enhanced to fetch actual map names from Steam API
+    matches.forEach(match => {
+      if (match.mapId) {
+        match.mapName = `Workshop Map ${match.mapId}`;
+      }
+    });
+
+    return matches;
+  } finally {
+    await connection.end();
   }
 }
 
