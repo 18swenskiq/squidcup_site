@@ -1378,14 +1378,12 @@ export const storeLobbyHistoryEvent = storeGameHistoryEvent;
 async function getTotalRoundsPlayedByPlayers(connection: mysql.Connection): Promise<Map<string, number>> {
   const roundsQuery = `
     SELECT 
-      gp.player_steam_id,
+      sp.steamid64,
       SUM(COALESCE(sm.team1_score, 0) + COALESCE(sm.team2_score, 0)) as total_rounds
-    FROM squidcup_game_players gp
-    JOIN squidcup_game_teams gt ON gp.team_id = gt.id
-    JOIN squidcup_games g ON gt.game_id = g.id
-    LEFT JOIN squidcup_stats_maps sm ON g.match_number = sm.matchid
-    WHERE g.status = 'completed'
-    GROUP BY gp.player_steam_id
+    FROM squidcup_stats_players sp
+    LEFT JOIN squidcup_stats_maps sm ON sp.matchid = sm.matchid
+    WHERE sm.matchid IS NOT NULL
+    GROUP BY sp.steamid64
   `;
 
   console.log('Executing rounds query:', roundsQuery);
@@ -1395,9 +1393,9 @@ async function getTotalRoundsPlayedByPlayers(connection: mysql.Connection): Prom
   const roundsMap = new Map<string, number>();
   
   for (const row of roundsRows as any[]) {
-    const steamId = String(row.player_steam_id);
+    const steamId = String(row.steamid64);
     const totalRounds = Number(row.total_rounds) || 0;
-    console.log(`Player ${steamId} (type: ${typeof row.player_steam_id}): ${totalRounds} rounds (type: ${typeof row.total_rounds})`);
+    console.log(`Player ${steamId} (type: ${typeof row.steamid64}): ${totalRounds} rounds (type: ${typeof row.total_rounds})`);
     roundsMap.set(steamId, totalRounds);
   }
   
