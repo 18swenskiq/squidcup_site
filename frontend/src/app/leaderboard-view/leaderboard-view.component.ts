@@ -271,8 +271,24 @@ export class LeaderboardViewComponent implements OnInit {
       return player.username;
     }
     
-    // For all other columns, get the raw numeric value
-    return (player as any)[column] || 0;
+    // Get the raw value
+    const value = (player as any)[column];
+    
+    // Define numeric columns that should be treated as numbers
+    const numericColumns = [
+      'kills', 'deaths', 'assists', 'damage', 'utilityDamage', 
+      'shotsFiredTotal', 'shotsOnTargetTotal', 'entryCount', 'entryWins',
+      'liveTime', 'headShotKills', 'cashEarned', 'enemiesFlashed', 'totalRounds',
+      'kdr', 'adr', 'headShotPercentage', 'accuracy', 'entryWinRate'
+    ];
+    
+    // If it's a numeric column, ensure we return a number
+    if (numericColumns.includes(column)) {
+      return parseFloat(value) || 0;
+    }
+    
+    // For all other columns, return the raw value
+    return value || 0;
   }
 
   getSortIcon(column: string): string {
