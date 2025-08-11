@@ -4,6 +4,7 @@ import { HttpClient, HttpClientModule } from '@angular/common/http';
 import { PageHeaderComponent } from '../page-header/page-header.component';
 import { MatchHistoryMatch, MatchHistoryResponse } from '../shared/interfaces';
 import { AuthService } from '../services/auth.service';
+import { environment } from '../../environments/environment';
 
 @Component({
   selector: 'app-history-view',
@@ -17,7 +18,7 @@ export class HistoryViewComponent implements OnInit {
   isLoading: boolean = true;
   hasError: boolean = false;
   errorMessage: string = '';
-  private apiBaseUrl = 'https://api.squidcup.spkymnr.xyz';
+  private apiBaseUrl: string = environment.apiUrl;
 
   constructor(
     private http: HttpClient,
