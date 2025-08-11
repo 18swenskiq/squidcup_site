@@ -244,9 +244,17 @@
                 flex: 1;
                 
                 .player-flag {
-                  font-size: 1rem;
                   margin-bottom: 2px;
                   line-height: 1;
+                  
+                  .flag-image {
+                    width: 20px;
+                    height: 15px;
+                    object-fit: cover;
+                    border-radius: 2px;
+                    border: 1px solid rgba(255, 255, 255, 0.1);
+                    display: block;
+                  }
                 }
                 
                 .player-name {
