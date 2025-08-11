@@ -139,7 +139,8 @@
             position: sticky;
             left: 0;
             background-color: rgba(255, 255, 255, 0.05);
-            z-index: 3;
+            z-index: 10;
+            border-right: 1px solid rgba(255, 255, 255, 0.1);
           }
           
           &.player-column {
@@ -148,7 +149,8 @@
             position: sticky;
             left: 60px; // Position after the rank column
             background-color: rgba(255, 255, 255, 0.05);
-            z-index: 2;
+            z-index: 9;
+            border-right: 1px solid rgba(255, 255, 255, 0.1);
           }
           
           &.stat-column {
@@ -219,16 +221,52 @@
             font-size: 1rem;
             position: sticky;
             left: 0;
-            background-color: inherit;
-            z-index: 3;
+            z-index: 10;
+            border-right: 1px solid rgba(255, 255, 255, 0.1);
+            
+            // Ensure solid background that matches the row state
+            background-color: rgba(255, 255, 255, 0.02);
+            
+            // Override for hover state
+            .player-row:hover & {
+              background-color: rgba(255, 255, 255, 0.03);
+            }
+            
+            // Override for odd rows
+            .player-row:nth-child(odd) & {
+              background-color: rgba(255, 255, 255, 0.01);
+            }
+            
+            // Override for odd rows on hover
+            .player-row:nth-child(odd):hover & {
+              background-color: rgba(255, 255, 255, 0.03);
+            }
           }
           
           .player-cell {
             padding: 16px 12px;
             position: sticky;
             left: 60px; // Position after the rank column
-            background-color: inherit;
-            z-index: 2;
+            z-index: 9;
+            border-right: 1px solid rgba(255, 255, 255, 0.1);
+            
+            // Ensure solid background that matches the row state
+            background-color: rgba(255, 255, 255, 0.02);
+            
+            // Override for hover state
+            .player-row:hover & {
+              background-color: rgba(255, 255, 255, 0.03);
+            }
+            
+            // Override for odd rows
+            .player-row:nth-child(odd) & {
+              background-color: rgba(255, 255, 255, 0.01);
+            }
+            
+            // Override for odd rows on hover
+            .player-row:nth-child(odd):hover & {
+              background-color: rgba(255, 255, 255, 0.03);
+            }
             
             .player-info {
               display: flex;
