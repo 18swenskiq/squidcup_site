@@ -7,7 +7,8 @@ import {
   storeQueueHistoryEvent,
   createCorsHeaders,
   getMaxPlayersForGamemode,
-  extractSteamIdFromOpenId
+  extractSteamIdFromOpenId,
+  isUserBanned
 } from '@squidcup/shared-lambda-utils';
 
 export interface ActiveQueue {
@@ -72,6 +73,16 @@ export async function handler(event: any): Promise<any> {
     // Extract Steam ID from session
     const hostSteamId = extractSteamIdFromOpenId(session.steamId);
     console.log('Host Steam ID:', hostSteamId);
+
+    // Check if user is banned
+    const isBanned = await isUserBanned(hostSteamId);
+    if (isBanned) {
+      return {
+        statusCode: 403,
+        headers: corsHeaders,
+        body: JSON.stringify({ error: 'You are temporarily banned from creating queues' }),
+      };
+    }
 
     // Parse request body
     const queueData = JSON.parse(event.body);

@@ -159,8 +159,10 @@ async function ensureTablesExist(connection: mysql.Connection): Promise<void> {
         country_code VARCHAR(2),
         state_code VARCHAR(3),
         is_admin BOOLEAN DEFAULT FALSE,
+        temp_banned BOOLEAN NOT NULL DEFAULT 0,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        INDEX idx_temp_banned (temp_banned)
       )
     `);
 
@@ -388,6 +390,23 @@ export async function getUsersBySteamIds(steamIds: string[]): Promise<UserWithSt
     steamIds
   );
   return rows;
+}
+
+export async function isUserBanned(steamId: string): Promise<boolean> {
+  const connection = await getDatabaseConnection();
+  const rows = await executeQuery(
+    connection,
+    'SELECT temp_banned FROM squidcup_users WHERE steam_id = ?',
+    [steamId]
+  );
+  
+  if (rows.length === 0) {
+    // User doesn't exist, consider them not banned
+    return false;
+  }
+  
+  // Return true if temp_banned is 1 (true), false otherwise
+  return Boolean(rows[0].temp_banned);
 }
 
 // Server management functions

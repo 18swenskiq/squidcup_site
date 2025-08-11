@@ -8,7 +8,8 @@ import {
   storeQueueHistoryEvent,
   createCorsHeaders,
   extractSteamIdFromOpenId,
-  getMaxPlayersForGamemode
+  getMaxPlayersForGamemode,
+  isUserBanned
 } from '@squidcup/shared-lambda-utils';
 
 const lambdaClient = new LambdaClient({ region: process.env.REGION });
@@ -48,6 +49,16 @@ export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayPr
     // Extract Steam ID from session
     const userSteamId = extractSteamIdFromOpenId(sessionData.steamId);
     console.log('User Steam ID:', userSteamId);
+
+    // Check if user is banned
+    const isBanned = await isUserBanned(userSteamId);
+    if (isBanned) {
+      return {
+        statusCode: 403,
+        headers: corsHeaders,
+        body: JSON.stringify({ error: 'You are temporarily banned from joining queues' }),
+      };
+    }
 
     // Parse request body
     const { queueId, password } = JSON.parse(event.body || '{}');
