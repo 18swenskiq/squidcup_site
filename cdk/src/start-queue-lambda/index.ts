@@ -8,7 +8,8 @@ import {
   createCorsHeaders,
   getMaxPlayersForGamemode,
   extractSteamIdFromOpenId,
-  isUserBanned
+  isUserBanned,
+  getSsmParameter
 } from '@squidcup/shared-lambda-utils';
 
 export interface ActiveQueue {
@@ -26,6 +27,58 @@ export interface ActiveQueue {
   }>;
   createdAt: string;
   updatedAt: string;
+}
+
+async function sendDiscordWebhook(gameMode: string, maxPlayers: number): Promise<void> {
+  try {
+    const webhookUrl = await getSsmParameter('/squidcup/webhook_url');
+    
+    const playersNeeded = maxPlayers - 1; // Subtract 1 for the host
+    
+    const embed = {
+      title: "New Squidcup Queue Started",
+      url: "https://squidcup.spkymnr.xyz/play",
+      description: `A new **${gameMode}** queue has been created!`,
+      fields: [
+        {
+          name: "Game Mode",
+          value: gameMode,
+          inline: true
+        },
+        {
+          name: "Players Needed",
+          value: `${playersNeeded} more players`,
+          inline: true
+        }
+      ],
+      color: 0x2196F3, // Blue color
+      timestamp: new Date().toISOString(),
+      footer: {
+        text: "Click the title to join!"
+      }
+    };
+
+    const payload = {
+      embeds: [embed]
+    };
+
+    const response = await fetch(webhookUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) {
+      console.error('Discord webhook failed:', response.status, response.statusText);
+    } else {
+      console.log('Discord webhook sent successfully');
+    }
+  } catch (error) {
+    console.error('Error sending Discord webhook:', error);
+    // Don't throw the error - webhook failure shouldn't break queue creation
+  }
 }
 
 export async function handler(event: any): Promise<any> {
@@ -159,6 +212,10 @@ export async function handler(event: any): Promise<any> {
     });
 
     console.log('Queue created successfully:', activeQueue);
+
+    // Send Discord webhook notification
+    const maxPlayers = getMaxPlayersForGamemode(gameMode);
+    await sendDiscordWebhook(gameMode, maxPlayers);
 
     return {
       statusCode: 201,
