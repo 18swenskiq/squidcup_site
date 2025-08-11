@@ -1,12 +1,130 @@
 <app-page-header
-  title="History"
-  [descriptionParagraphs]="['Match History and Game Records']"
+  title="Match History"
+  [descriptionParagraphs]="['View completed matches and performance statistics']"
 ></app-page-header>
 
 <div class="history-container">
-  <div class="placeholder-content">
-    <h2>Match History Coming Soon</h2>
-    <p>This section will display your match history, game statistics, and performance records.</p>
-    <p>Track your progress and review past matches once this feature is implemented.</p>
+  <!-- Loading State -->
+  <div *ngIf="isLoading" class="loading-container">
+    <div class="spinner"></div>
+    <p>Loading match history...</p>
+  </div>
+
+  <!-- Error State -->
+  <div *ngIf="hasError && !isLoading" class="error-container">
+    <h3>Failed to Load Match History</h3>
+    <p>{{ errorMessage }}</p>
+    <button class="retry-button" (click)="retry()">Try Again</button>
+  </div>
+
+  <!-- No Matches State -->
+  <div *ngIf="!isLoading && !hasError && matches.length === 0" class="no-matches-container">
+    <h3>No Matches Found</h3>
+    <p>No completed matches available yet.</p>
+  </div>
+
+  <!-- Matches List -->
+  <div *ngIf="!isLoading && !hasError && matches.length > 0" class="matches-list">
+    <div 
+      *ngFor="let match of matches; trackBy: trackByMatchNumber" 
+      class="match-card"
+      [class.expanded]="match.expanded"
+      (click)="toggleMatchExpansion(match)"
+    >
+      <!-- Map Background -->
+      <div class="map-background" [style.background-image]="'url(' + getMapThumbnailUrl(match.mapId) + ')'"></div>
+      
+      <!-- Match Header -->
+      <div class="match-header">
+        <!-- Team 1 -->
+        <div class="team-info team-left" [class.winning-team]="match.team1.score > match.team2.score" [class.losing-team]="match.team1.score < match.team2.score">
+          <div class="team-name">{{ match.team1.teamName }}</div>
+          <div class="team-score">{{ match.team1.score }}</div>
+          <div class="team-elo">{{ match.team1.averageElo | number:'1.0-0' }} ELO</div>
+        </div>
+
+        <!-- Match Center Info -->
+        <div class="match-center">
+          <div class="match-number">Match #{{ match.matchNumber }}</div>
+          <div class="game-mode">{{ formatGameMode(match.gameMode) }}</div>
+          <div class="map-name">{{ match.mapName }}</div>
+          <div class="match-date">{{ formatDate(match.startTime) }}</div>
+          <div class="match-type" [class.ranked]="match.ranked">
+            {{ match.ranked ? 'RANKED' : 'CASUAL' }}
+          </div>
+        </div>
+
+        <!-- Team 2 -->
+        <div class="team-info team-right" [class.winning-team]="match.team2.score > match.team1.score" [class.losing-team]="match.team2.score < match.team1.score">
+          <div class="team-name">{{ match.team2.teamName }}</div>
+          <div class="team-score">{{ match.team2.score }}</div>
+          <div class="team-elo">{{ match.team2.averageElo | number:'1.0-0' }} ELO</div>
+        </div>
+      </div>
+
+      <!-- Expanded Content - Player Statistics -->
+      <div *ngIf="match.expanded" class="match-details">
+        <div class="teams-container">
+          <!-- Team 1 Players -->
+          <div class="team-section" [class.winning-team]="match.team1.score > match.team2.score" [class.losing-team]="match.team1.score < match.team2.score">
+            <h4>{{ match.team1.teamName }}</h4>
+            <div class="players-table">
+              <div class="table-header">
+                <span class="player-name">Player</span>
+                <span class="stat">K</span>
+                <span class="stat">D</span>
+                <span class="stat">A</span>
+                <span class="stat">KDA</span>
+                <span class="stat">Damage</span>
+              </div>
+              <div 
+                *ngFor="let player of getTeamPlayers(match, 1)" 
+                class="player-row"
+              >
+                <span class="player-name">{{ player.name }}</span>
+                <span class="stat">{{ player.kills }}</span>
+                <span class="stat">{{ player.deaths }}</span>
+                <span class="stat">{{ player.assists }}</span>
+                <span class="stat">{{ getKDA(player) }}</span>
+                <span class="stat">{{ player.damage | number }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Team 2 Players -->
+          <div class="team-section" [class.winning-team]="match.team2.score > match.team1.score" [class.losing-team]="match.team2.score < match.team1.score">
+            <h4>{{ match.team2.teamName }}</h4>
+            <div class="players-table">
+              <div class="table-header">
+                <span class="player-name">Player</span>
+                <span class="stat">K</span>
+                <span class="stat">D</span>
+                <span class="stat">A</span>
+                <span class="stat">KDA</span>
+                <span class="stat">Damage</span>
+              </div>
+              <div 
+                *ngFor="let player of getTeamPlayers(match, 2)" 
+                class="player-row"
+              >
+                <span class="player-name">{{ player.name }}</span>
+                <span class="stat">{{ player.kills }}</span>
+                <span class="stat">{{ player.deaths }}</span>
+                <span class="stat">{{ player.assists }}</span>
+                <span class="stat">{{ getKDA(player) }}</span>
+                <span class="stat">{{ player.damage | number }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Click to expand indicator -->
+      <div class="expand-indicator">
+        <span class="material-symbols-outlined">
+          {{ match.expanded ? 'expand_less' : 'expand_more' }}
+        </span>
+      </div>
+    </div>
   </div>
 </div>

@@ -99,3 +99,39 @@ export interface ViewState {
   showJoinQueue: boolean;
   showLobby: boolean;
 }
+
+// Match History interfaces
+export interface MatchHistoryPlayer {
+  steamId: string;
+  name: string;
+  team: number;
+  kills: number;
+  deaths: number;
+  assists: number;
+  damage: number;
+}
+
+export interface MatchHistoryTeam {
+  teamNumber: number;
+  teamName: string;
+  averageElo: number;
+  score: number;
+}
+
+export interface MatchHistoryMatch {
+  matchNumber: string;
+  gameMode: string;
+  mapId: string;
+  mapName: string;
+  ranked: boolean;
+  startTime: string;
+  team1: MatchHistoryTeam;
+  team2: MatchHistoryTeam;
+  players: MatchHistoryPlayer[];
+  expanded?: boolean; // For UI state
+}
+
+export interface MatchHistoryResponse {
+  matches: MatchHistoryMatch[];
+  total: number;
+}
