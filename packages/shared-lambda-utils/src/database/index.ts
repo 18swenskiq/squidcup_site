@@ -992,7 +992,7 @@ export async function getActiveGamesForCleanup(): Promise<QueueCleanupRecord[]> 
       created_at,
       updated_at
      FROM squidcup_games
-     WHERE status IN ('queue', 'lobby')
+     WHERE status IN ('queue')
      ORDER BY created_at DESC`
   );
 }

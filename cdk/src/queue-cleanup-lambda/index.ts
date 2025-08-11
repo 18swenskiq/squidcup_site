@@ -53,7 +53,11 @@ export async function handler(event: any): Promise<any> {
       console.log(`Queue ${gameId}: last activity at ${lastActivityTime}, cutoff is ${cutoffTime}`);
       
       // Check if queue has been inactive for too long
-      if (lastActivityTime < cutoffTime) {
+      // Convert both to Date objects for proper comparison
+      const lastActivityDate = new Date(lastActivityTime);
+      const cutoffDate = new Date(cutoffTime);
+      
+      if (lastActivityDate < cutoffDate) {
         console.log(`Queue ${gameId} has been inactive for ${timeoutMinutes}+ minutes (last activity: ${lastActivityTime})`);
         
         // Store timeout event for host using shared utilities
