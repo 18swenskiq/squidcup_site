@@ -141,3 +141,49 @@ export function selectRandomMapFromAvailable(availableMaps: string[]): string | 
   const randomIndex = Math.floor(Math.random() * availableMaps.length);
   return availableMaps[randomIndex];
 }
+
+/**
+ * Gets workshop map details for a specific map ID
+ * @param mapId - Workshop map ID
+ * @param steamApiKey - Steam API key for authentication
+ * @returns Promise resolving to map details or null if not found
+ */
+export async function getWorkshopMapInfo(mapId: string, steamApiKey: string): Promise<SteamMap | null> {
+  try {
+    const params = new URLSearchParams();
+    params.append("key", steamApiKey);
+    params.append("itemcount", "1");
+    params.append("publishedfileids[0]", mapId);
+
+    const response = await fetch(`https://api.steampowered.com/ISteamRemoteStorage/GetPublishedFileDetails/v1/`, {
+      method: 'POST',
+      body: params,
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/x-www-form-urlencoded'
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Steam API request failed: ${response.status} ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    const mapDetails = data.response?.publishedfiledetails?.[0];
+
+    if (!mapDetails || mapDetails.result !== 1) {
+      console.warn(`Map not found or error getting map details for ID: ${mapId}`);
+      return null;
+    }
+
+    return {
+      id: mapDetails.publishedfileid,
+      name: mapDetails.title || `Workshop Map ${mapId}`,
+      thumbnailUrl: mapDetails.preview_url || '',
+      gameModes: [] // Individual map lookup doesn't include game mode info
+    };
+  } catch (error) {
+    console.error(`Error fetching map info for ID ${mapId}:`, error);
+    return null;
+  }
+}

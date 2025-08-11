@@ -258,7 +258,7 @@
 
 .table-header, .player-row {
   display: grid;
-  grid-template-columns: 2fr 1fr 1fr 1fr 1fr 1.5fr;
+  grid-template-columns: 2fr 1fr 1fr 1fr 1.5fr;
   gap: 12px;
   padding: 12px 16px;
   align-items: center;
@@ -316,7 +316,7 @@
   }
   
   .table-header, .player-row {
-    grid-template-columns: 2fr 0.8fr 0.8fr 0.8fr 1fr 1.2fr;
+    grid-template-columns: 2fr 0.8fr 0.8fr 0.8fr 1.2fr;
     gap: 8px;
     padding: 8px 12px;
     font-size: 0.8rem;

@@ -123,6 +123,7 @@ export interface MatchHistoryMatch {
   gameMode: string;
   mapId: string;
   mapName: string;
+  mapThumbnailUrl: string;
   ranked: boolean;
   startTime: string;
   team1: MatchHistoryTeam;

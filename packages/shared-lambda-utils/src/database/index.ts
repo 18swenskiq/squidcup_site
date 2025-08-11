@@ -24,6 +24,7 @@ import {
   MatchHistoryPlayer,
   MatchHistoryTeam
 } from '../types';
+import { getWorkshopMapInfo } from '../steam';
 
 // Initialize SSM client
 const ssmClient = new SSMClient({ region: process.env.AWS_REGION || 'us-east-1' });
@@ -1240,6 +1241,7 @@ export async function getMatchHistory(): Promise<MatchHistoryMatch[]> {
           gameMode: row.game_mode,
           mapId: row.map_id || '',
           mapName: '', // Will be populated when we get map data
+          mapThumbnailUrl: '', // Will be populated when we get map data
           ranked: !!row.ranked,
           startTime: row.start_time,
           team1: {
@@ -1280,14 +1282,62 @@ export async function getMatchHistory(): Promise<MatchHistoryMatch[]> {
 
     const matches = Array.from(matchesMap.values());
 
-    // Set map names for matches that have map IDs
-    // For now, we'll just use a placeholder format
-    // In the future, this could be enhanced to fetch actual map names from Steam API
-    matches.forEach(match => {
-      if (match.mapId) {
-        match.mapName = `Workshop Map ${match.mapId}`;
-      }
-    });
+    // Get Steam API key for fetching map details
+    try {
+      const steamApiKey = await getParameterValue('/unencrypted/SteamApiKey');
+      
+      // Fetch map details for all unique map IDs
+      const mapDetails = new Map<string, {name: string, thumbnailUrl: string}>();
+      const uniqueMapIds = [...new Set(matches.map(match => match.mapId).filter(id => id))];
+      
+      console.log(`Fetching details for ${uniqueMapIds.length} unique maps`);
+      
+      // Fetch all map details in parallel
+      const mapPromises = uniqueMapIds.map(async (mapId) => {
+        try {
+          const mapInfo = await getWorkshopMapInfo(mapId, steamApiKey);
+          if (mapInfo) {
+            mapDetails.set(mapId, {
+              name: mapInfo.name,
+              thumbnailUrl: mapInfo.thumbnailUrl
+            });
+          }
+        } catch (error) {
+          console.error(`Failed to fetch map info for ${mapId}:`, error);
+          // Set fallback data
+          mapDetails.set(mapId, {
+            name: `Workshop Map ${mapId}`,
+            thumbnailUrl: ''
+          });
+        }
+      });
+      
+      await Promise.all(mapPromises);
+      
+      // Apply map details to matches
+      matches.forEach(match => {
+        if (match.mapId) {
+          const details = mapDetails.get(match.mapId);
+          if (details) {
+            match.mapName = details.name;
+            match.mapThumbnailUrl = details.thumbnailUrl;
+          } else {
+            match.mapName = `Workshop Map ${match.mapId}`;
+            match.mapThumbnailUrl = '';
+          }
+        }
+      });
+      
+    } catch (error) {
+      console.error('Failed to fetch Steam API key or map details:', error);
+      // Fallback to placeholder names
+      matches.forEach(match => {
+        if (match.mapId) {
+          match.mapName = `Workshop Map ${match.mapId}`;
+          match.mapThumbnailUrl = '';
+        }
+      });
+    }
 
     return matches;
   } finally {

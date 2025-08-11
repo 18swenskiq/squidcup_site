@@ -63,15 +63,6 @@ export class HistoryViewComponent implements OnInit {
     match.expanded = !match.expanded;
   }
 
-  getMapThumbnailUrl(mapId: string): string {
-    // For now, return a placeholder or Steam Workshop thumbnail URL
-    // In the future, this could be enhanced to fetch actual thumbnails
-    if (mapId) {
-      return `https://steamuserimages-a.akamaihd.net/ugc/${mapId}/preview.jpg`;
-    }
-    return 'assets/default-map-thumbnail.jpg'; // Fallback image
-  }
-
   formatGameMode(gameMode: string): string {
     return gameMode.toUpperCase();
   }
@@ -83,10 +74,6 @@ export class HistoryViewComponent implements OnInit {
 
   getTeamPlayers(match: MatchHistoryMatch, teamNumber: number): any[] {
     return match.players.filter(player => player.team === teamNumber);
-  }
-
-  getKDA(player: any): string {
-    return `${player.kills}/${player.deaths}/${player.assists}`;
   }
 
   retry(): void {
