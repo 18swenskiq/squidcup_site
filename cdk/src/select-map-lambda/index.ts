@@ -144,6 +144,9 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
         map: mapId
       });
 
+      // Trigger server setup since map selection is complete for host-pick
+      await triggerServerSetup(gameId);
+
       return {
         statusCode: 200,
         headers: corsHeaders,
