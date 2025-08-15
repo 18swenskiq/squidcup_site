@@ -46,6 +46,75 @@
   }
 }
 
+// Filter Section
+.filter-section {
+  margin-bottom: 30px;
+  padding: 20px;
+  background-color: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.filter-checkbox {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  color: white;
+  font-size: 1rem;
+  font-weight: 500;
+  user-select: none;
+  
+  input[type="checkbox"] {
+    position: absolute;
+    opacity: 0;
+    cursor: pointer;
+    height: 0;
+    width: 0;
+  }
+  
+  .checkmark {
+    position: relative;
+    height: 20px;
+    width: 20px;
+    background-color: rgba(255, 255, 255, 0.1);
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-radius: 4px;
+    margin-right: 12px;
+    transition: all 0.3s ease;
+    
+    &:after {
+      content: "";
+      position: absolute;
+      display: none;
+      left: 5px;
+      top: 1px;
+      width: 6px;
+      height: 12px;
+      border: solid white;
+      border-width: 0 3px 3px 0;
+      transform: rotate(45deg);
+    }
+  }
+  
+  input:checked ~ .checkmark {
+    background-color: #4CAF50;
+    border-color: #4CAF50;
+    
+    &:after {
+      display: block;
+    }
+  }
+  
+  &:hover .checkmark {
+    border-color: rgba(255, 255, 255, 0.5);
+  }
+  
+  &:hover input:checked ~ .checkmark {
+    background-color: #45a049;
+    border-color: #45a049;
+  }
+}
+
 // Matches List
 .matches-list {
   display: flex;

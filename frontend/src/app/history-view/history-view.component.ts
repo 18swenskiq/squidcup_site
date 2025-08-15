@@ -1,6 +1,7 @@
 import { Component, OnInit, Inject, PLATFORM_ID } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { HttpClient, HttpClientModule } from '@angular/common/http';
+import { FormsModule } from '@angular/forms';
 import { PageHeaderComponent } from '../page-header/page-header.component';
 import { MatchHistoryMatch, MatchHistoryResponse } from '../shared/interfaces';
 import { AuthService } from '../services/auth.service';
@@ -9,15 +10,17 @@ import { environment } from '../../environments/environment';
 @Component({
   selector: 'app-history-view',
   standalone: true,
-  imports: [CommonModule, HttpClientModule, PageHeaderComponent],
+  imports: [CommonModule, HttpClientModule, FormsModule, PageHeaderComponent],
   templateUrl: './history-view.component.html',
   styleUrl: './history-view.component.scss',
 })
 export class HistoryViewComponent implements OnInit {
   matches: MatchHistoryMatch[] = [];
+  filteredMatches: MatchHistoryMatch[] = [];
   isLoading: boolean = true;
   hasError: boolean = false;
   errorMessage: string = '';
+  showMyMatchesOnly: boolean = false;
   private apiBaseUrl: string = environment.apiUrl;
 
   constructor(
@@ -47,6 +50,7 @@ export class HistoryViewComponent implements OnInit {
           ...match,
           expanded: false // Initialize expansion state
         }));
+        this.applyFilter(); // Apply filter after loading matches
         this.isLoading = false;
         console.log('Loaded match history:', this.matches);
       },
@@ -82,5 +86,28 @@ export class HistoryViewComponent implements OnInit {
 
   trackByMatchNumber(index: number, match: MatchHistoryMatch): string {
     return match.matchNumber;
+  }
+
+  applyFilter(): void {
+    if (this.showMyMatchesOnly) {
+      const currentUser = this.authService.getCurrentUser();
+      if (currentUser) {
+        this.filteredMatches = this.matches.filter(match => 
+          match.players.some(player => player.steamId === currentUser.steamId)
+        );
+      } else {
+        this.filteredMatches = [];
+      }
+    } else {
+      this.filteredMatches = [...this.matches];
+    }
+  }
+
+  onFilterChange(): void {
+    this.applyFilter();
+  }
+
+  isUserLoggedIn(): boolean {
+    return this.authService.isLoggedIn();
   }
 }

@@ -23,10 +23,29 @@
     <p>No completed matches available yet.</p>
   </div>
 
+  <!-- Filter Section -->
+  <div *ngIf="!isLoading && !hasError && matches.length > 0 && isUserLoggedIn()" class="filter-section">
+    <label class="filter-checkbox">
+      <input 
+        type="checkbox" 
+        [(ngModel)]="showMyMatchesOnly" 
+        (change)="onFilterChange()"
+      >
+      <span class="checkmark"></span>
+      Only show my matches
+    </label>
+  </div>
+
+  <!-- No Filtered Matches State -->
+  <div *ngIf="!isLoading && !hasError && matches.length > 0 && filteredMatches.length === 0 && showMyMatchesOnly" class="no-matches-container">
+    <h3>No Matches Found</h3>
+    <p>You haven't participated in any matches yet.</p>
+  </div>
+
   <!-- Matches List -->
-  <div *ngIf="!isLoading && !hasError && matches.length > 0" class="matches-list">
+  <div *ngIf="!isLoading && !hasError && filteredMatches.length > 0" class="matches-list">
     <div 
-      *ngFor="let match of matches; trackBy: trackByMatchNumber" 
+      *ngFor="let match of filteredMatches; trackBy: trackByMatchNumber" 
       class="match-card"
       [class.expanded]="match.expanded"
       (click)="toggleMatchExpansion(match)"
