@@ -1,0 +1,150 @@
+<div class="maps-container">
+  <app-page-header 
+    title="Maps" 
+    subtitle="View map statistics and performance data across different game modes">
+  </app-page-header>
+
+  <!-- Loading State -->
+  <div *ngIf="isLoading" class="loading-container">
+    <div class="loading-spinner"></div>
+    <p>Loading map statistics...</p>
+  </div>
+
+  <!-- Error State -->
+  <div *ngIf="error && !isLoading" class="error-container">
+    <h3>Error Loading Data</h3>
+    <p>{{ error }}</p>
+    <button class="retry-button" (click)="loadMapStats()">Try Again</button>
+  </div>
+
+  <!-- Maps Tables -->
+  <div *ngIf="!isLoading && !error" class="maps-tables-container">
+    
+    <!-- Wingman Table -->
+    <div class="table-section">
+      <div class="table-header">
+        <h2>Wingman</h2>
+        <p>{{ wingmanMaps.length }} maps</p>
+      </div>
+      
+      <div class="table-wrapper">
+        <table class="maps-table">
+          <thead>
+            <tr>
+              <th class="sortable" 
+                  [class]="getSortClass('wingman', 'name')"
+                  (click)="sortMaps('wingman', 'name')">
+                Map Name
+                <span class="sort-icon">{{ getSortIcon('wingman', 'name') }}</span>
+              </th>
+              <th class="sortable" 
+                  [class]="getSortClass('wingman', 'totalGames')"
+                  (click)="sortMaps('wingman', 'totalGames')">
+                Games
+                <span class="sort-icon">{{ getSortIcon('wingman', 'totalGames') }}</span>
+              </th>
+              <th class="sortable" 
+                  [class]="getSortClass('wingman', 'totalRounds')"
+                  (click)="sortMaps('wingman', 'totalRounds')">
+                Rounds
+                <span class="sort-icon">{{ getSortIcon('wingman', 'totalRounds') }}</span>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let map of wingmanMaps" class="map-row clickable-row" (click)="openMapWorkshop(map.id)">
+              <td class="map-name">{{ map.name }}</td>
+              <td class="games-count">{{ map.totalGames }}</td>
+              <td class="rounds-count">{{ map.totalRounds }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 3v3 Table -->
+    <div class="table-section">
+      <div class="table-header">
+        <h2>3v3</h2>
+        <p>{{ threev3Maps.length }} maps</p>
+      </div>
+      
+      <div class="table-wrapper">
+        <table class="maps-table">
+          <thead>
+            <tr>
+              <th class="sortable" 
+                  [class]="getSortClass('threev3', 'name')"
+                  (click)="sortMaps('threev3', 'name')">
+                Map Name
+                <span class="sort-icon">{{ getSortIcon('threev3', 'name') }}</span>
+              </th>
+              <th class="sortable" 
+                  [class]="getSortClass('threev3', 'totalGames')"
+                  (click)="sortMaps('threev3', 'totalGames')">
+                Games
+                <span class="sort-icon">{{ getSortIcon('threev3', 'totalGames') }}</span>
+              </th>
+              <th class="sortable" 
+                  [class]="getSortClass('threev3', 'totalRounds')"
+                  (click)="sortMaps('threev3', 'totalRounds')">
+                Rounds
+                <span class="sort-icon">{{ getSortIcon('threev3', 'totalRounds') }}</span>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let map of threev3Maps" class="map-row clickable-row" (click)="openMapWorkshop(map.id)">
+              <td class="map-name">{{ map.name }}</td>
+              <td class="games-count">{{ map.totalGames }}</td>
+              <td class="rounds-count">{{ map.totalRounds }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 5v5 Table -->
+    <div class="table-section">
+      <div class="table-header">
+        <h2>5v5</h2>
+        <p>{{ fivev5Maps.length }} maps</p>
+      </div>
+      
+      <div class="table-wrapper">
+        <table class="maps-table">
+          <thead>
+            <tr>
+              <th class="sortable" 
+                  [class]="getSortClass('fivev5', 'name')"
+                  (click)="sortMaps('fivev5', 'name')">
+                Map Name
+                <span class="sort-icon">{{ getSortIcon('fivev5', 'name') }}</span>
+              </th>
+              <th class="sortable" 
+                  [class]="getSortClass('fivev5', 'totalGames')"
+                  (click)="sortMaps('fivev5', 'totalGames')">
+                Games
+                <span class="sort-icon">{{ getSortIcon('fivev5', 'totalGames') }}</span>
+              </th>
+              <th class="sortable" 
+                  [class]="getSortClass('fivev5', 'totalRounds')"
+                  (click)="sortMaps('fivev5', 'totalRounds')">
+                Rounds
+                <span class="sort-icon">{{ getSortIcon('fivev5', 'totalRounds') }}</span>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let map of fivev5Maps" class="map-row clickable-row" (click)="openMapWorkshop(map.id)">
+              <td class="map-name">{{ map.name }}</td>
+              <td class="games-count">{{ map.totalGames }}</td>
+              <td class="rounds-count">{{ map.totalRounds }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</div>

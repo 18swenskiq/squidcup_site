@@ -1,0 +1,18 @@
+{
+  "name": "get-map-stats-lambda",
+  "version": "1.0.0",
+  "description": "Lambda function to retrieve map statistics by game mode",
+  "main": "index.js",
+  "scripts": {
+    "build": "tsc",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "@squidcup/shared-lambda-utils": "file:../../../packages/shared-lambda-utils"
+  },
+  "devDependencies": {
+    "@aws-sdk/client-ssm": "^3.0.0",
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
+  }
+}

@@ -1509,6 +1509,120 @@ export async function getPlayerLeaderboardStats(): Promise<PlayerLeaderboardStat
   }
 }
 
+// Helper function to get map statistics by game mode
+export async function getMapStats(): Promise<{ wingman: { mapId: string; gamesPlayed: number; totalRounds: number }[], threev3: { mapId: string; gamesPlayed: number; totalRounds: number }[], fivev5: { mapId: string; gamesPlayed: number; totalRounds: number }[] }> {
+  const connection = await getDatabaseConnection();
+  
+  try {
+    // First, get all completed games with their map IDs and match numbers
+    const gamesQuery = `
+      SELECT 
+        map,
+        match_number,
+        game_mode
+      FROM squidcup_games 
+      WHERE status = 'completed' 
+        AND map IS NOT NULL 
+        AND match_number IS NOT NULL
+    `;
+
+    console.log('Executing games query:', gamesQuery);
+    const games = await executeQuery(connection, gamesQuery, []);
+    console.log(`Found ${games.length} completed games`);
+
+    // Get match numbers for rounds lookup
+    const matchNumbers = (games as any[]).map(game => game.match_number);
+    
+    if (matchNumbers.length === 0) {
+      console.log('No completed games found, returning empty results');
+      return { wingman: [], threev3: [], fivev5: [] };
+    }
+
+    // Get rounds data for these matches
+    const roundsQuery = `
+      SELECT 
+        matchid,
+        COALESCE(team1_score, 0) + COALESCE(team2_score, 0) as total_rounds
+      FROM squidcup_stats_maps 
+      WHERE matchid IN (${matchNumbers.map(() => '?').join(',')})
+    `;
+
+    console.log('Executing rounds query:', roundsQuery);
+    const roundsData = await executeQuery(connection, roundsQuery, matchNumbers);
+    console.log(`Found ${roundsData.length} rounds entries`);
+
+    // Create a map of matchid -> total_rounds
+    const roundsMap = new Map();
+    (roundsData as any[]).forEach(row => {
+      roundsMap.set(row.matchid, row.total_rounds || 0);
+    });
+
+    // Process games data to aggregate by map and game mode
+    const mapStatsMap = new Map();
+    
+    (games as any[]).forEach(game => {
+      const mapId = game.map;
+      const gameMode = game.game_mode;
+      const matchNumber = game.match_number;
+      const totalRounds = roundsMap.get(matchNumber) || 0;
+
+      const key = `${mapId}_${gameMode}`;
+      
+      if (!mapStatsMap.has(key)) {
+        mapStatsMap.set(key, {
+          mapId,
+          gameMode,
+          gamesPlayed: 0,
+          totalRounds: 0
+        });
+      }
+
+      const stats = mapStatsMap.get(key);
+      stats.gamesPlayed += 1;
+      stats.totalRounds += totalRounds;
+    });
+
+    console.log(`Processed ${mapStatsMap.size} unique map-gamemode combinations`);
+
+    // Group by game mode - return just mapId, gamesPlayed, totalRounds for now
+    const result: { 
+      wingman: { mapId: string; gamesPlayed: number; totalRounds: number }[], 
+      threev3: { mapId: string; gamesPlayed: number; totalRounds: number }[], 
+      fivev5: { mapId: string; gamesPlayed: number; totalRounds: number }[] 
+    } = {
+      wingman: [],
+      threev3: [],
+      fivev5: []
+    };
+
+    for (const stats of mapStatsMap.values()) {
+      const mapData = {
+        mapId: stats.mapId,
+        gamesPlayed: stats.gamesPlayed,
+        totalRounds: stats.totalRounds
+      };
+
+      switch (stats.gameMode) {
+        case 'wingman':
+          result.wingman.push(mapData);
+          break;
+        case '3v3':
+          result.threev3.push(mapData);
+          break;
+        case '5v5':
+          result.fivev5.push(mapData);
+          break;
+      }
+    }
+
+    console.log(`Wingman maps: ${result.wingman.length}, 3v3 maps: ${result.threev3.length}, 5v5 maps: ${result.fivev5.length}`);
+    return result;
+
+  } finally {
+    await connection.end();
+  }
+}
+
 function jsDateToMySQLDate(date: Date): string {
   const dateISOString = date.toISOString();
 
