@@ -139,10 +139,11 @@ export async function handler(event: any): Promise<any> {
 
     // Parse request body
     const queueData = JSON.parse(event.body);
-    const { gameMode, mapSelectionMode, server, password, ranked } = queueData;
+    const { gameMode, mapSelectionMode, server, password, ranked, sendWebhook } = queueData;
     
     console.log('Queue data received:', queueData);
     console.log('Ranked value:', ranked, 'Type:', typeof ranked);
+    console.log('Send webhook value:', sendWebhook, 'Type:', typeof sendWebhook);
     
     // Validate required fields
     if (!gameMode || !mapSelectionMode || !server) {
@@ -213,9 +214,14 @@ export async function handler(event: any): Promise<any> {
 
     console.log('Queue created successfully:', activeQueue);
 
-    // Send Discord webhook notification
-    const maxPlayers = getMaxPlayersForGamemode(gameMode);
-    await sendDiscordWebhook(gameMode, maxPlayers);
+    // Send Discord webhook notification only if sendWebhook is true
+    if (sendWebhook === true) {
+      console.log('Sending Discord webhook notification...');
+      const maxPlayers = getMaxPlayersForGamemode(gameMode);
+      await sendDiscordWebhook(gameMode, maxPlayers);
+    } else {
+      console.log('Skipping Discord webhook notification (sendWebhook = false)');
+    }
 
     return {
       statusCode: 201,

@@ -78,7 +78,8 @@ export class PlayViewComponent implements OnInit, OnDestroy {
       mapSelectionMode: ['', Validators.required],
       server: [{ value: '', disabled: true }, Validators.required],
       password: [''],
-      ranked: [true]
+      ranked: [true],
+      sendWebhook: [false]
     });
   }
 

@@ -119,9 +119,16 @@
           <input type="text" id="password" formControlName="password" [disabled]="isJoiningQueue || isStartingQueue">
         </div>
 
-        <div class="form-group checkbox">
-          <input type="checkbox" id="ranked" formControlName="ranked" [disabled]="isJoiningQueue || isStartingQueue">
-          <label for="ranked">Ranked?</label>
+        <div class="checkbox-row">
+          <div class="form-group checkbox">
+            <input type="checkbox" id="ranked" formControlName="ranked" [disabled]="isJoiningQueue || isStartingQueue">
+            <label for="ranked">Ranked?</label>
+          </div>
+          
+          <div class="form-group checkbox">
+            <input type="checkbox" id="sendWebhook" formControlName="sendWebhook" [disabled]="isJoiningQueue || isStartingQueue">
+            <label for="sendWebhook">Send Webhook?</label>
+          </div>
         </div>
 
         <button type="submit" [disabled]="queueForm.invalid || isStartingQueue || isJoiningQueue || isLoadingServers">

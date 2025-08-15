@@ -146,6 +146,17 @@ h2 {
   }
 }
 
+.checkbox-row {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+  
+  .form-group.checkbox {
+    flex: 1;
+    margin-bottom: 0;
+  }
+}
+
 button {
   padding: 10px 20px;
   background: #4caf50;
