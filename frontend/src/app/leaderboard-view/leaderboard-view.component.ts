@@ -10,6 +10,7 @@ export interface PlayerLeaderboardStats {
   avatarUrl?: string;
   countryCode?: string;
   stateCode?: string;
+  currentElo: number; // Player's current ELO rating
   // Combined stats from sqlidcup_stats_players
   kills: number;
   deaths: number;
@@ -55,6 +56,7 @@ export class LeaderboardViewComponent implements OnInit {
 
   // Column definitions with abbreviations and full names for tooltips
   columns = [
+    { key: 'currentElo', label: 'ELO', tooltip: 'Current ELO Rating' },
     { key: 'kills', label: 'K', tooltip: 'Kills' },
     { key: 'deaths', label: 'D', tooltip: 'Deaths' },
     { key: 'assists', label: 'A', tooltip: 'Assists' },

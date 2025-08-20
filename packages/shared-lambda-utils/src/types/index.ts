@@ -579,6 +579,7 @@ export interface PlayerLeaderboardStats {
   avatarUrl?: string;
   countryCode?: string;
   stateCode?: string;
+  currentElo: number; // Player's current ELO rating
   // Combined stats from squidcup_stats_players
   kills: number;
   deaths: number;

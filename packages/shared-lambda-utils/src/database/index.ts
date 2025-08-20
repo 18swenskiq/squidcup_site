@@ -1541,6 +1541,7 @@ export async function getPlayerLeaderboardStats(): Promise<PlayerLeaderboardStat
         u.avatar as avatar_url,
         u.country_code,
         u.state_code,
+        u.current_elo,
         
         -- Aggregated stats from all matches
         SUM(sp.kills) as total_kills,
@@ -1559,7 +1560,7 @@ export async function getPlayerLeaderboardStats(): Promise<PlayerLeaderboardStat
         
       FROM squidcup_stats_players sp
       LEFT JOIN squidcup_users u ON CAST(sp.steamid64 AS CHAR) COLLATE utf8mb4_general_ci = u.steam_id COLLATE utf8mb4_general_ci
-      GROUP BY sp.steamid64, u.username, u.avatar, u.country_code, u.state_code
+      GROUP BY sp.steamid64, u.username, u.avatar, u.country_code, u.state_code, u.current_elo
       HAVING total_kills > 0 OR total_deaths > 0  -- Only include players who have actually played
       ORDER BY total_kills DESC
     `;
@@ -1599,6 +1600,7 @@ export async function getPlayerLeaderboardStats(): Promise<PlayerLeaderboardStat
         avatarUrl: row.avatar_url || undefined,
         countryCode: row.country_code || undefined,
         stateCode: row.state_code || undefined,
+        currentElo: row.current_elo || 1000,
         kills,
         deaths,
         assists: row.total_assists || 0,
