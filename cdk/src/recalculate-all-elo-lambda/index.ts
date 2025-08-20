@@ -163,9 +163,13 @@ export async function handler(event: any): Promise<any> {
         averageElo: 0 // Will be calculated
       };
       
-      // Calculate team average ELOs
+      // Calculate team average ELOs (pre-match values)
       team1EloData.averageElo = ELO.calculateTeamAverageElo(team1EloData.players);
       team2EloData.averageElo = ELO.calculateTeamAverageElo(team2EloData.players);
+      
+      // Store pre-match team averages for database update (these represent team strength at match start)
+      const preMatchTeam1AvgElo = team1EloData.averageElo;
+      const preMatchTeam2AvgElo = team2EloData.averageElo;
       
       // Determine winning and losing teams
       const team1Won = game.team1Score > game.team2Score;
@@ -183,28 +187,15 @@ export async function handler(event: any): Promise<any> {
         playerEloMap.set(result.steamId, result.newElo);
       }
       
-      // Recalculate team averages with updated ELO values for database update
-      const updatedTeam1Players = team1Players.map(p => ({
-        steamId: p.steamId,
-        currentElo: playerEloMap.get(p.steamId) || DEFAULT_ELO
-      }));
-      const updatedTeam2Players = team2Players.map(p => ({
-        steamId: p.steamId,
-        currentElo: playerEloMap.get(p.steamId) || DEFAULT_ELO
-      }));
-      
-      const updatedTeam1AvgElo = ELO.calculateTeamAverageElo(updatedTeam1Players);
-      const updatedTeam2AvgElo = ELO.calculateTeamAverageElo(updatedTeam2Players);
-      
-      // Update team average ELO values in database
-      await updateTeamAverageElo(game.gameId, 1, updatedTeam1AvgElo);
-      await updateTeamAverageElo(game.gameId, 2, updatedTeam2AvgElo);
+      // Update team average ELO values in database (using PRE-match averages)
+      // This represents the team strength at the beginning of the match
+      await updateTeamAverageElo(game.gameId, 1, preMatchTeam1AvgElo);
+      await updateTeamAverageElo(game.gameId, 2, preMatchTeam2AvgElo);
       
       gamesProcessed++;
       
       console.log(`  Match ${game.matchNumber}: ${team1Won ? 'Team 1' : 'Team 2'} won (${game.team1Score}-${game.team2Score})`);
-      console.log(`  Pre-match ELOs: T1=${team1EloData.averageElo} vs T2=${team2EloData.averageElo}`);
-      console.log(`  Post-match ELOs: T1=${updatedTeam1AvgElo} vs T2=${updatedTeam2AvgElo}`);
+      console.log(`  Pre-match ELOs: T1=${preMatchTeam1AvgElo} vs T2=${preMatchTeam2AvgElo}`);
       console.log(`  ELO changes: Winners=${eloResults.winningTeamResults.length} players, Losers=${eloResults.losingTeamResults.length} players`);
     }
 

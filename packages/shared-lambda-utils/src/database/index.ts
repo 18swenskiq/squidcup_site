@@ -752,6 +752,59 @@ export async function updatePlayerElo(steamId: string, newElo: number): Promise<
   }
 }
 
+export async function getMatchResults(matchNumber: string): Promise<{team1Score: number, team2Score: number} | null> {
+  const connection = await getDatabaseConnection();
+  
+  try {
+    const rows = await executeQuery(
+      connection,
+      'SELECT team1_score, team2_score FROM squidcup_stats_maps WHERE matchid = ?',
+      [matchNumber]
+    );
+    
+    if (rows.length === 0) {
+      return null;
+    }
+    
+    const row = rows[0] as any;
+    return {
+      team1Score: row.team1_score || 0,
+      team2Score: row.team2_score || 0
+    };
+  } finally {
+    await connection.end();
+  }
+}
+
+export async function getGamePlayersWithTeams(gameId: string): Promise<Array<{
+  player_steam_id: string;
+  team_id: string | null;
+  team_number: number | null;
+  joined_at: string;
+}>> {
+  const connection = await getDatabaseConnection();
+  
+  try {
+    const rows = await executeQuery(
+      connection,
+      `SELECT 
+         gp.player_steam_id,
+         gp.team_id,
+         gp.joined_at,
+         gt.team_number
+       FROM squidcup_game_players gp
+       LEFT JOIN squidcup_game_teams gt ON gp.team_id = gt.id
+       WHERE gp.game_id = ?
+       ORDER BY gp.joined_at`,
+      [gameId]
+    );
+    
+    return rows as any[];
+  } finally {
+    await connection.end();
+  }
+}
+
 export async function getPlayerUsernamesBySteamIds(steamIds: string[]): Promise<Record<string, string>> {
   if (steamIds.length === 0) return {};
   
