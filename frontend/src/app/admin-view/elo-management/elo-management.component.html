@@ -1,0 +1,47 @@
+<div class="elo-management">
+  <h2>ELO Rating Management</h2>
+  <p>Manage and recalculate player ELO ratings based on completed matches</p>
+
+  <div class="elo-recalculation-section">
+    <div class="info-card">
+      <h3>ELO Recalculation</h3>
+      <p>
+        This tool will recalculate all player ELO ratings from scratch based on completed match history. 
+        All players will start with the default ELO rating and ratings will be recalculated chronologically 
+        through all completed matches.
+      </p>
+      
+      <div class="warning-box">
+        <p><strong>⚠️ Warning:</strong> This action will reset all current ELO ratings and cannot be undone.</p>
+      </div>
+
+      <div *ngIf="lastRecalculation" class="last-recalculation">
+        <p><strong>Last recalculation:</strong> {{ lastRecalculation }}</p>
+      </div>
+
+      <div class="recalculation-actions">
+        <button 
+          (click)="recalculateAllElo()" 
+          [disabled]="isRecalculating" 
+          class="btn btn-primary btn-large">
+          {{ isRecalculating ? 'Recalculating...' : 'Recalculate All ELO Ratings' }}
+        </button>
+      </div>
+
+      <div *ngIf="isRecalculating" class="progress-indicator">
+        <div class="spinner"></div>
+        <p>Recalculating ELO ratings for all players... This may take a few moments.</p>
+      </div>
+    </div>
+
+    <div class="info-card">
+      <h3>How ELO Recalculation Works</h3>
+      <ul>
+        <li>All players start with the default ELO rating (typically 1000)</li>
+        <li>Completed matches are processed in chronological order</li>
+        <li>ELO changes are calculated based on team performance and individual ratings</li>
+        <li>New ratings are stored and become effective immediately</li>
+      </ul>
+    </div>
+  </div>
+</div>

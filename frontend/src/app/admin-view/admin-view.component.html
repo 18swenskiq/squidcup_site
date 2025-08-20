@@ -18,6 +18,12 @@
       (click)="switchTab('queues')">
       Active Queues
     </button>
+    <button 
+      class="tab-button" 
+      [class.active]="activeTab === 'elo'"
+      (click)="switchTab('elo')">
+      ELO Management
+    </button>
   </div>
 
   <!-- Server Management Section -->
@@ -28,5 +34,10 @@
   <!-- Queue Management Section -->
   <div class="admin-section" *ngIf="activeTab === 'queues'">
     <app-queue-management></app-queue-management>
+  </div>
+
+  <!-- ELO Management Section -->
+  <div class="admin-section" *ngIf="activeTab === 'elo'">
+    <app-elo-management></app-elo-management>
   </div>
 </div>

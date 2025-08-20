@@ -373,6 +373,21 @@ export class ApiStack extends cdk.Stack {
       }
     });
 
+    const recalculateAllEloFunction = new NodejsFunction(this, "recalculate-all-elo-function", {
+      runtime: this.RUNTIME,
+      memorySize: this.MEMORY_SIZE,
+      timeout: cdk.Duration.seconds(30), // Longer timeout for ELO recalculation
+      handler: 'index.handler',
+      code: lambda.Code.fromAsset(path.join(__dirname, '/../src/recalculate-all-elo-lambda')),
+      logRetention: this.LOG_RETENTION,
+      environment: {
+        REGION: this.REGION,
+      },
+      bundling: {
+        minify: true,
+      }
+    });
+
     // Create an SSM parameter access policy
     const ssmPolicy = new iam.PolicyStatement({
       actions: ['ssm:GetParameter'],
@@ -403,6 +418,7 @@ export class ApiStack extends cdk.Stack {
     getMatchHistoryFunction.addToRolePolicy(ssmPolicy);
     getPlayerLeaderboardStatsFunction.addToRolePolicy(ssmPolicy);
     getMapStatsFunction.addToRolePolicy(ssmPolicy);
+    recalculateAllEloFunction.addToRolePolicy(ssmPolicy);
 
     // Grant Lambda invoke permissions for lobby system
     createLobbyFunction.grantInvoke(joinQueueFunction); // Allow join-queue to invoke create-lobby
@@ -1579,6 +1595,58 @@ export class ApiStack extends cdk.Stack {
           'method.response.header.Access-Control-Allow-Origin': "'https://squidcup.spkymnr.xyz'",
           'method.response.header.Access-Control-Allow-Headers': "'Content-Type,Authorization'",
           'method.response.header.Access-Control-Allow-Methods': "'GET,OPTIONS'",
+        },
+      }],
+      requestTemplates: {
+        'application/json': '{"statusCode": 200}'
+      }
+    }), {
+      methodResponses: [{
+        statusCode: '200',
+        responseParameters: {
+          'method.response.header.Access-Control-Allow-Origin': true,
+          'method.response.header.Access-Control-Allow-Headers': true,
+          'method.response.header.Access-Control-Allow-Methods': true,
+        },
+      }]
+    });
+
+    // Add /recalculateAllElo endpoint (Admin only)
+    const recalculateAllEloResource = api.root.addResource('recalculateAllElo');
+    recalculateAllEloResource.addMethod('POST', new apigw.LambdaIntegration(recalculateAllEloFunction), {
+      methodResponses: [{
+        statusCode: '200',
+        responseParameters: {
+          'method.response.header.Access-Control-Allow-Origin': true,
+          'method.response.header.Access-Control-Allow-Headers': true,
+          'method.response.header.Access-Control-Allow-Methods': true,
+        },
+      }, {
+        statusCode: '400',
+        responseParameters: {
+          'method.response.header.Access-Control-Allow-Origin': true,
+        },
+      }, {
+        statusCode: '403',
+        responseParameters: {
+          'method.response.header.Access-Control-Allow-Origin': true,
+        },
+      }, {
+        statusCode: '500',
+        responseParameters: {
+          'method.response.header.Access-Control-Allow-Origin': true,
+        },
+      }]
+    });
+
+    // Add OPTIONS method for recalculateAllElo endpoint
+    recalculateAllEloResource.addMethod('OPTIONS', new apigw.MockIntegration({
+      integrationResponses: [{
+        statusCode: '200',
+        responseParameters: {
+          'method.response.header.Access-Control-Allow-Origin': "'https://squidcup.spkymnr.xyz'",
+          'method.response.header.Access-Control-Allow-Headers': "'Content-Type,Authorization'",
+          'method.response.header.Access-Control-Allow-Methods': "'POST,OPTIONS'",
         },
       }],
       requestTemplates: {
