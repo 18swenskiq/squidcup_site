@@ -22,6 +22,7 @@ export interface User {
   country_code?: string;
   state_code?: string;
   is_admin: boolean | number; // MySQL BOOLEAN can return 0/1 or true/false
+  current_elo: number;
   created_at: string;
   updated_at: string;
 }
@@ -479,6 +480,7 @@ export interface UpsertUserInput {
   countryCode?: string;
   stateCode?: string;
   isAdmin?: boolean;
+  currentElo?: number;
 }
 
 // ===== UTILITY TYPES =====
@@ -595,4 +597,21 @@ export interface PlayerLeaderboardStats {
   headShotPercentage: number;
   accuracy: number; // shots on target / shots fired
   entryWinRate: number; // entry wins / entry count
+}
+
+// ===== ELO RECALCULATION TYPES =====
+
+// Interface for completed game data with players for ELO recalculation
+export interface CompletedGameWithPlayers {
+  gameId: string;
+  matchNumber: string;
+  gameMode: string;
+  startTime: string;
+  team1Score: number;
+  team2Score: number;
+  players: {
+    steamId: string;
+    teamNumber: number;
+    playerName?: string;
+  }[];
 }
