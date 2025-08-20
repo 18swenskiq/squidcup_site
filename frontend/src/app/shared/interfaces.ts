@@ -9,6 +9,7 @@ export interface LobbyPlayer {
   avatar?: string; // Steam avatar URL
   joinTime?: string; // When player joined
   isHost?: boolean; // Whether this player is the host
+  currentElo?: number; // Player's current ELO rating
 }
 
 export interface GameTeam {

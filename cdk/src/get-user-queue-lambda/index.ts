@@ -73,7 +73,8 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
         mapSelection: player.map_selection,
         hasSelectedMap: !!player.map_selection,
         name: lobby.playerNames[player.player_steam_id] || `Player ${player.player_steam_id.slice(-4)}`,
-        avatar: lobby.playerAvatars ? lobby.playerAvatars[player.player_steam_id] : null
+        avatar: lobby.playerAvatars ? lobby.playerAvatars[player.player_steam_id] : null,
+        currentElo: lobby.playerElos ? lobby.playerElos[player.player_steam_id] : 1000
       }));
       
       const totalTime = Date.now() - startTime;
@@ -123,7 +124,8 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
           mapSelection: player.map_selection,
           hasSelectedMap: !!player.map_selection,
           name: queue.playerNames[player.player_steam_id] || `Player ${player.player_steam_id.slice(-4)}`,
-          avatar: queue.playerAvatars ? queue.playerAvatars[player.player_steam_id] : null
+          avatar: queue.playerAvatars ? queue.playerAvatars[player.player_steam_id] : null,
+          currentElo: queue.playerElos ? queue.playerElos[player.player_steam_id] : 1000
         }));
       
       const totalTime = Date.now() - startTime;

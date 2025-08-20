@@ -801,6 +801,25 @@ export class LobbyComponent implements OnInit, OnDestroy, OnChanges {
     return profile ? profile.name : `Player ${steamId.slice(-4)}`;
   }
 
+  getPlayerElo(steamId: string): number {
+    // Get ELO from the lobby player data
+    const lobbyPlayer = this.lobby?.players?.find(p => p.steamId === steamId);
+    return lobbyPlayer?.currentElo || 1000; // Default to 1000 if not found
+  }
+
+  getTeamAverageElo(teamNumber: number): number {
+    const teamPlayers = this.getTeamPlayers(teamNumber);
+    if (teamPlayers.length === 0) {
+      return 1000; // Default ELO if no players
+    }
+    
+    const totalElo = teamPlayers.reduce((sum, player) => {
+      return sum + this.getPlayerElo(player.steamId);
+    }, 0);
+    
+    return Math.round(totalElo / teamPlayers.length);
+  }
+
   getPlayerAvatarUrl(steamId: string): string | undefined {
     // First check if the lobby player data has an avatar
     const lobbyPlayer = this.lobby?.players?.find(p => p.steamId === steamId);

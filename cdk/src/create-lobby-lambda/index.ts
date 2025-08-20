@@ -12,6 +12,8 @@ import {
   createGameTeam,
   updatePlayerTeam,
   updateTeamName,
+  updateTeamAverageElo,
+  getGamePlayersWithElo,
   getPlayerUsernamesBySteamIds,
   LobbyPlayerRecord, 
   GamePlayerRecord,
@@ -89,8 +91,25 @@ async function balancePlayersIntoTeams(
   players: GamePlayerRecord[],
   gameMode: GameMode
 ): Promise<void> {
-  const maxPlayers = getMaxPlayersForGamemode(gameMode);
-  const playersPerTeam = maxPlayers / 2;
+  console.log('Starting ELO-based team balancing for', players.length, 'players');
+  
+  // Get players with their ELO ratings
+  const playersWithElo = await getGamePlayersWithElo(gameId);
+  console.log('Players with ELO data:', playersWithElo.map(p => ({ steam_id: p.player_steam_id, elo: p.current_elo, username: p.username })));
+  
+  // Create a map for quick lookup
+  const eloMap = new Map(playersWithElo.map(p => [p.player_steam_id, p.current_elo]));
+  
+  // Add ELO data to players
+  const playersWithEloData = players.map(player => ({
+    ...player,
+    current_elo: eloMap.get(player.player_steam_id) || 1000 // Default ELO if not found
+  }));
+  
+  // Sort players by ELO (highest to lowest) for balanced distribution
+  playersWithEloData.sort((a, b) => b.current_elo - a.current_elo);
+  
+  console.log('Players sorted by ELO:', playersWithEloData.map(p => ({ steam_id: p.player_steam_id, elo: p.current_elo })));
   
   // Get existing teams for this game
   const teams = await getGameTeams(gameId);
@@ -98,20 +117,58 @@ async function balancePlayersIntoTeams(
     throw new Error('Game must have at least 2 teams');
   }
   
-  // Shuffle players randomly for now (later we can implement skill-based balancing)
-  const shuffledPlayers = [...players].sort(() => Math.random() - 0.5);
+  // Initialize team assignments
+  const team1 = teams[0];
+  const team2 = teams[1];
+  const team1Players: any[] = [];
+  const team2Players: any[] = [];
+  let team1Elo = 0;
+  let team2Elo = 0;
   
-  // Assign players to teams
-  for (let i = 0; i < shuffledPlayers.length; i++) {
-    const teamIndex = Math.floor(i / playersPerTeam);
-    const team = teams[teamIndex];
-    if (team) {
-      await updatePlayerTeam(gameId, shuffledPlayers[i].player_steam_id, team.id);
+  // Distribute players using alternating assignment with ELO balancing
+  for (let i = 0; i < playersWithEloData.length; i++) {
+    const player = playersWithEloData[i];
+    
+    if (i < 2) {
+      // First two players (highest ELO) go to different teams
+      if (i === 0) {
+        team1Players.push(player);
+        team1Elo += player.current_elo;
+        await updatePlayerTeam(gameId, player.player_steam_id, team1.id);
+      } else {
+        team2Players.push(player);
+        team2Elo += player.current_elo;
+        await updatePlayerTeam(gameId, player.player_steam_id, team2.id);
+      }
+    } else {
+      // For remaining players, assign to team with lower total ELO
+      if (team1Elo <= team2Elo) {
+        team1Players.push(player);
+        team1Elo += player.current_elo;
+        await updatePlayerTeam(gameId, player.player_steam_id, team1.id);
+      } else {
+        team2Players.push(player);
+        team2Elo += player.current_elo;
+        await updatePlayerTeam(gameId, player.player_steam_id, team2.id);
+      }
     }
   }
   
+  const team1AvgElo = team1Players.length > 0 ? team1Elo / team1Players.length : 1000;
+  const team2AvgElo = team2Players.length > 0 ? team2Elo / team2Players.length : 1000;
+  
+  console.log(`Team 1: ${team1Players.length} players, Avg ELO: ${team1AvgElo.toFixed(1)}, Total: ${team1Elo}`);
+  console.log(`Team 2: ${team2Players.length} players, Avg ELO: ${team2AvgElo.toFixed(1)}, Total: ${team2Elo}`);
+  console.log(`ELO Difference: ${Math.abs(team1AvgElo - team2AvgElo).toFixed(1)}`);
+  
+  // Update team average ELOs in database
+  await updateTeamAverageElo(gameId, 1, Math.round(team1AvgElo * 100) / 100);
+  await updateTeamAverageElo(gameId, 2, Math.round(team2AvgElo * 100) / 100);
+  
   // Generate and update team names based on assigned players
   await generateAndUpdateTeamNames(gameId, teams, gameMode);
+  
+  console.log('ELO-based team balancing completed successfully');
 }
 
 export const handler = async (event: any) => {

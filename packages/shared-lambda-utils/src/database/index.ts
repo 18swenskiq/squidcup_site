@@ -805,6 +805,40 @@ export async function getGamePlayersWithTeams(gameId: string): Promise<Array<{
   }
 }
 
+export async function getGamePlayersWithElo(gameId: string): Promise<Array<{
+  player_steam_id: string;
+  team_id: string | null;
+  team_number: number | null;
+  joined_at: string;
+  current_elo: number;
+  username: string;
+}>> {
+  const connection = await getDatabaseConnection();
+  
+  try {
+    const rows = await executeQuery(
+      connection,
+      `SELECT 
+         gp.player_steam_id,
+         gp.team_id,
+         gp.joined_at,
+         gt.team_number,
+         u.current_elo,
+         u.username
+       FROM squidcup_game_players gp
+       LEFT JOIN squidcup_game_teams gt ON gp.team_id = gt.id
+       INNER JOIN squidcup_users u ON gp.player_steam_id = u.steam_id
+       WHERE gp.game_id = ?
+       ORDER BY gp.joined_at`,
+      [gameId]
+    );
+    
+    return rows as any[];
+  } finally {
+    await connection.end();
+  }
+}
+
 export async function getPlayerUsernamesBySteamIds(steamIds: string[]): Promise<Record<string, string>> {
   if (steamIds.length === 0) return {};
   
@@ -976,7 +1010,8 @@ export async function getUserCompleteStatus(sessionToken: string): Promise<UserC
   let gamePlayers = [];
   let gamePlayerNames = new Map();
   let gamePlayerAvatars = new Map();
-  
+  let gamePlayerElos = new Map();
+
   if (activeGame) {
     console.log('User found in game:', activeGame.id, 'status:', activeGame.status);
     
@@ -998,13 +1033,14 @@ export async function getUserCompleteStatus(sessionToken: string): Promise<UserC
     const allGameIds = [activeGame.host_steam_id, ...gamePlayers.map((p: any) => p.player_steam_id)];
     const gameUsers = await executeQuery(
       connection,
-      `SELECT steam_id, username, avatar FROM squidcup_users WHERE steam_id IN (${allGameIds.map(() => '?').join(',')})`,
+      `SELECT steam_id, username, avatar, current_elo FROM squidcup_users WHERE steam_id IN (${allGameIds.map(() => '?').join(',')})`,
       allGameIds
     );
     
     for (const user of gameUsers) {
       gamePlayerNames.set(user.steam_id, user.username || `Player ${user.steam_id.slice(-4)}`);
       gamePlayerAvatars.set(user.steam_id, user.avatar || null);
+      gamePlayerElos.set(user.steam_id, user.current_elo || 1000);
     }
     
     // Add fallback names for missing users
@@ -1012,6 +1048,7 @@ export async function getUserCompleteStatus(sessionToken: string): Promise<UserC
       if (!gamePlayerNames.has(steamId)) {
         gamePlayerNames.set(steamId, `Player ${steamId.slice(-4)}`);
         gamePlayerAvatars.set(steamId, null);
+        gamePlayerElos.set(steamId, 1000);
       }
     }
     
@@ -1021,10 +1058,9 @@ export async function getUserCompleteStatus(sessionToken: string): Promise<UserC
       players: gamePlayers,
       playerNames: Object.fromEntries(gamePlayerNames),
       playerAvatars: Object.fromEntries(gamePlayerAvatars),
+      playerElos: Object.fromEntries(gamePlayerElos),
       teams: gameTeams // Add teams to the response
-    };
-    
-    // If game is in progress, include server connection information
+    };    // If game is in progress, include server connection information
     if (activeGame.status === 'in_progress' && activeGame.server_id) {
       try {
         const serverInfo = await getServerInfoForGame(activeGame.id);

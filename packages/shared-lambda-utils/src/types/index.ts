@@ -356,6 +356,7 @@ export interface UserCompleteStatus {
     players: GamePlayerRecord[];
     playerNames: Record<string, string>;
     playerAvatars?: Record<string, string | null>;
+    playerElos?: Record<string, number>;
     teams?: GameTeamRecord[]; // Include teams data for proper team assignment mapping
   };
   // Legacy compatibility properties
@@ -379,6 +380,7 @@ export interface UserCompleteStatus {
     players: GamePlayerRecord[];
     playerNames: Record<string, string>;
     playerAvatars?: Record<string, string | null>;
+    playerElos?: Record<string, number>;
     teams?: GameTeamRecord[]; // Include teams data for proper team assignment mapping
   };
   lobby?: {
@@ -401,6 +403,7 @@ export interface UserCompleteStatus {
     players: GamePlayerRecord[];
     playerNames: Record<string, string>;
     playerAvatars?: Record<string, string | null>;
+    playerElos?: Record<string, number>;
     teams?: GameTeamRecord[]; // Include teams data for proper team assignment mapping
   };
 }
