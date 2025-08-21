@@ -1499,7 +1499,7 @@ export const storeLobbyHistoryEvent = storeGameHistoryEvent;
 async function getTotalRoundsPlayedByPlayers(connection: mysql.Connection): Promise<Map<string, number>> {
   const roundsQuery = `
     SELECT 
-      sp.steamid64,
+      CAST(sp.steamid64 AS CHAR) as steamid64_str,
       SUM(COALESCE(sm.team1_score, 0) + COALESCE(sm.team2_score, 0)) as total_rounds
     FROM squidcup_stats_players sp
     LEFT JOIN squidcup_stats_maps sm ON sp.matchid = sm.matchid
@@ -1514,9 +1514,9 @@ async function getTotalRoundsPlayedByPlayers(connection: mysql.Connection): Prom
   const roundsMap = new Map<string, number>();
   
   for (const row of roundsRows as any[]) {
-    const steamId = String(row.steamid64);
+    const steamId = row.steamid64_str;  // Already a string from CAST
     const totalRounds = Number(row.total_rounds) || 0;
-    console.log(`Player ${steamId} (type: ${typeof row.steamid64}): ${totalRounds} rounds (type: ${typeof row.total_rounds})`);
+    console.log(`Player ${steamId}: ${totalRounds} rounds`);
     roundsMap.set(steamId, totalRounds);
   }
   
@@ -1543,7 +1543,7 @@ export async function getPlayerLeaderboardStats(): Promise<PlayerLeaderboardStat
       HAVING SUM(sp.kills) > 0 OR SUM(sp.deaths) > 0
     `;
     const steamIdRows = await executeQuery(connection, steamIdsQuery, []);
-    const allSteamIds = steamIdRows.map((row: any) => String(row.steam_id));
+    const allSteamIds = steamIdRows.map((row: any) => row.steam_id); // Already a string from CAST
     console.log(`Found ${allSteamIds.length} unique Steam IDs from main query:`, allSteamIds.slice(0, 5));
     
     // STEP 2: Get winrate data specifically for these Steam IDs
@@ -1602,7 +1602,8 @@ export async function getPlayerLeaderboardStats(): Promise<PlayerLeaderboardStat
     // Query to get aggregated player stats from squidcup_stats_players joined with user info
     const query = `
       SELECT 
-        sp.steamid64,
+        CAST(sp.steamid64 AS CHAR) as steamid64_str,
+        sp.steamid64 as steamid64_num,
         u.username,
         u.avatar as avatar_url,
         u.country_code,
@@ -1638,7 +1639,8 @@ export async function getPlayerLeaderboardStats(): Promise<PlayerLeaderboardStat
 
     // Process the results and calculate derived stats
     const playerStats: PlayerLeaderboardStats[] = (rows as any[]).map((row, index) => {
-      const steamId = String(row.steamid64);  // Ensure steamId is always a string
+      const steamId = row.steamid64_str;  // Use the string version directly from CAST
+      const steamIdNum = row.steamid64_num;  // Keep numeric for debugging
       const kills = row.total_kills || 0;
       const deaths = row.total_deaths || 0;
       const damage = row.total_damage || 0;
@@ -1650,8 +1652,10 @@ export async function getPlayerLeaderboardStats(): Promise<PlayerLeaderboardStat
       const totalRounds = totalRoundsMap.get(steamId) || 0;
 
       console.log(`\n--- Processing player ${index + 1}/${rows.length}: ${steamId} ---`);
-      console.log(`  Steam ID: ${steamId} (from steamid64: ${row.steamid64}, type: ${typeof row.steamid64})`);
+      console.log(`  Steam ID (string): ${steamId} (from CAST)`);
+      console.log(`  Steam ID (number): ${steamIdNum} (original, type: ${typeof steamIdNum})`);
       console.log(`  Username: ${row.username || 'Unknown'}`);
+      console.log(`  Precision check: string=${steamId}, number=${steamIdNum}, match=${steamId === String(steamIdNum)}`);
       
       // Winrate lookup with comprehensive debugging
       const hasWinrateKey = winLossMap.has(steamId);
