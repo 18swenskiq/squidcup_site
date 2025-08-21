@@ -125,32 +125,40 @@ async function balancePlayersIntoTeams(
   let team1Elo = 0;
   let team2Elo = 0;
   
-  // Distribute players using alternating assignment with ELO balancing
+  // Distribute players ensuring equal team sizes first, then balance ELO
+  const playersPerTeam = Math.floor(playersWithEloData.length / 2);
+  const hasRemainder = playersWithEloData.length % 2 === 1;
+  
+  console.log(`Balancing ${playersWithEloData.length} players into teams of ${playersPerTeam} each${hasRemainder ? ' (with 1 extra)' : ''}`);
+  
+  // Use round-robin assignment to ensure equal team sizes while maintaining ELO balance
   for (let i = 0; i < playersWithEloData.length; i++) {
     const player = playersWithEloData[i];
     
-    if (i < 2) {
-      // First two players (highest ELO) go to different teams
-      if (i === 0) {
-        team1Players.push(player);
-        team1Elo += player.current_elo;
-        await updatePlayerTeam(gameId, player.player_steam_id, team1.id);
-      } else {
-        team2Players.push(player);
-        team2Elo += player.current_elo;
-        await updatePlayerTeam(gameId, player.player_steam_id, team2.id);
-      }
+    // Determine which team to assign based on current team sizes and alternating pattern
+    let assignToTeam1;
+    
+    if (team1Players.length === playersPerTeam && team2Players.length < playersPerTeam) {
+      // Team 1 is full, assign remaining to team 2
+      assignToTeam1 = false;
+    } else if (team2Players.length === playersPerTeam && team1Players.length < playersPerTeam) {
+      // Team 2 is full, assign remaining to team 1
+      assignToTeam1 = true;
     } else {
-      // For remaining players, assign to team with lower total ELO
-      if (team1Elo <= team2Elo) {
-        team1Players.push(player);
-        team1Elo += player.current_elo;
-        await updatePlayerTeam(gameId, player.player_steam_id, team1.id);
-      } else {
-        team2Players.push(player);
-        team2Elo += player.current_elo;
-        await updatePlayerTeam(gameId, player.player_steam_id, team2.id);
-      }
+      // Both teams have space, use alternating assignment to maintain balance
+      assignToTeam1 = (i % 2 === 0);
+    }
+    
+    if (assignToTeam1) {
+      team1Players.push(player);
+      team1Elo += player.current_elo;
+      await updatePlayerTeam(gameId, player.player_steam_id, team1.id);
+      console.log(`Assigned ${player.player_steam_id} (ELO: ${player.current_elo}) to Team 1`);
+    } else {
+      team2Players.push(player);
+      team2Elo += player.current_elo;
+      await updatePlayerTeam(gameId, player.player_steam_id, team2.id);
+      console.log(`Assigned ${player.player_steam_id} (ELO: ${player.current_elo}) to Team 2`);
     }
   }
   
