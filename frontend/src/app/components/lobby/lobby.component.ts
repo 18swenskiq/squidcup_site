@@ -804,7 +804,9 @@ export class LobbyComponent implements OnInit, OnDestroy, OnChanges {
   getPlayerElo(steamId: string): number {
     // Get ELO from the lobby player data
     const lobbyPlayer = this.lobby?.players?.find(p => p.steamId === steamId);
-    return lobbyPlayer?.currentElo || 1000; // Default to 1000 if not found
+    // Ensure ELO is converted to a number, default to 1000 if not found or invalid
+    const elo = lobbyPlayer?.currentElo;
+    return typeof elo === 'number' ? elo : (elo ? Number(elo) : 1000);
   }
 
   getTeamAverageElo(teamNumber: number): number {
@@ -814,10 +816,15 @@ export class LobbyComponent implements OnInit, OnDestroy, OnChanges {
     }
     
     const totalElo = teamPlayers.reduce((sum, player) => {
-      return sum + this.getPlayerElo(player.steamId);
+      const playerElo = this.getPlayerElo(player.steamId);
+      console.log(`Team ${teamNumber}: Adding player ${player.steamId} ELO ${playerElo} (type: ${typeof playerElo}) to sum ${sum}`);
+      return sum + playerElo;
     }, 0);
     
-    return Math.round(totalElo / teamPlayers.length);
+    const average = Math.round(totalElo / teamPlayers.length);
+    console.log(`Team ${teamNumber} average ELO: ${totalElo} / ${teamPlayers.length} = ${average}`);
+    
+    return average;
   }
 
   getPlayerAvatarUrl(steamId: string): string | undefined {

@@ -412,6 +412,7 @@ export interface UserWithSteamData {
   steam_id: string;
   username: string;
   avatar: string;
+  current_elo: number;
 }
 
 export interface QueueCleanupRecord {

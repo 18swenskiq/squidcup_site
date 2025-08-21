@@ -404,13 +404,23 @@ export async function getUsersBySteamIds(steamIds: string[]): Promise<UserWithSt
   if (steamIds.length === 0) return [];
   
   const connection = await getDatabaseConnection();
-  const placeholders = steamIds.map(() => '?').join(',');
-  const rows = await executeQuery(
-    connection,
-    `SELECT steam_id, username, avatar FROM squidcup_users WHERE steam_id IN (${placeholders})`,
-    steamIds
-  );
-  return rows;
+  
+  try {
+    const placeholders = steamIds.map(() => '?').join(',');
+    const rows = await executeQuery(
+      connection,
+      `SELECT steam_id, username, avatar, CAST(current_elo AS DECIMAL(10,2)) as current_elo FROM squidcup_users WHERE steam_id IN (${placeholders})`,
+      steamIds
+    );
+    
+    // Ensure current_elo is a number for all users
+    return rows.map((row: any) => ({
+      ...row,
+      current_elo: Number(row.current_elo)
+    }));
+  } finally {
+    await connection.end();
+  }
 }
 
 export async function isUserBanned(steamId: string): Promise<boolean> {
