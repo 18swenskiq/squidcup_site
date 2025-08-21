@@ -823,7 +823,7 @@ export async function getGamePlayersWithElo(gameId: string): Promise<Array<{
          gp.team_id,
          gp.joined_at,
          gt.team_number,
-         u.current_elo,
+         CAST(u.current_elo AS DECIMAL(10,2)) as current_elo,
          u.username
        FROM squidcup_game_players gp
        LEFT JOIN squidcup_game_teams gt ON gp.team_id = gt.id
@@ -833,7 +833,11 @@ export async function getGamePlayersWithElo(gameId: string): Promise<Array<{
       [gameId]
     );
     
-    return rows as any[];
+    // Ensure current_elo is properly converted to number
+    return rows.map((row: any) => ({
+      ...row,
+      current_elo: Number(row.current_elo)
+    })) as any[];
   } finally {
     await connection.end();
   }

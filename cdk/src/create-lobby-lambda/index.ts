@@ -95,15 +95,21 @@ async function balancePlayersIntoTeams(
   
   // Get players with their ELO ratings
   const playersWithElo = await getGamePlayersWithElo(gameId);
-  console.log('Players with ELO data:', playersWithElo.map(p => ({ steam_id: p.player_steam_id, elo: p.current_elo, username: p.username })));
+  console.log('Players with ELO data:', playersWithElo.map(p => ({ 
+    steam_id: p.player_steam_id, 
+    elo: p.current_elo, 
+    elo_type: typeof p.current_elo,
+    elo_number: Number(p.current_elo),
+    username: p.username 
+  })));
   
-  // Create a map for quick lookup
-  const eloMap = new Map(playersWithElo.map(p => [p.player_steam_id, p.current_elo]));
+  // Create a map for quick lookup, ensuring ELO values are numbers
+  const eloMap = new Map(playersWithElo.map(p => [p.player_steam_id, Number(p.current_elo)]));
   
-  // Add ELO data to players
+  // Add ELO data to players and ensure ELO values are numbers
   const playersWithEloData = players.map(player => ({
     ...player,
-    current_elo: eloMap.get(player.player_steam_id) || 1000 // Default ELO if not found
+    current_elo: Number(eloMap.get(player.player_steam_id) || 1000) // Ensure it's a number, default ELO if not found
   }));
   
   // Sort players by ELO (highest to lowest) for balanced distribution
@@ -153,12 +159,14 @@ async function balancePlayersIntoTeams(
       team1Players.push(player);
       team1Elo += player.current_elo;
       await updatePlayerTeam(gameId, player.player_steam_id, team1.id);
-      console.log(`Assigned ${player.player_steam_id} (ELO: ${player.current_elo}) to Team 1`);
+      console.log(`Assigned ${player.player_steam_id} (ELO: ${player.current_elo}, type: ${typeof player.current_elo}) to Team 1`);
+      console.log(`Team 1 ELO now: ${team1Elo} (type: ${typeof team1Elo})`);
     } else {
       team2Players.push(player);
       team2Elo += player.current_elo;
       await updatePlayerTeam(gameId, player.player_steam_id, team2.id);
-      console.log(`Assigned ${player.player_steam_id} (ELO: ${player.current_elo}) to Team 2`);
+      console.log(`Assigned ${player.player_steam_id} (ELO: ${player.current_elo}, type: ${typeof player.current_elo}) to Team 2`);
+      console.log(`Team 2 ELO now: ${team2Elo} (type: ${typeof team2Elo})`);
     }
   }
   
