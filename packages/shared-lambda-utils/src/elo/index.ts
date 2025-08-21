@@ -77,8 +77,22 @@ export function calculateNewElo(
 export function calculateTeamAverageElo(players: { steamId: string; currentElo: number }[]): number {
   if (players.length === 0) return BASE_ELO;
   
-  const totalElo = players.reduce((sum, player) => sum + player.currentElo, 0);
-  return Math.round(totalElo / players.length);
+  console.log('calculateTeamAverageElo input:', players.map(p => ({ 
+    steamId: p.steamId, 
+    currentElo: p.currentElo, 
+    type: typeof p.currentElo 
+  })));
+  
+  const totalElo = players.reduce((sum, player) => {
+    const eloValue = Number(player.currentElo); // Ensure it's a number
+    console.log(`Adding ELO: sum=${sum} + playerElo=${eloValue} = ${sum + eloValue}`);
+    return sum + eloValue;
+  }, 0);
+  
+  const average = Math.round(totalElo / players.length);
+  console.log(`Team average ELO: totalElo=${totalElo}, players=${players.length}, average=${average}`);
+  
+  return average;
 }
 
 /**

@@ -380,12 +380,24 @@ export async function upsertUser(userData: UpsertUserInput): Promise<void> {
 
 export async function getUser(steamId: string): Promise<User | null> {
   const connection = await getDatabaseConnection();
-  const rows = await executeQuery(
-    connection,
-    'SELECT * FROM squidcup_users WHERE steam_id = ?',
-    [steamId]
-  );
-  return rows.length > 0 ? rows[0] : null;
+  
+  try {
+    const rows = await executeQuery(
+      connection,
+      'SELECT *, CAST(current_elo AS DECIMAL(10,2)) as current_elo FROM squidcup_users WHERE steam_id = ?',
+      [steamId]
+    );
+    
+    if (rows.length > 0) {
+      const user = rows[0];
+      // Ensure current_elo is a number
+      user.current_elo = Number(user.current_elo);
+      return user;
+    }
+    return null;
+  } finally {
+    await connection.end();
+  }
 }
 
 export async function getUsersBySteamIds(steamIds: string[]): Promise<UserWithSteamData[]> {

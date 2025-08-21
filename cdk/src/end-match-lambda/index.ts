@@ -131,7 +131,9 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
     for (const player of gamePlayers) {
       // Get player's current ELO rating
       const user = await getUser(player.player_steam_id);
-      const currentElo = user?.current_elo || ELO.getDefaultElo();
+      const currentElo = Number(user?.current_elo) || ELO.getDefaultElo();
+      
+      console.log(`Player ${player.player_steam_id}: current_elo from DB = ${user?.current_elo} (type: ${typeof user?.current_elo}), converted = ${currentElo} (type: ${typeof currentElo})`);
       
       const playerData = {
         steamId: player.player_steam_id,
