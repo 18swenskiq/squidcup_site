@@ -121,8 +121,9 @@ export class LeaderboardViewComponent implements OnInit {
     // Format certain values for display
     if (key === 'currentElo') {
       // For ELO, remove trailing zeros after decimal point
-      if (typeof value === 'number') {
-        return value % 1 === 0 ? value.toString() : value.toFixed(1).replace(/\.0$/, '');
+      const numValue = typeof value === 'string' ? parseFloat(value) : value;
+      if (typeof numValue === 'number' && !isNaN(numValue)) {
+        return numValue % 1 === 0 ? numValue.toString() : numValue.toFixed(1).replace(/\.0$/, '');
       }
       return '0';
     }

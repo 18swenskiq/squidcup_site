@@ -1533,17 +1533,19 @@ export async function getPlayerLeaderboardStats(): Promise<PlayerLeaderboardStat
     // Get total rounds played for all players
     const totalRoundsMap = await getTotalRoundsPlayedByPlayers(connection);
     
-    // Get win/loss data for each player
+    // Get win/loss data for each player using team scores
     const winLossQuery = `
       SELECT 
         gp.player_steam_id,
         COUNT(CASE WHEN 
-          (gp.team_id IN (SELECT id FROM squidcup_game_teams WHERE game_id = g.id AND team_number = 1) AND SUBSTRING_INDEX(g.match_number, '-', -1) = '1-0') OR
-          (gp.team_id IN (SELECT id FROM squidcup_game_teams WHERE game_id = g.id AND team_number = 2) AND SUBSTRING_INDEX(g.match_number, '-', -1) = '0-1')
+          (gt.team_number = 1 AND sm.team1_score > sm.team2_score) OR
+          (gt.team_number = 2 AND sm.team2_score > sm.team1_score)
         THEN 1 END) as wins,
         COUNT(*) as total_games
       FROM squidcup_game_players gp
       INNER JOIN squidcup_games g ON gp.game_id = g.id
+      INNER JOIN squidcup_game_teams gt ON gp.team_id = gt.id
+      INNER JOIN squidcup_stats_maps sm ON g.match_number = sm.matchid
       WHERE g.status = 'completed' AND g.match_number IS NOT NULL
       GROUP BY gp.player_steam_id
     `;
