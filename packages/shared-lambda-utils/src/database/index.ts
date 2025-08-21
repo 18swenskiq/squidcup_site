@@ -1536,7 +1536,7 @@ export async function getPlayerLeaderboardStats(): Promise<PlayerLeaderboardStat
     // Get win/loss data for each player using team scores
     const winLossQuery = `
       SELECT 
-        gp.player_steam_id,
+        CAST(gp.player_steam_id AS CHAR) as player_steam_id,
         COUNT(CASE WHEN 
           (gt.team_number = 1 AND sm.team1_score > sm.team2_score) OR
           (gt.team_number = 2 AND sm.team2_score > sm.team1_score)
@@ -1559,6 +1559,9 @@ export async function getPlayerLeaderboardStats(): Promise<PlayerLeaderboardStat
       const winrate = totalGames > 0 ? Number(((wins / totalGames) * 100).toFixed(1)) : 0;
       winLossMap.set(steamId, winrate);
     });
+    
+    console.log('WinLoss map entries:', Array.from(winLossMap.entries()).slice(0, 5));
+    console.log('WinLoss map size:', winLossMap.size);
     
     // Query to get aggregated player stats from squidcup_stats_players joined with user info
     const query = `
