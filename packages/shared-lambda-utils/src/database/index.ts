@@ -1533,26 +1533,44 @@ export async function getPlayerLeaderboardStats(): Promise<PlayerLeaderboardStat
     // Get total rounds played for all players
     const totalRoundsMap = await getTotalRoundsPlayedByPlayers(connection);
     
-    // Get win/loss data for each player using team scores
-    // Use steamid64 from squidcup_stats_players to match our main query
+    // STEP 1: Get all Steam IDs from the main stats query first
+    console.log('STEP 1: Getting all Steam IDs from main stats query');
+    const steamIdsQuery = `
+      SELECT DISTINCT CAST(sp.steamid64 AS CHAR) as steam_id
+      FROM squidcup_stats_players sp
+      LEFT JOIN squidcup_users u ON CAST(sp.steamid64 AS CHAR) COLLATE utf8mb4_general_ci = u.steam_id COLLATE utf8mb4_general_ci
+      GROUP BY sp.steamid64
+      HAVING SUM(sp.kills) > 0 OR SUM(sp.deaths) > 0
+    `;
+    const steamIdRows = await executeQuery(connection, steamIdsQuery, []);
+    const allSteamIds = steamIdRows.map((row: any) => String(row.steam_id));
+    console.log(`Found ${allSteamIds.length} unique Steam IDs from main query:`, allSteamIds.slice(0, 5));
+    
+    // STEP 2: Get winrate data specifically for these Steam IDs
+    console.log('STEP 2: Getting winrate data for these specific Steam IDs');
+    const steamIdPlaceholders = allSteamIds.map(() => '?').join(',');
     const winLossQuery = `
       SELECT 
-        CAST(sp.steamid64 AS CHAR) as player_steam_id,
+        CAST(gp.player_steam_id AS CHAR) as player_steam_id,
         COUNT(CASE WHEN 
           (gt.team_number = 1 AND sm.team1_score > sm.team2_score) OR
           (gt.team_number = 2 AND sm.team2_score > sm.team1_score)
         THEN 1 END) as wins,
         COUNT(*) as total_games
-      FROM squidcup_stats_players sp
-      INNER JOIN squidcup_games g ON sp.matchid = g.match_number
-      LEFT JOIN squidcup_game_players gp ON g.id = gp.game_id AND CAST(sp.steamid64 AS CHAR) = CAST(gp.player_steam_id AS CHAR)
-      LEFT JOIN squidcup_game_teams gt ON gp.team_id = gt.id
-      INNER JOIN squidcup_stats_maps sm ON sp.matchid = sm.matchid
-      WHERE g.status = 'completed' AND sm.matchid IS NOT NULL AND gt.team_number IS NOT NULL
-      GROUP BY sp.steamid64
+      FROM squidcup_game_players gp
+      INNER JOIN squidcup_games g ON gp.game_id = g.id
+      INNER JOIN squidcup_game_teams gt ON gp.team_id = gt.id
+      INNER JOIN squidcup_stats_maps sm ON g.match_number = sm.matchid
+      WHERE g.status = 'completed' 
+        AND g.match_number IS NOT NULL
+        AND CAST(gp.player_steam_id AS CHAR) IN (${steamIdPlaceholders})
+      GROUP BY gp.player_steam_id
     `;
     
-    const winLossRows = await executeQuery(connection, winLossQuery, []);
+    console.log('Executing targeted winrate query for', allSteamIds.length, 'Steam IDs');
+    const winLossRows = await executeQuery(connection, winLossQuery, allSteamIds);
+    console.log('Winrate query returned', winLossRows.length, 'rows');
+    
     const winLossMap = new Map();
     winLossRows.forEach((row: any) => {
       const steamId = String(row.player_steam_id);
@@ -1560,7 +1578,23 @@ export async function getPlayerLeaderboardStats(): Promise<PlayerLeaderboardStat
       const totalGames = row.total_games || 0;
       const winrate = totalGames > 0 ? Number(((wins / totalGames) * 100).toFixed(1)) : 0;
       winLossMap.set(steamId, winrate);
+      console.log(`Winrate mapping: ${steamId} -> ${wins}/${totalGames} = ${winrate}%`);
     });
+    
+    // STEP 3: Create fallback winrate data for any missing Steam IDs
+    console.log('STEP 3: Creating fallback winrate data for missing Steam IDs');
+    let missingWinrateCount = 0;
+    allSteamIds.forEach((steamId: string) => {
+      if (!winLossMap.has(steamId)) {
+        console.log(`WARNING: No winrate data found for Steam ID ${steamId}, using fallback of 0`);
+        winLossMap.set(steamId, 0);
+        missingWinrateCount++;
+      }
+    });
+    console.log(`Created fallback winrate data for ${missingWinrateCount} Steam IDs`);
+    
+    console.log('Final winrate map size:', winLossMap.size);
+    console.log('Final winrate map sample:', Array.from(winLossMap.entries()).slice(0, 5));
     
     console.log('WinLoss map entries:', Array.from(winLossMap.entries()).slice(0, 5));
     console.log('WinLoss map size:', winLossMap.size);
@@ -1599,8 +1633,11 @@ export async function getPlayerLeaderboardStats(): Promise<PlayerLeaderboardStat
 
     const rows = await executeQuery(connection, query, []);
 
+    console.log('STEP 4: Processing main query results');
+    console.log(`Main query returned ${rows.length} players`);
+
     // Process the results and calculate derived stats
-    const playerStats: PlayerLeaderboardStats[] = (rows as any[]).map(row => {
+    const playerStats: PlayerLeaderboardStats[] = (rows as any[]).map((row, index) => {
       const steamId = String(row.steamid64);  // Ensure steamId is always a string
       const kills = row.total_kills || 0;
       const deaths = row.total_deaths || 0;
@@ -1612,9 +1649,28 @@ export async function getPlayerLeaderboardStats(): Promise<PlayerLeaderboardStat
       const entryWins = row.total_entry_wins || 0;
       const totalRounds = totalRoundsMap.get(steamId) || 0;
 
-      console.log(`Processing player ${steamId} (from steamid64: ${row.steamid64}, type: ${typeof row.steamid64})`);
-      console.log(`  Looking up in rounds map...`);
-      console.log(`  Found totalRounds: ${totalRounds}`);
+      console.log(`\n--- Processing player ${index + 1}/${rows.length}: ${steamId} ---`);
+      console.log(`  Steam ID: ${steamId} (from steamid64: ${row.steamid64}, type: ${typeof row.steamid64})`);
+      console.log(`  Username: ${row.username || 'Unknown'}`);
+      
+      // Winrate lookup with comprehensive debugging
+      const hasWinrateKey = winLossMap.has(steamId);
+      const winrateValue = winLossMap.get(steamId);
+      console.log(`  Winrate lookup: steamId='${steamId}' -> hasKey=${hasWinrateKey}, value=${winrateValue}`);
+      
+      if (!hasWinrateKey) {
+        console.log(`  ERROR: Missing winrate for ${steamId}! Available keys:`, Array.from(winLossMap.keys()).slice(0, 10));
+        // Set a fallback value
+        winLossMap.set(steamId, 0);
+      }
+      
+      const finalWinrate = winLossMap.get(steamId) || 0;
+      console.log(`  Final winrate: ${finalWinrate}`);
+      
+      // Rounds lookup debugging
+      console.log(`  Total rounds: ${totalRounds} (from rounds map key='${steamId}')`);
+      
+      console.log(`  Basic stats: K=${kills}, D=${deaths}, DMG=${damage}`);
       console.log(`  Map has key: ${totalRoundsMap.has(steamId)}`);
 
       // Calculate derived statistics
@@ -1624,7 +1680,7 @@ export async function getPlayerLeaderboardStats(): Promise<PlayerLeaderboardStat
       const entryWinRate = entryCount > 0 ? Number(((entryWins / entryCount) * 100).toFixed(1)) : 0;
       const adr = totalRounds > 0 ? Number((damage / totalRounds).toFixed(1)) : 0;
 
-      console.log(`  Final ADR calculation: ${damage} / ${totalRounds} = ${adr}`);
+      console.log(`  Calculated stats: KDR=${kdr}, ADR=${adr}, HSP=${headShotPercentage}%, ACC=${accuracy}%`);
 
       return {
         steamId,
@@ -1633,7 +1689,7 @@ export async function getPlayerLeaderboardStats(): Promise<PlayerLeaderboardStat
         countryCode: row.country_code || undefined,
         stateCode: row.state_code || undefined,
         currentElo: row.current_elo || 1000,
-        winrate: winLossMap.get(steamId) || 0,
+        winrate: finalWinrate, // Use the guaranteed winrate value
         kills,
         deaths,
         assists: row.total_assists || 0,
@@ -1657,7 +1713,21 @@ export async function getPlayerLeaderboardStats(): Promise<PlayerLeaderboardStat
       };
     });
 
+    console.log(`\n=== FINAL SUMMARY ===`);
     console.log(`Retrieved leaderboard stats for ${playerStats.length} players`);
+    
+    // Check if any players have 0 winrate
+    const zeroWinratePlayers = playerStats.filter(p => p.winrate === 0);
+    console.log(`Players with 0% winrate: ${zeroWinratePlayers.length}`);
+    
+    // Check if any players have actual winrate data
+    const nonZeroWinratePlayers = playerStats.filter(p => p.winrate > 0);
+    console.log(`Players with >0% winrate: ${nonZeroWinratePlayers.length}`);
+    
+    if (nonZeroWinratePlayers.length > 0) {
+      console.log(`Sample winrates:`, nonZeroWinratePlayers.slice(0, 3).map(p => `${p.username}: ${p.winrate}%`));
+    }
+    
     return playerStats;
 
   } finally {
