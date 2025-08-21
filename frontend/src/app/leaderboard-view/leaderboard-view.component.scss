@@ -321,21 +321,6 @@
             color: rgba(255, 255, 255, 0.85);
             font-weight: 500;
             white-space: nowrap;
-            
-            // Highlight certain important stats
-            &:nth-child(3), // Kills
-            &:nth-child(6) { // KDR
-              color: #4CAF50;
-              font-weight: 600;
-            }
-            
-            &:nth-child(4) { // Deaths
-              color: #f44336;
-            }
-            
-            &:nth-child(5) { // Assists
-              color: #2196F3;
-            }
           }
         }
       }

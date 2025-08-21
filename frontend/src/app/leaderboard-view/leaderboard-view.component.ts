@@ -11,6 +11,7 @@ export interface PlayerLeaderboardStats {
   countryCode?: string;
   stateCode?: string;
   currentElo: number; // Player's current ELO rating
+  winrate: number; // Overall win rate percentage
   // Combined stats from sqlidcup_stats_players
   kills: number;
   deaths: number;
@@ -57,6 +58,7 @@ export class LeaderboardViewComponent implements OnInit {
   // Column definitions with abbreviations and full names for tooltips
   columns = [
     { key: 'currentElo', label: 'ELO', tooltip: 'Current ELO Rating' },
+    { key: 'winrate', label: 'WIN%', tooltip: 'Win Rate Percentage' },
     { key: 'kills', label: 'K', tooltip: 'Kills' },
     { key: 'deaths', label: 'D', tooltip: 'Deaths' },
     { key: 'assists', label: 'A', tooltip: 'Assists' },
@@ -117,6 +119,13 @@ export class LeaderboardViewComponent implements OnInit {
     const value = (player as any)[key];
     
     // Format certain values for display
+    if (key === 'currentElo') {
+      // For ELO, remove trailing zeros after decimal point
+      if (typeof value === 'number') {
+        return value % 1 === 0 ? value.toString() : value.toFixed(1).replace(/\.0$/, '');
+      }
+      return '0';
+    }
     if (key === 'kdr' || key === 'adr') {
       return typeof value === 'number' ? value.toFixed(1) : '0.0';
     }
@@ -281,7 +290,7 @@ export class LeaderboardViewComponent implements OnInit {
       'kills', 'deaths', 'assists', 'damage', 'utilityDamage', 
       'shotsFiredTotal', 'shotsOnTargetTotal', 'entryCount', 'entryWins',
       'liveTime', 'headShotKills', 'cashEarned', 'enemiesFlashed', 'totalRounds',
-      'kdr', 'adr', 'headShotPercentage', 'accuracy', 'entryWinRate'
+      'kdr', 'adr', 'headShotPercentage', 'accuracy', 'entryWinRate', 'currentElo', 'winrate'
     ];
     
     // If it's a numeric column, ensure we return a number

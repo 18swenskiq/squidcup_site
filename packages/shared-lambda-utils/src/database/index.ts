@@ -1533,6 +1533,31 @@ export async function getPlayerLeaderboardStats(): Promise<PlayerLeaderboardStat
     // Get total rounds played for all players
     const totalRoundsMap = await getTotalRoundsPlayedByPlayers(connection);
     
+    // Get win/loss data for each player
+    const winLossQuery = `
+      SELECT 
+        gp.player_steam_id,
+        COUNT(CASE WHEN 
+          (gp.team_id IN (SELECT id FROM squidcup_game_teams WHERE game_id = g.id AND team_number = 1) AND SUBSTRING_INDEX(g.match_number, '-', -1) = '1-0') OR
+          (gp.team_id IN (SELECT id FROM squidcup_game_teams WHERE game_id = g.id AND team_number = 2) AND SUBSTRING_INDEX(g.match_number, '-', -1) = '0-1')
+        THEN 1 END) as wins,
+        COUNT(*) as total_games
+      FROM squidcup_game_players gp
+      INNER JOIN squidcup_games g ON gp.game_id = g.id
+      WHERE g.status = 'completed' AND g.match_number IS NOT NULL
+      GROUP BY gp.player_steam_id
+    `;
+    
+    const winLossRows = await executeQuery(connection, winLossQuery, []);
+    const winLossMap = new Map();
+    winLossRows.forEach((row: any) => {
+      const steamId = String(row.player_steam_id);
+      const wins = row.wins || 0;
+      const totalGames = row.total_games || 0;
+      const winrate = totalGames > 0 ? Number(((wins / totalGames) * 100).toFixed(1)) : 0;
+      winLossMap.set(steamId, winrate);
+    });
+    
     // Query to get aggregated player stats from squidcup_stats_players joined with user info
     const query = `
       SELECT 
@@ -1601,6 +1626,7 @@ export async function getPlayerLeaderboardStats(): Promise<PlayerLeaderboardStat
         countryCode: row.country_code || undefined,
         stateCode: row.state_code || undefined,
         currentElo: row.current_elo || 1000,
+        winrate: winLossMap.get(steamId) || 0,
         kills,
         deaths,
         assists: row.total_assists || 0,

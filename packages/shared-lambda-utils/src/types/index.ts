@@ -580,6 +580,7 @@ export interface PlayerLeaderboardStats {
   countryCode?: string;
   stateCode?: string;
   currentElo: number; // Player's current ELO rating
+  winrate: number; // Overall win rate percentage
   // Combined stats from squidcup_stats_players
   kills: number;
   deaths: number;
