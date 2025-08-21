@@ -1534,20 +1534,22 @@ export async function getPlayerLeaderboardStats(): Promise<PlayerLeaderboardStat
     const totalRoundsMap = await getTotalRoundsPlayedByPlayers(connection);
     
     // Get win/loss data for each player using team scores
+    // Use steamid64 from squidcup_stats_players to match our main query
     const winLossQuery = `
       SELECT 
-        CAST(gp.player_steam_id AS CHAR) as player_steam_id,
+        CAST(sp.steamid64 AS CHAR) as player_steam_id,
         COUNT(CASE WHEN 
           (gt.team_number = 1 AND sm.team1_score > sm.team2_score) OR
           (gt.team_number = 2 AND sm.team2_score > sm.team1_score)
         THEN 1 END) as wins,
         COUNT(*) as total_games
-      FROM squidcup_game_players gp
-      INNER JOIN squidcup_games g ON gp.game_id = g.id
-      INNER JOIN squidcup_game_teams gt ON gp.team_id = gt.id
-      INNER JOIN squidcup_stats_maps sm ON g.match_number = sm.matchid
-      WHERE g.status = 'completed' AND g.match_number IS NOT NULL
-      GROUP BY gp.player_steam_id
+      FROM squidcup_stats_players sp
+      INNER JOIN squidcup_games g ON sp.matchid = g.match_number
+      LEFT JOIN squidcup_game_players gp ON g.id = gp.game_id AND CAST(sp.steamid64 AS CHAR) = CAST(gp.player_steam_id AS CHAR)
+      LEFT JOIN squidcup_game_teams gt ON gp.team_id = gt.id
+      INNER JOIN squidcup_stats_maps sm ON sp.matchid = sm.matchid
+      WHERE g.status = 'completed' AND sm.matchid IS NOT NULL AND gt.team_number IS NOT NULL
+      GROUP BY sp.steamid64
     `;
     
     const winLossRows = await executeQuery(connection, winLossQuery, []);
@@ -1611,12 +1613,9 @@ export async function getPlayerLeaderboardStats(): Promise<PlayerLeaderboardStat
       const totalRounds = totalRoundsMap.get(steamId) || 0;
 
       console.log(`Processing player ${steamId} (from steamid64: ${row.steamid64}, type: ${typeof row.steamid64})`);
-      console.log(`  steamId after String conversion: '${steamId}' (type: ${typeof steamId})`);
       console.log(`  Looking up in rounds map...`);
       console.log(`  Found totalRounds: ${totalRounds}`);
       console.log(`  Map has key: ${totalRoundsMap.has(steamId)}`);
-      console.log(`  WinLoss map keys sample:`, Array.from(winLossMap.keys()).slice(0, 3));
-      console.log(`  Looking up winrate for steamId '${steamId}': ${winLossMap.get(steamId)} (map has key: ${winLossMap.has(steamId)})`);
 
       // Calculate derived statistics
       const kdr = deaths > 0 ? Number((kills / deaths).toFixed(2)) : kills;
@@ -1634,7 +1633,7 @@ export async function getPlayerLeaderboardStats(): Promise<PlayerLeaderboardStat
         countryCode: row.country_code || undefined,
         stateCode: row.state_code || undefined,
         currentElo: row.current_elo || 1000,
-        winrate: (winLossMap.get(steamId) || 0) == 0 ? winLossMap.get(String(steamId)) : (winLossMap.get(steamId) || 0),
+        winrate: winLossMap.get(steamId) || 0,
         kills,
         deaths,
         assists: row.total_assists || 0,
