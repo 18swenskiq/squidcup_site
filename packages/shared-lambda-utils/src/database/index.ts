@@ -1599,7 +1599,7 @@ export async function getPlayerLeaderboardStats(): Promise<PlayerLeaderboardStat
 
     // Process the results and calculate derived stats
     const playerStats: PlayerLeaderboardStats[] = (rows as any[]).map(row => {
-      const steamId = String(row.steamid64);
+      const steamId = String(row.steamid64);  // Ensure steamId is always a string
       const kills = row.total_kills || 0;
       const deaths = row.total_deaths || 0;
       const damage = row.total_damage || 0;
@@ -1611,9 +1611,12 @@ export async function getPlayerLeaderboardStats(): Promise<PlayerLeaderboardStat
       const totalRounds = totalRoundsMap.get(steamId) || 0;
 
       console.log(`Processing player ${steamId} (from steamid64: ${row.steamid64}, type: ${typeof row.steamid64})`);
+      console.log(`  steamId after String conversion: '${steamId}' (type: ${typeof steamId})`);
       console.log(`  Looking up in rounds map...`);
       console.log(`  Found totalRounds: ${totalRounds}`);
       console.log(`  Map has key: ${totalRoundsMap.has(steamId)}`);
+      console.log(`  WinLoss map keys sample:`, Array.from(winLossMap.keys()).slice(0, 3));
+      console.log(`  Looking up winrate for steamId '${steamId}': ${winLossMap.get(steamId)} (map has key: ${winLossMap.has(steamId)})`);
 
       // Calculate derived statistics
       const kdr = deaths > 0 ? Number((kills / deaths).toFixed(2)) : kills;
@@ -1631,7 +1634,7 @@ export async function getPlayerLeaderboardStats(): Promise<PlayerLeaderboardStat
         countryCode: row.country_code || undefined,
         stateCode: row.state_code || undefined,
         currentElo: row.current_elo || 1000,
-        winrate: winLossMap.get(steamId) || 0,
+        winrate: (winLossMap.get(steamId) || 0) == 0 ? winLossMap.get(String(steamId)) : (winLossMap.get(steamId) || 0),
         kills,
         deaths,
         assists: row.total_assists || 0,
