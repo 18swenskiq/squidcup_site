@@ -223,6 +223,45 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
     
     console.log(`Team ELO averages: Team 1: ${team1EloData.averageElo}, Team 2: ${team2EloData.averageElo}`);
     
+    // Validate team data before processing
+    console.log('Validating team data...');
+    console.log('Team 1 validation:', {
+      averageElo: team1EloData.averageElo,
+      averageEloType: typeof team1EloData.averageElo,
+      isNaN: isNaN(team1EloData.averageElo),
+      playersCount: team1EloData.players.length,
+      playersData: team1EloData.players.map(p => ({ 
+        steamId: p.steamId, 
+        currentElo: p.currentElo, 
+        type: typeof p.currentElo,
+        isNaN: isNaN(p.currentElo)
+      }))
+    });
+    
+    console.log('Team 2 validation:', {
+      averageElo: team2EloData.averageElo,
+      averageEloType: typeof team2EloData.averageElo,
+      isNaN: isNaN(team2EloData.averageElo),
+      playersCount: team2EloData.players.length,
+      playersData: team2EloData.players.map(p => ({ 
+        steamId: p.steamId, 
+        currentElo: p.currentElo, 
+        type: typeof p.currentElo,
+        isNaN: isNaN(p.currentElo)
+      }))
+    });
+    
+    // Check for invalid data
+    if (isNaN(team1EloData.averageElo) || isNaN(team2EloData.averageElo)) {
+      throw new Error(`Invalid team average ELO values: Team 1: ${team1EloData.averageElo}, Team 2: ${team2EloData.averageElo}`);
+    }
+    
+    for (const player of [...team1EloData.players, ...team2EloData.players]) {
+      if (isNaN(player.currentElo)) {
+        throw new Error(`Invalid player ELO: ${player.steamId} has ELO: ${player.currentElo}`);
+      }
+    }
+    
     // Determine winner and calculate ELO changes
     const team1Won = matchResults.team1Score > matchResults.team2Score;
     const winningTeam = team1Won ? team1EloData : team2EloData;
@@ -231,7 +270,20 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
     console.log(`${team1Won ? 'Team 1' : 'Team 2'} won - calculating ELO changes...`);
     
     // Calculate ELO changes
-    const eloResults = ELO.processMatchEloChanges(winningTeam, losingTeam);
+    console.log('About to call processMatchEloChanges with:', {
+      winningTeam: winningTeam,
+      losingTeam: losingTeam
+    });
+    
+    let eloResults;
+    try {
+      eloResults = ELO.processMatchEloChanges(winningTeam, losingTeam);
+      console.log('ELO.processMatchEloChanges completed successfully:', eloResults);
+    } catch (eloProcessError) {
+      console.error('Error in ELO.processMatchEloChanges:', eloProcessError);
+      console.error('Error stack:', (eloProcessError as Error)?.stack);
+      throw eloProcessError; // Re-throw to be caught by outer try-catch
+    }
     
     // Update player ELO values in database
     let playersUpdated = 0;

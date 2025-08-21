@@ -39,7 +39,20 @@ export interface MatchEloResult {
  * @returns Expected score between 0 and 1
  */
 export function calculateExpectedScore(playerElo: number, opponentElo: number): number {
-  return 1 / (1 + Math.pow(10, (opponentElo - playerElo) / 400));
+  console.log(`Calculating expected score: playerElo=${playerElo}, opponentElo=${opponentElo}`);
+  
+  if (isNaN(playerElo) || isNaN(opponentElo)) {
+    throw new Error(`Invalid ELO values for expected score calculation: playerElo=${playerElo}, opponentElo=${opponentElo}`);
+  }
+  
+  const result = 1 / (1 + Math.pow(10, (opponentElo - playerElo) / 400));
+  console.log(`Expected score result: ${result}`);
+  
+  if (isNaN(result)) {
+    throw new Error(`Expected score calculation resulted in NaN: playerElo=${playerElo}, opponentElo=${opponentElo}`);
+  }
+  
+  return result;
 }
 
 /**
@@ -56,17 +69,29 @@ export function calculateNewElo(
   actualScore: number,
   kFactor: number = K_FACTOR
 ): number {
+  console.log(`Calculating new ELO: currentElo=${currentElo}, expectedScore=${expectedScore}, actualScore=${actualScore}, kFactor=${kFactor}`);
+  
+  if (isNaN(currentElo) || isNaN(expectedScore) || isNaN(actualScore) || isNaN(kFactor)) {
+    throw new Error(`Invalid values for ELO calculation: currentElo=${currentElo}, expectedScore=${expectedScore}, actualScore=${actualScore}, kFactor=${kFactor}`);
+  }
+  
   const rawEloChange = kFactor * (actualScore - expectedScore);
   const newElo = currentElo + rawEloChange;
+  
+  console.log(`ELO calculation: rawEloChange=${rawEloChange}, newElo=${newElo}`);
   
   // Ensure winners always gain at least +1 ELO
   if (actualScore === 1) { // Win
     const minEloForWin = currentElo + 1;
-    return Math.round(Math.max(newElo, minEloForWin));
+    const finalElo = Math.round(Math.max(newElo, minEloForWin));
+    console.log(`Winner ELO: minEloForWin=${minEloForWin}, finalElo=${finalElo}`);
+    return finalElo;
   }
   
   // For losses, use standard calculation
-  return Math.round(newElo);
+  const finalElo = Math.round(newElo);
+  console.log(`Loser ELO: finalElo=${finalElo}`);
+  return finalElo;
 }
 
 /**
@@ -83,14 +108,32 @@ export function calculateTeamAverageElo(players: { steamId: string; currentElo: 
     type: typeof p.currentElo 
   })));
   
-  const totalElo = players.reduce((sum, player) => {
+  const totalElo = players.reduce((sum, player, index) => {
     const eloValue = Number(player.currentElo); // Ensure it's a number
-    console.log(`Adding ELO: sum=${sum} + playerElo=${eloValue} = ${sum + eloValue}`);
+    console.log(`Step ${index + 1}: sum=${sum} + playerElo=${eloValue} = ${sum + eloValue}`);
+    
+    if (isNaN(eloValue)) {
+      console.error(`ERROR: Player ${player.steamId} has invalid ELO: ${player.currentElo}`);
+      throw new Error(`Invalid ELO value for player ${player.steamId}: ${player.currentElo}`);
+    }
+    
     return sum + eloValue;
   }, 0);
   
+  console.log(`Final calculation: totalElo=${totalElo}, players=${players.length}`);
+  
+  if (isNaN(totalElo)) {
+    console.error('ERROR: totalElo is NaN!');
+    throw new Error(`Total ELO calculation resulted in NaN. Players: ${JSON.stringify(players)}`);
+  }
+  
   const average = Math.round(totalElo / players.length);
   console.log(`Team average ELO: totalElo=${totalElo}, players=${players.length}, average=${average}`);
+  
+  if (isNaN(average)) {
+    console.error('ERROR: average ELO is NaN!');
+    throw new Error(`Average ELO calculation resulted in NaN. totalElo=${totalElo}, playerCount=${players.length}`);
+  }
   
   return average;
 }
