@@ -376,7 +376,7 @@ export class ApiStack extends cdk.Stack {
     const recalculateAllEloFunction = new NodejsFunction(this, "recalculate-all-elo-function", {
       runtime: this.RUNTIME,
       memorySize: this.MEMORY_SIZE,
-      timeout: cdk.Duration.seconds(120), // Longer timeout for ELO recalculation
+      timeout: cdk.Duration.seconds(240), // Longer timeout for ELO recalculation
       handler: 'index.handler',
       code: lambda.Code.fromAsset(path.join(__dirname, '/../src/recalculate-all-elo-lambda')),
       logRetention: this.LOG_RETENTION,
