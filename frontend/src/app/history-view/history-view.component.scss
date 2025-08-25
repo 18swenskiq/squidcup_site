@@ -327,7 +327,7 @@
 
 .table-header, .player-row {
   display: grid;
-  grid-template-columns: 2fr 1fr 1fr 1fr 1.5fr;
+  grid-template-columns: 2fr 1fr 1fr 1fr 1.5fr 1fr;
   gap: 12px;
   padding: 12px 16px;
   align-items: center;
@@ -362,6 +362,18 @@
   text-align: center;
   color: rgba(255, 255, 255, 0.9);
   font-size: 0.9rem;
+  
+  &.elo-change {
+    font-weight: 600;
+    
+    &.elo-gain {
+      color: #4CAF50; // Bright green for positive ELO changes
+    }
+    
+    &.elo-loss {
+      color: #F44336; // Bright red for negative ELO changes
+    }
+  }
 }
 
 // Responsive Design
@@ -385,7 +397,7 @@
   }
   
   .table-header, .player-row {
-    grid-template-columns: 2fr 0.8fr 0.8fr 0.8fr 1.2fr;
+    grid-template-columns: 2fr 0.8fr 0.8fr 0.8fr 1.2fr 0.8fr;
     gap: 8px;
     padding: 8px 12px;
     font-size: 0.8rem;

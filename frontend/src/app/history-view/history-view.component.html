@@ -94,6 +94,7 @@
                 <span class="stat">D</span>
                 <span class="stat">A</span>
                 <span class="stat">Damage</span>
+                <span class="stat">ELO</span>
               </div>
               <div 
                 *ngFor="let player of getTeamPlayers(match, 1)" 
@@ -104,6 +105,8 @@
                 <span class="stat">{{ player.deaths }}</span>
                 <span class="stat">{{ player.assists }}</span>
                 <span class="stat">{{ player.damage | number }}</span>
+                <span class="stat elo-change" [ngClass]="getEloChangeClass(player.eloChange)" *ngIf="player.eloChange !== 0">{{ formatEloChange(player.eloChange) }}</span>
+                <span class="stat" *ngIf="player.eloChange === 0">-</span>
               </div>
             </div>
           </div>
@@ -118,6 +121,7 @@
                 <span class="stat">D</span>
                 <span class="stat">A</span>
                 <span class="stat">Damage</span>
+                <span class="stat">ELO</span>
               </div>
               <div 
                 *ngFor="let player of getTeamPlayers(match, 2)" 
@@ -128,6 +132,8 @@
                 <span class="stat">{{ player.deaths }}</span>
                 <span class="stat">{{ player.assists }}</span>
                 <span class="stat">{{ player.damage | number }}</span>
+                <span class="stat elo-change" [ngClass]="getEloChangeClass(player.eloChange)" *ngIf="player.eloChange !== 0">{{ formatEloChange(player.eloChange) }}</span>
+                <span class="stat" *ngIf="player.eloChange === 0">-</span>
               </div>
             </div>
           </div>

@@ -1361,6 +1361,8 @@ export async function getMatchHistory(): Promise<MatchHistoryMatch[]> {
         -- Player data
         gp.player_steam_id,
         gp.team_id,
+        gp.elo_change_win,
+        gp.elo_change_loss,
         gt.team_number,
         u.username as player_name,
         
@@ -1435,6 +1437,20 @@ export async function getMatchHistory(): Promise<MatchHistoryMatch[]> {
         // Check if player already added (avoid duplicates from joins)
         const existingPlayer = match.players.find(p => p.steamId === row.player_steam_id);
         if (!existingPlayer) {
+          // Determine if player's team won
+          const playerTeam = row.team_number || 1;
+          const team1Won = row.team1_score > row.team2_score;
+          const team2Won = row.team2_score > row.team1_score;
+          const playerWon = (playerTeam === 1 && team1Won) || (playerTeam === 2 && team2Won);
+          
+          // Select appropriate ELO change based on match outcome
+          let eloChange = 0;
+          if (team1Won || team2Won) { // Skip tied games
+            eloChange = playerWon ? 
+              (Number(row.elo_change_win) || 0) : 
+              (Number(row.elo_change_loss) || 0);
+          }
+          
           match.players.push({
             steamId: row.player_steam_id,
             name: row.player_name || `Player ${row.player_steam_id.slice(-4)}`,
@@ -1442,7 +1458,8 @@ export async function getMatchHistory(): Promise<MatchHistoryMatch[]> {
             kills: row.kills,
             deaths: row.deaths,
             assists: row.assists,
-            damage: row.damage
+            damage: row.damage,
+            eloChange: eloChange
           });
         }
       }

@@ -552,6 +552,7 @@ export interface MatchHistoryPlayer {
   deaths: number;
   assists: number;
   damage: number;
+  eloChange: number;
 }
 
 export interface MatchHistoryTeam {

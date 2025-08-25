@@ -80,6 +80,22 @@ export class HistoryViewComponent implements OnInit {
     return match.players.filter(player => player.team === teamNumber);
   }
 
+  getEloChangeClass(eloChange: number): string {
+    if (eloChange > 0) {
+      return 'elo-gain';
+    } else if (eloChange < 0) {
+      return 'elo-loss';
+    }
+    return '';
+  }
+
+  formatEloChange(eloChange: number): string {
+    if (eloChange > 0) {
+      return `+${eloChange}`;
+    }
+    return eloChange.toString();
+  }
+
   retry(): void {
     this.loadMatchHistory();
   }
