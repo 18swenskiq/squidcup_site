@@ -136,12 +136,13 @@ async function balancePlayersIntoTeams(
   const hasRemainder = playersWithEloData.length % 2 === 1;
   
   console.log(`Balancing ${playersWithEloData.length} players into teams of ${playersPerTeam} each${hasRemainder ? ' (with 1 extra)' : ''}`);
+  console.log('Using snake draft pattern for balanced ELO distribution');
   
-  // Use round-robin assignment to ensure equal team sizes while maintaining ELO balance
+  // Use snake draft assignment to ensure balanced ELO distribution
   for (let i = 0; i < playersWithEloData.length; i++) {
     const player = playersWithEloData[i];
     
-    // Determine which team to assign based on current team sizes and alternating pattern
+    // Determine which team to assign using snake draft pattern
     let assignToTeam1;
     
     if (team1Players.length === playersPerTeam && team2Players.length < playersPerTeam) {
@@ -151,8 +152,20 @@ async function balancePlayersIntoTeams(
       // Team 2 is full, assign remaining to team 1
       assignToTeam1 = true;
     } else {
-      // Both teams have space, use alternating assignment to maintain balance
-      assignToTeam1 = (i % 2 === 0);
+      // Both teams have space, use snake draft pattern
+      // Snake draft: 1->A, 2->B, 3->B, 4->A, 5->A, 6->B, 7->B, 8->A, etc.
+      const roundNumber = Math.floor(i / 2);
+      const isFirstInRound = i % 2 === 0;
+      
+      if (roundNumber % 2 === 0) {
+        // Even rounds: first pick goes to Team 1, second to Team 2
+        assignToTeam1 = isFirstInRound;
+      } else {
+        // Odd rounds: first pick goes to Team 2, second to Team 1 (snake reversal)
+        assignToTeam1 = !isFirstInRound;
+      }
+      
+      console.log(`Snake draft: Player ${i + 1} (round ${roundNumber}, ${isFirstInRound ? 'first' : 'second'} in round) → Team ${assignToTeam1 ? '1' : '2'}`);
     }
     
     if (assignToTeam1) {
