@@ -257,6 +257,8 @@ async function ensureTablesExist(connection: mysql.Connection): Promise<void> {
         joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         map_selection VARCHAR(100) DEFAULT NULL,
         player_accepted_match_result BOOLEAN DEFAULT FALSE,
+        elo_change_win DECIMAL(10,2) DEFAULT NULL,
+        elo_change_loss DECIMAL(10,2) DEFAULT NULL,
         PRIMARY KEY (game_id, player_steam_id),
         FOREIGN KEY (game_id) REFERENCES squidcup_games(id) ON DELETE CASCADE,
         FOREIGN KEY (player_steam_id) REFERENCES squidcup_users(steam_id) ON DELETE CASCADE,
@@ -768,6 +770,20 @@ export async function updatePlayerElo(steamId: string, newElo: number): Promise<
       connection,
       'UPDATE squidcup_users SET current_elo = ? WHERE steam_id = ?',
       [newElo, steamId]
+    );
+  } finally {
+    await connection.end();
+  }
+}
+
+export async function updatePlayerEloChangePredictions(gameId: string, steamId: string, eloChangeWin: number, eloChangeLoss: number): Promise<void> {
+  const connection = await getDatabaseConnection();
+  
+  try {
+    await executeQuery(
+      connection,
+      'UPDATE squidcup_game_players SET elo_change_win = ?, elo_change_loss = ? WHERE game_id = ? AND player_steam_id = ?',
+      [eloChangeWin, eloChangeLoss, gameId, steamId]
     );
   } finally {
     await connection.end();

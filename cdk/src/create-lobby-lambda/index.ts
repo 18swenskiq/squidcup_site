@@ -15,12 +15,15 @@ import {
   updateTeamAverageElo,
   getGamePlayersWithElo,
   getPlayerUsernamesBySteamIds,
+  updatePlayerEloChangePredictions,
   LobbyPlayerRecord, 
   GamePlayerRecord,
   GameMode, 
   LobbyData,
   CreateLobbyInput,
 } from '@squidcup/shared-lambda-utils';
+import * as ELO from '@squidcup/shared-lambda-utils/dist/elo';
+import { TeamEloData } from '@squidcup/shared-lambda-utils/dist/elo';
 import * as crypto from 'crypto';
 
 // Extended response interface for API responses
@@ -193,6 +196,52 @@ async function balancePlayersIntoTeams(
   // Update team average ELOs in database
   await updateTeamAverageElo(gameId, 1, Math.round(team1AvgElo * 100) / 100);
   await updateTeamAverageElo(gameId, 2, Math.round(team2AvgElo * 100) / 100);
+  
+  // Calculate and store ELO change predictions for each player
+  console.log('Calculating ELO change predictions for all players...');
+  
+  // Build team data structures for ELO calculations
+  const team1EloData: TeamEloData = {
+    players: team1Players.map(p => ({ steamId: p.player_steam_id, currentElo: p.current_elo })),
+    averageElo: team1AvgElo
+  };
+  
+  const team2EloData: TeamEloData = {
+    players: team2Players.map(p => ({ steamId: p.player_steam_id, currentElo: p.current_elo })),
+    averageElo: team2AvgElo
+  };
+  
+  // Calculate ELO changes for Team 1 wins scenario
+  const team1WinsResults = ELO.processMatchEloChanges(team1EloData, team2EloData);
+  
+  // Calculate ELO changes for Team 2 wins scenario  
+  const team2WinsResults = ELO.processMatchEloChanges(team2EloData, team1EloData);
+  
+  // Store ELO change predictions for Team 1 players
+  for (const player of team1Players) {
+    const winResult = team1WinsResults.winningTeamResults.find(r => r.steamId === player.player_steam_id);
+    const lossResult = team2WinsResults.losingTeamResults.find(r => r.steamId === player.player_steam_id);
+    
+    const eloChangeWin = winResult ? winResult.eloChange : 0;
+    const eloChangeLoss = lossResult ? lossResult.eloChange : 0;
+    
+    await updatePlayerEloChangePredictions(gameId, player.player_steam_id, eloChangeWin, eloChangeLoss);
+    console.log(`Team 1 Player ${player.player_steam_id}: Win +${eloChangeWin}, Loss ${eloChangeLoss}`);
+  }
+  
+  // Store ELO change predictions for Team 2 players
+  for (const player of team2Players) {
+    const winResult = team2WinsResults.winningTeamResults.find(r => r.steamId === player.player_steam_id);
+    const lossResult = team1WinsResults.losingTeamResults.find(r => r.steamId === player.player_steam_id);
+    
+    const eloChangeWin = winResult ? winResult.eloChange : 0;
+    const eloChangeLoss = lossResult ? lossResult.eloChange : 0;
+    
+    await updatePlayerEloChangePredictions(gameId, player.player_steam_id, eloChangeWin, eloChangeLoss);
+    console.log(`Team 2 Player ${player.player_steam_id}: Win +${eloChangeWin}, Loss ${eloChangeLoss}`);
+  }
+  
+  console.log('ELO change predictions calculated and stored for all players');
   
   // Generate and update team names based on assigned players
   await generateAndUpdateTeamNames(gameId, teams, gameMode);
