@@ -6,7 +6,8 @@ import {
   getAllCompletedGamesWithPlayers,
   CompletedGameWithPlayers,
   updateTeamAverageElo,
-  updatePlayerElo
+  updatePlayerElo,
+  updatePlayerEloChangePredictions
 } from '@squidcup/shared-lambda-utils';
 import * as ELO from '@squidcup/shared-lambda-utils/dist/elo';
 
@@ -179,6 +180,45 @@ export async function handler(event: any): Promise<any> {
       // Calculate ELO changes for this match
       const eloResults = ELO.processMatchEloChanges(winningTeam, losingTeam);
       
+      // Store ELO change predictions in database for this game
+      console.log(`  Storing ELO change predictions for match ${game.matchNumber}...`);
+      
+      // For winning team players
+      for (const result of eloResults.winningTeamResults) {
+        const eloChangeWin = result.eloChange; // Positive change (they won)
+        
+        // Calculate what they would have lost if they had lost instead
+        // We need to simulate the opposite scenario
+        const oppositeWinningTeam = team1Won ? team2EloData : team1EloData;
+        const oppositeLosingTeam = team1Won ? team1EloData : team2EloData;
+        const oppositeResults = ELO.processMatchEloChanges(oppositeWinningTeam, oppositeLosingTeam);
+        
+        // Find this player's result in the opposite scenario (they would be on the losing team)
+        const oppositeResult = oppositeResults.losingTeamResults.find(r => r.steamId === result.steamId);
+        const eloChangeLoss = oppositeResult ? oppositeResult.eloChange : 0; // Negative change
+        
+        await updatePlayerEloChangePredictions(game.gameId, result.steamId, eloChangeWin, eloChangeLoss);
+      }
+      
+      // For losing team players
+      for (const result of eloResults.losingTeamResults) {
+        const eloChangeLoss = result.eloChange; // Negative change (they lost)
+        
+        // Calculate what they would have gained if they had won instead
+        // We need to simulate the opposite scenario
+        const oppositeWinningTeam = team1Won ? team2EloData : team1EloData;
+        const oppositeLosingTeam = team1Won ? team1EloData : team2EloData;
+        const oppositeResults = ELO.processMatchEloChanges(oppositeWinningTeam, oppositeLosingTeam);
+        
+        // Find this player's result in the opposite scenario (they would be on the winning team)
+        const oppositeResult = oppositeResults.winningTeamResults.find(r => r.steamId === result.steamId);
+        const eloChangeWin = oppositeResult ? oppositeResult.eloChange : 0; // Positive change
+        
+        await updatePlayerEloChangePredictions(game.gameId, result.steamId, eloChangeWin, eloChangeLoss);
+      }
+      
+      console.log(`  ELO change predictions stored for ${eloResults.winningTeamResults.length + eloResults.losingTeamResults.length} players`);
+      
       // Update player ELO ratings in our tracking map
       for (const result of eloResults.winningTeamResults) {
         playerEloMap.set(result.steamId, result.newElo);
@@ -219,9 +259,6 @@ export async function handler(event: any): Promise<any> {
     }
     
     console.log(`Step 4 completed: Updated ELO values for ${playersUpdated}/${playerEloMap.size} players in database`);
-
-    // TODO: Implement Step 4:
-    // 4. Update the database with the new ELO values
 
     console.log('All ELO recalculation steps completed successfully!');
 
