@@ -819,6 +819,8 @@ export async function getGamePlayersWithTeams(gameId: string): Promise<Array<{
   team_id: string | null;
   team_number: number | null;
   joined_at: string;
+  elo_change_win: number | null;
+  elo_change_loss: number | null;
 }>> {
   const connection = await getDatabaseConnection();
   
@@ -829,6 +831,8 @@ export async function getGamePlayersWithTeams(gameId: string): Promise<Array<{
          gp.player_steam_id,
          gp.team_id,
          gp.joined_at,
+         gp.elo_change_win,
+         gp.elo_change_loss,
          gt.team_number
        FROM squidcup_game_players gp
        LEFT JOIN squidcup_game_teams gt ON gp.team_id = gt.id

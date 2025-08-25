@@ -74,8 +74,8 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
     
     console.log(`Successfully updated game ${game.id} (match_number: ${matchId}) status to "completed"`);
     
-    // Calculate and update ELO for all players based on match results
-    console.log('Starting ELO calculations for match players...');
+    // Calculate and update ELO for all players based on pre-calculated values
+    console.log('Starting ELO updates using pre-calculated values...');
     
     try {
       // Get match results (team scores)
@@ -113,13 +113,15 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
       };
     }
     
-      // Get game with players and team assignments
-      console.log('Fetching game players with teams for game:', game.id);
+      // Get game players with teams and pre-calculated ELO changes
+      console.log('Fetching game players with teams and ELO changes for game:', game.id);
       const gamePlayers = await getGamePlayersWithTeams(game.id);
       console.log(`Retrieved ${gamePlayers?.length || 0} game players:`, 
         gamePlayers?.map(p => ({ 
           steam_id: p.player_steam_id, 
-          team_number: p.team_number 
+          team_number: p.team_number,
+          elo_change_win: p.elo_change_win,
+          elo_change_loss: p.elo_change_loss
         })) || 'No players'
       );
       
@@ -137,187 +139,83 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
         };
       }
     
-    // Separate players by team and get their current ELO ratings
-    const team1Players: Array<{steamId: string, currentElo: number, playerName?: string}> = [];
-    const team2Players: Array<{steamId: string, currentElo: number, playerName?: string}> = [];
-    
-      console.log(`Processing ${gamePlayers.length} players for ELO calculations...`);
-      
-      // Get all steam IDs first
-      const steamIds = gamePlayers.map(p => p.player_steam_id);
-      console.log('Getting user data for steam IDs:', steamIds);
-      
-      // Get all users in one batch to reduce database connections
-      const users = await getUsersBySteamIds(steamIds);
-      console.log(`Retrieved ${users.length} users from database`);
-      
-      // Create a lookup map for quick access
-      const userMap = new Map(users.map(u => [u.steam_id, u]));
-      
-      for (let i = 0; i < gamePlayers.length; i++) {
-        const player = gamePlayers[i];
-        console.log(`Processing player ${i + 1}/${gamePlayers.length}: ${player.player_steam_id} (team: ${player.team_number})`);
-        
-        try {
-          // Get player's current ELO rating from our map
-          const user = userMap.get(player.player_steam_id);
-          console.log(`User data from map:`, { 
-            found: !!user, 
-            current_elo: user?.current_elo, 
-            username: user?.username 
-          });
-          
-          const currentElo = Number(user?.current_elo) || ELO.getDefaultElo();
-          
-          console.log(`Player ${player.player_steam_id}: current_elo = ${user?.current_elo} (type: ${typeof user?.current_elo}), converted = ${currentElo} (type: ${typeof currentElo})`);
-          
-          const playerData = {
-            steamId: player.player_steam_id,
-            currentElo: currentElo,
-            playerName: user?.username || `Player ${player.player_steam_id.slice(-4)}`
-          };
-          
-          if (player.team_number === 1) {
-            team1Players.push(playerData);
-            console.log(`Added player to Team 1. Team 1 now has ${team1Players.length} players`);
-          } else if (player.team_number === 2) {
-            team2Players.push(playerData);
-            console.log(`Added player to Team 2. Team 2 now has ${team2Players.length} players`);
-          } else {
-            console.warn(`Player ${player.player_steam_id} has invalid team_number: ${player.team_number}`);
-          }
-          
-          console.log(`Successfully processed player ${i + 1}/${gamePlayers.length}`);
-        } catch (error) {
-          console.error(`Error processing player ${player.player_steam_id}:`, error);
-          throw error; // Re-throw to stop processing
-        }
-      }    console.log(`Found ${team1Players.length} Team 1 players and ${team2Players.length} Team 2 players`);
-    
-    if (team1Players.length === 0 || team2Players.length === 0) {
-      console.log('Incomplete teams - skipping ELO calculations');
-      return {
-        statusCode: 200,
-        headers: corsHeaders,
-        body: JSON.stringify({ 
-          message: 'Match ended successfully (incomplete teams - no ELO calculation)',
-          gameId: game.id,
-          matchId: matchId,
-          matchResults
-        }),
-      };
-    }
-    
-    // Build team ELO data
-    console.log('Building team 1 ELO data from players:', team1Players);
-    const team1EloData: ELO.TeamEloData = {
-      players: team1Players.map(p => ({ steamId: p.steamId, currentElo: p.currentElo })),
-      averageElo: ELO.calculateTeamAverageElo(team1Players.map(p => ({ steamId: p.steamId, currentElo: p.currentElo })))
-    };
-    
-    console.log('Building team 2 ELO data from players:', team2Players);
-    const team2EloData: ELO.TeamEloData = {
-      players: team2Players.map(p => ({ steamId: p.steamId, currentElo: p.currentElo })),
-      averageElo: ELO.calculateTeamAverageElo(team2Players.map(p => ({ steamId: p.steamId, currentElo: p.currentElo })))
-    };
-    
-    console.log(`Team ELO averages: Team 1: ${team1EloData.averageElo}, Team 2: ${team2EloData.averageElo}`);
-    
-    // Validate team data before processing
-    console.log('Validating team data...');
-    console.log('Team 1 validation:', {
-      averageElo: team1EloData.averageElo,
-      averageEloType: typeof team1EloData.averageElo,
-      isNaN: isNaN(team1EloData.averageElo),
-      playersCount: team1EloData.players.length,
-      playersData: team1EloData.players.map(p => ({ 
-        steamId: p.steamId, 
-        currentElo: p.currentElo, 
-        type: typeof p.currentElo,
-        isNaN: isNaN(p.currentElo)
-      }))
-    });
-    
-    console.log('Team 2 validation:', {
-      averageElo: team2EloData.averageElo,
-      averageEloType: typeof team2EloData.averageElo,
-      isNaN: isNaN(team2EloData.averageElo),
-      playersCount: team2EloData.players.length,
-      playersData: team2EloData.players.map(p => ({ 
-        steamId: p.steamId, 
-        currentElo: p.currentElo, 
-        type: typeof p.currentElo,
-        isNaN: isNaN(p.currentElo)
-      }))
-    });
-    
-    // Check for invalid data
-    if (isNaN(team1EloData.averageElo) || isNaN(team2EloData.averageElo)) {
-      throw new Error(`Invalid team average ELO values: Team 1: ${team1EloData.averageElo}, Team 2: ${team2EloData.averageElo}`);
-    }
-    
-    for (const player of [...team1EloData.players, ...team2EloData.players]) {
-      if (isNaN(player.currentElo)) {
-        throw new Error(`Invalid player ELO: ${player.steamId} has ELO: ${player.currentElo}`);
-      }
-    }
-    
-    // Determine winner and calculate ELO changes
+    // Determine which team won
     const team1Won = matchResults.team1Score > matchResults.team2Score;
-    const winningTeam = team1Won ? team1EloData : team2EloData;
-    const losingTeam = team1Won ? team2EloData : team1EloData;
+    console.log(`${team1Won ? 'Team 1' : 'Team 2'} won - applying pre-calculated ELO changes...`);
     
-    console.log(`${team1Won ? 'Team 1' : 'Team 2'} won - calculating ELO changes...`);
+    // Get all steam IDs first
+    const steamIds = gamePlayers.map(p => p.player_steam_id);
+    console.log('Getting current user data for steam IDs:', steamIds);
     
-    // Calculate ELO changes
-    console.log('About to call processMatchEloChanges with:', {
-      winningTeam: winningTeam,
-      losingTeam: losingTeam
-    });
+    // Get all users in one batch to reduce database connections
+    const users = await getUsersBySteamIds(steamIds);
+    console.log(`Retrieved ${users.length} users from database`);
     
-    let eloResults;
-    try {
-      eloResults = ELO.processMatchEloChanges(winningTeam, losingTeam);
-      console.log('ELO.processMatchEloChanges completed successfully:', eloResults);
-    } catch (eloProcessError) {
-      console.error('Error in ELO.processMatchEloChanges:', eloProcessError);
-      console.error('Error stack:', (eloProcessError as Error)?.stack);
-      throw eloProcessError; // Re-throw to be caught by outer try-catch
-    }
+    // Create a lookup map for quick access
+    const userMap = new Map(users.map(u => [u.steam_id, u]));
     
-    // Update player ELO values in database
+    // Update player ELO values using pre-calculated changes
     let playersUpdated = 0;
     const eloUpdates: Array<{steamId: string, oldElo: number, newElo: number, change: number, playerName?: string}> = [];
     
-    for (const result of eloResults.winningTeamResults) {
-      await updatePlayerElo(result.steamId, result.newElo);
-      playersUpdated++;
+    for (let i = 0; i < gamePlayers.length; i++) {
+      const player = gamePlayers[i];
+      console.log(`Processing player ${i + 1}/${gamePlayers.length}: ${player.player_steam_id} (team: ${player.team_number})`);
       
-      const playerData = [...team1Players, ...team2Players].find(p => p.steamId === result.steamId);
-      eloUpdates.push({
-        steamId: result.steamId,
-        oldElo: result.oldElo,
-        newElo: result.newElo,
-        change: result.eloChange,
-        playerName: playerData?.playerName
-      });
+      try {
+        // Get player's current ELO rating
+        const user = userMap.get(player.player_steam_id);
+        console.log(`User data from map:`, { 
+          found: !!user, 
+          current_elo: user?.current_elo, 
+          username: user?.username 
+        });
+        
+        if (!user) {
+          console.warn(`User not found for steam ID: ${player.player_steam_id}`);
+          continue;
+        }
+        
+        const currentElo = Number(user.current_elo) || ELO.getDefaultElo();
+        
+        // Determine which pre-calculated ELO change to use based on match result
+        let eloChange: number;
+        const playerTeam = player.team_number;
+        
+        if ((team1Won && playerTeam === 1) || (!team1Won && playerTeam === 2)) {
+          // Player's team won - use win change
+          eloChange = Number(player.elo_change_win) || 0;
+          console.log(`Player ${player.player_steam_id} is on winning team, using elo_change_win: ${eloChange}`);
+        } else {
+          // Player's team lost - use loss change
+          eloChange = Number(player.elo_change_loss) || 0;
+          console.log(`Player ${player.player_steam_id} is on losing team, using elo_change_loss: ${eloChange}`);
+        }
+        
+        const newElo = Math.round(currentElo + eloChange);
+        
+        console.log(`Player ${player.player_steam_id}: ${currentElo} + ${eloChange} = ${newElo}`);
+        
+        // Update ELO in database
+        await updatePlayerElo(player.player_steam_id, newElo);
+        playersUpdated++;
+        
+        eloUpdates.push({
+          steamId: player.player_steam_id,
+          oldElo: currentElo,
+          newElo: newElo,
+          change: eloChange,
+          playerName: user?.username || `Player ${player.player_steam_id.slice(-4)}`
+        });
+        
+        console.log(`Successfully updated player ${i + 1}/${gamePlayers.length}`);
+      } catch (error) {
+        console.error(`Error processing player ${player.player_steam_id}:`, error);
+        throw error; // Re-throw to stop processing
+      }
     }
     
-    for (const result of eloResults.losingTeamResults) {
-      await updatePlayerElo(result.steamId, result.newElo);
-      playersUpdated++;
-      
-      const playerData = [...team1Players, ...team2Players].find(p => p.steamId === result.steamId);
-      eloUpdates.push({
-        steamId: result.steamId,
-        oldElo: result.oldElo,
-        newElo: result.newElo,
-        change: result.eloChange,
-        playerName: playerData?.playerName
-      });
-    }
-    
-    console.log(`ELO calculations completed: Updated ${playersUpdated} players`);
+    console.log(`ELO updates completed: Updated ${playersUpdated} players using pre-calculated values`);
     
     return {
       statusCode: 200,
@@ -330,13 +228,10 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
         eloUpdates: {
           playersUpdated,
           winner: team1Won ? 'Team 1' : 'Team 2',
-          teamAverages: {
-            team1: { preMatch: team1EloData.averageElo },
-            team2: { preMatch: team2EloData.averageElo }
-          },
           playerChanges: eloUpdates.map(u => ({
             player: u.playerName || u.steamId.slice(-4),
             change: u.change > 0 ? `+${u.change}` : `${u.change}`,
+            oldElo: u.oldElo,
             newElo: u.newElo
           }))
         }
@@ -344,17 +239,17 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
     };
     
   } catch (eloError) {
-    console.error('Error during ELO calculations:', eloError);
+    console.error('Error during ELO updates:', eloError);
     console.error('Stack trace:', (eloError as Error)?.stack);
     
     return {
       statusCode: 200,
       headers: corsHeaders,
       body: JSON.stringify({ 
-        message: 'Match ended successfully (ELO calculation failed)',
+        message: 'Match ended successfully (ELO update failed)',
         gameId: game.id,
         matchId: matchId,
-        error: `ELO calculation error: ${(eloError as Error)?.message || 'Unknown error'}`
+        error: `ELO update error: ${(eloError as Error)?.message || 'Unknown error'}`
       }),
     };
   }
