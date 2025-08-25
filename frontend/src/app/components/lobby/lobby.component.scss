@@ -1035,6 +1035,81 @@
   }
 }
 
+// ELO changes styling
+.elo-changes-container {
+  display: flex;
+  gap: 30px;
+  justify-content: center;
+  flex-wrap: wrap;
+  max-width: 800px;
+  width: 100%;
+}
+
+.team-elo-changes {
+  background: var(--black-7);
+  border: 1px solid var(--white-2);
+  border-radius: 8px;
+  padding: 20px;
+  min-width: 300px;
+  flex: 1;
+
+  h3 {
+    color: #ffffff;
+    font-size: 1.4em;
+    font-weight: 600;
+    margin: 0 0 15px 0;
+    text-align: center;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  }
+}
+
+.player-elo-changes {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.player-elo-change {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--white-1);
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.player-name {
+  color: var(--white-9);
+  font-weight: 500;
+  font-size: 1em;
+}
+
+.elo-formula {
+  font-family: 'Courier New', monospace;
+  font-size: 1em;
+  color: var(--white-8);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+
+  .elo-gain {
+    color: #4CAF50;
+    font-weight: 600;
+  }
+
+  .elo-loss {
+    color: #F44336;
+    font-weight: 600;
+  }
+
+  .elo-neutral {
+    color: var(--white-6);
+  }
+}
+
 .continue-btn {
   background: linear-gradient(135deg, var(--green-6), var(--green-7));
   border: 1px solid rgba(39, 174, 96, 0.8);

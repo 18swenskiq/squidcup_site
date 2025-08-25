@@ -41,6 +41,17 @@ export interface LobbyData {
     port: number;
     password: string;
   }; // Server connection info for in_progress games
+  matchResults?: {
+    team1_score: number;
+    team2_score: number;
+  }; // Match results for completed games
+  eloChanges?: {
+    [steamId: string]: {
+      eloChange: number;
+      oldElo: number;
+      newElo: number;
+    };
+  }; // ELO changes for completed games
 }
 
 export interface GameServer {

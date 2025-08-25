@@ -5,7 +5,7 @@
       <span class="gamemode">{{ lobby.gameMode }}</span>
       <span class="ranked" *ngIf="lobby.ranked">Ranked</span>
       <span class="unranked" *ngIf="!lobby.ranked">Unranked</span>
-      <span class="map-mode">{{ getMapSelectionModeFriendlyName() }}</span>
+      <span class="map-mode" *ngIf="lobby?.status !== 'completed'">{{ getMapSelectionModeFriendlyName() }}</span>
     </div>
   </div>
 
@@ -32,7 +32,7 @@
           </div>
           <div class="player-right-section">
             <span class="host-badge" *ngIf="player.steamId === lobby.hostSteamId">Host</span>
-            <span class="map-status" *ngIf="lobby.mapSelectionMode === 'all-pick'">
+            <span class="map-status" *ngIf="lobby.mapSelectionMode === 'all-pick' && lobby?.status !== 'completed'">
               <span class="material-symbols-outlined check-icon" *ngIf="player.hasSelectedMap">check</span>
               <span class="selecting-text" *ngIf="!player.hasSelectedMap">⏳ Selecting...</span>
             </span>
@@ -49,7 +49,9 @@
     </div>
 
     <!-- Selected Map Display (Center) - Hide when map selection is complete to avoid reflow -->
-    <div class="selected-map-display" [class.hidden]="isMapSelectionComplete && !isAnimating">
+    <div class="selected-map-display" 
+         [class.hidden]="isMapSelectionComplete && !isAnimating" 
+         *ngIf="lobby?.status !== 'completed'">
       <!-- Animation state - show cycling maps during 10-second countdown -->
       <div *ngIf="isAnimating" class="map-animation-container">
         <h4>Finalizing Map Selection...</h4>
@@ -112,7 +114,7 @@
           </div>
           <div class="player-right-section">
             <span class="host-badge" *ngIf="player.steamId === lobby.hostSteamId">Host</span>
-            <span class="map-status" *ngIf="lobby.mapSelectionMode === 'all-pick'">
+            <span class="map-status" *ngIf="lobby.mapSelectionMode === 'all-pick' && lobby?.status !== 'completed'">
               <span class="material-symbols-outlined check-icon" *ngIf="player.hasSelectedMap">check</span>
               <span class="selecting-text" *ngIf="!player.hasSelectedMap">⏳ Selecting...</span>
             </span>
@@ -130,7 +132,7 @@
   </div>
 
   <!-- Map Selection Section -->
-  <div class="map-selection" *ngIf="!lobby.mapSelectionComplete && !isAnimating">
+  <div class="map-selection" *ngIf="!lobby.mapSelectionComplete && !isAnimating && lobby?.status !== 'completed'">
     <h3>Map Selection</h3>
     
     <!-- Random Map Mode -->
@@ -268,7 +270,7 @@
 
   <!-- Selected Map Display -->
   <div class="selected-map" 
-       *ngIf="isMapSelectionComplete && lobby.selectedMap && !isAnimating"
+       *ngIf="isMapSelectionComplete && lobby.selectedMap && !isAnimating && lobby?.status !== 'completed'"
        [style.background-image]="'url(' + getSelectedMapThumbnailUrl() + ')'">
     <div class="selected-map-overlay">
       <h3>Selected Map</h3>
@@ -322,9 +324,45 @@
        *ngIf="lobby?.status === 'completed'">
     <div class="match-completed-content">
       <h2>MATCH COMPLETED</h2>
-      <div class="completion-message">
-        <p>PLACEHOLDER: match is over. There will be stats/elo changes later, but not yet. Click the button below to continue</p>
+      
+      <!-- ELO Changes Display -->
+      <div class="elo-changes-container" *ngIf="lobby.eloChanges && lobby.teams">
+        <!-- Team 1 ELO Changes -->
+        <div class="team-elo-changes">
+          <h3>{{ getTeamName(1) }}</h3>
+          <div class="player-elo-changes">
+            <div *ngFor="let player of getTeamPlayers(1)" class="player-elo-change">
+              <span class="player-name">{{ getPlayerDisplayName(player.steamId) }}:</span>
+              <span class="elo-formula">
+                {{ getPlayerOldElo(player.steamId) }} 
+                <span [class]="getEloChangeClass(player.steamId)">{{ formatEloChange(player.steamId) }}</span>
+                = {{ getPlayerNewElo(player.steamId) }} elo
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Team 2 ELO Changes -->
+        <div class="team-elo-changes">
+          <h3>{{ getTeamName(2) }}</h3>
+          <div class="player-elo-changes">
+            <div *ngFor="let player of getTeamPlayers(2)" class="player-elo-change">
+              <span class="player-name">{{ getPlayerDisplayName(player.steamId) }}:</span>
+              <span class="elo-formula">
+                {{ getPlayerOldElo(player.steamId) }} 
+                <span [class]="getEloChangeClass(player.steamId)">{{ formatEloChange(player.steamId) }}</span>
+                = {{ getPlayerNewElo(player.steamId) }} elo
+              </span>
+            </div>
+          </div>
+        </div>
       </div>
+      
+      <!-- Fallback message if no ELO changes available -->
+      <div class="completion-message" *ngIf="!lobby.eloChanges">
+        <p>Match completed! ELO changes are being calculated...</p>
+      </div>
+      
       <button class="continue-btn" 
               (click)="acceptMatchResult()" 
               [disabled]="acceptingResult"

@@ -972,4 +972,46 @@ export class LobbyComponent implements OnInit, OnDestroy, OnChanges {
       // The userQueue polling will return empty and reset the view
     });
   }
+
+  // ELO change helper methods
+  getPlayerOldElo(steamId: string): number {
+    if (!this.lobby.eloChanges || !this.lobby.eloChanges[steamId]) {
+      return this.getPlayerElo(steamId);
+    }
+    return this.lobby.eloChanges[steamId].oldElo;
+  }
+
+  getPlayerNewElo(steamId: string): number {
+    if (!this.lobby.eloChanges || !this.lobby.eloChanges[steamId]) {
+      return this.getPlayerElo(steamId);
+    }
+    return this.lobby.eloChanges[steamId].newElo;
+  }
+
+  getPlayerEloChange(steamId: string): number {
+    if (!this.lobby.eloChanges || !this.lobby.eloChanges[steamId]) {
+      return 0;
+    }
+    return this.lobby.eloChanges[steamId].eloChange;
+  }
+
+  formatEloChange(steamId: string): string {
+    const change = this.getPlayerEloChange(steamId);
+    if (change > 0) {
+      return `+${change}`;
+    } else if (change < 0) {
+      return `${change}`;
+    }
+    return '±0';
+  }
+
+  getEloChangeClass(steamId: string): string {
+    const change = this.getPlayerEloChange(steamId);
+    if (change > 0) {
+      return 'elo-gain';
+    } else if (change < 0) {
+      return 'elo-loss';
+    }
+    return 'elo-neutral';
+  }
 }

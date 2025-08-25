@@ -1098,6 +1098,50 @@ export async function getUserCompleteStatus(sessionToken: string): Promise<UserC
       }
     }
     
+    // If game is completed, get match results and ELO changes
+    let matchResults = null;
+    let eloChanges = new Map();
+    if (activeGame.status === 'completed') {
+      try {
+        // Get match results
+        const matchResultsQuery = await executeQuery(
+          connection,
+          'SELECT team1_score, team2_score FROM squidcup_stats_maps WHERE matchid = ?',
+          [activeGame.match_number]
+        );
+        
+        if (matchResultsQuery.length > 0) {
+          matchResults = matchResultsQuery[0];
+        }
+        
+        // Get ELO changes for each player
+        for (const player of gamePlayers) {
+          const steamId = player.player_steam_id;
+          const eloChangeWin = Number(player.elo_change_win) || 0;
+          const eloChangeLoss = Number(player.elo_change_loss) || 0;
+          
+          // Determine if this player's team won
+          let eloChange = 0;
+          if (matchResults && matchResults.team1_score !== matchResults.team2_score) {
+            // Get player's team number
+            const playerTeam = gameTeams.find((t: any) => t.id === player.team_id)?.team_number || 1;
+            const team1Won = matchResults.team1_score > matchResults.team2_score;
+            const playerWon = (playerTeam === 1 && team1Won) || (playerTeam === 2 && !team1Won);
+            
+            eloChange = playerWon ? eloChangeWin : eloChangeLoss;
+          }
+          
+          eloChanges.set(steamId, {
+            eloChange,
+            oldElo: (gamePlayerElos.get(steamId) || 1000) - eloChange,
+            newElo: gamePlayerElos.get(steamId) || 1000
+          });
+        }
+      } catch (error) {
+        console.error('Failed to get match results and ELO changes for completed game:', activeGame.id, error);
+      }
+    }
+    
     const gameData = {
       ...activeGame,
       isHost: isGameHost,
@@ -1105,7 +1149,9 @@ export async function getUserCompleteStatus(sessionToken: string): Promise<UserC
       playerNames: Object.fromEntries(gamePlayerNames),
       playerAvatars: Object.fromEntries(gamePlayerAvatars),
       playerElos: Object.fromEntries(gamePlayerElos),
-      teams: gameTeams // Add teams to the response
+      teams: gameTeams, // Add teams to the response
+      ...(matchResults ? { matchResults } : {}), // Add match results if available
+      ...(eloChanges.size > 0 ? { eloChanges: Object.fromEntries(eloChanges) } : {}) // Add ELO changes if available
     };    // If game is in progress, include server connection information
     if (activeGame.status === 'in_progress' && activeGame.server_id) {
       try {
