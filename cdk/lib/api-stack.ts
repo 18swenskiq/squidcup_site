@@ -255,7 +255,7 @@ export class ApiStack extends cdk.Stack {
     const createLobbyFunction = new NodejsFunction(this, "create-lobby-function", {
       runtime: this.RUNTIME,
       memorySize: this.MEMORY_SIZE,
-      timeout: cdk.Duration.seconds(10), // Longer timeout for lobby operations
+      timeout: cdk.Duration.seconds(60), // Longer timeout for lobby operations
       handler: 'index.handler',
       code: lambda.Code.fromAsset(path.join(__dirname, '/../src/create-lobby-lambda')),
       logRetention: this.LOG_RETENTION,
