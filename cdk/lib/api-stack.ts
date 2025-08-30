@@ -301,7 +301,7 @@ export class ApiStack extends cdk.Stack {
     const endMatchFunction = new NodejsFunction(this, "end-match-function", {
       runtime: this.RUNTIME,
       memorySize: this.MEMORY_SIZE,
-      timeout: this.TIMEOUT,
+      timeout: cdk.Duration.seconds(25),
       handler: 'index.handler',
       code: lambda.Code.fromAsset(path.join(__dirname, '/../src/end-match-lambda')),
       logRetention: this.LOG_RETENTION,
