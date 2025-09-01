@@ -216,7 +216,8 @@ async function handleSteamCallback(event: any): Promise<any> {
 
 async function storeUserSession(steamId: string, frontendDomain: string) {
   const sessionToken = crypto.randomUUID();
-  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+  const hours = 24 * 14;
+  const expiresAt = new Date(Date.now() + hours * 60 * 60 * 1000); // 7 days
 
   // Upsert user profile using shared utilities
   await upsertUser({
