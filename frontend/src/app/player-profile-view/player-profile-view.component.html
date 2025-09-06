@@ -212,8 +212,10 @@
             <div *ngIf="mapStats.length > 0" class="maps-grid">
               <div 
                 *ngFor="let map of mapStats" 
-                class="map-card"
+                class="map-card clickable"
                 [style.background-image]="'url(' + map.mapThumbnailUrl + ')'"
+                (click)="openMapWorkshop(map.mapWorkshopUrl || '')"
+                title="Click to view in Steam Workshop"
               >
                 <div class="map-overlay">
                   <div class="map-info">

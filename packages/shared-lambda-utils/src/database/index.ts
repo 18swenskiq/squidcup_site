@@ -2137,8 +2137,53 @@ export async function getUserProfileStats(steamId: string): Promise<any[]> {
     
     console.log(`Found ${rows.length} completed games for Steam ID: ${steamId}`);
     
-    // Return the raw game stats - frontend will aggregate them
-    return rows as any[];
+    // Enrich results with map information
+    const steamApiKey = await getParameterValue('/unencrypted/SteamApiKey');
+    const enrichedRows = [];
+    const mapInfoCache = new Map<string, any>(); // Cache to avoid duplicate API calls
+    
+    for (const row of rows) {
+      const enrichedRow = { ...row };
+      
+      if (row.map_id && !mapInfoCache.has(row.map_id)) {
+        try {
+          const mapInfo = await getWorkshopMapInfo(row.map_id, steamApiKey);
+          if (mapInfo) {
+            mapInfoCache.set(row.map_id, {
+              mapName: mapInfo.name,
+              mapThumbnailUrl: mapInfo.thumbnailUrl,
+              mapWorkshopUrl: `https://steamcommunity.com/sharedfiles/filedetails/?id=${mapInfo.id}`
+            });
+          } else {
+            mapInfoCache.set(row.map_id, {
+              mapName: `Workshop Map ${row.map_id}`,
+              mapThumbnailUrl: '',
+              mapWorkshopUrl: `https://steamcommunity.com/sharedfiles/filedetails/?id=${row.map_id}`
+            });
+          }
+        } catch (error) {
+          console.error(`Error fetching map info for ${row.map_id}:`, error);
+          mapInfoCache.set(row.map_id, {
+            mapName: `Workshop Map ${row.map_id}`,
+            mapThumbnailUrl: '',
+            mapWorkshopUrl: `https://steamcommunity.com/sharedfiles/filedetails/?id=${row.map_id}`
+          });
+        }
+      }
+      
+      // Add map info to the row
+      const mapInfo = mapInfoCache.get(row.map_id);
+      if (mapInfo) {
+        enrichedRow.mapName = mapInfo.mapName;
+        enrichedRow.mapThumbnailUrl = mapInfo.mapThumbnailUrl;
+        enrichedRow.mapWorkshopUrl = mapInfo.mapWorkshopUrl;
+      }
+      
+      enrichedRows.push(enrichedRow);
+    }
+    
+    // Return the enriched game stats
+    return enrichedRows;
     
   } finally {
     await connection.end();

@@ -65,6 +65,7 @@ export interface PlayerMapStats {
   mapId: string;
   mapName: string;
   mapThumbnailUrl?: string;
+  mapWorkshopUrl?: string;
   gamesPlayed: number;
   wins: number;
   losses: number;
@@ -435,11 +436,14 @@ export class PlayerProfileViewComponent implements OnInit, AfterViewInit {
 
     // Convert to array and sort by games played
     this.mapStats = Array.from(mapStatsMap.entries()).map(([mapId, stats]) => {
-      const mapInfo = this.allMapsData.get(mapId);
+      // Find a game with this map to get the map info from the API response
+      const gameWithMap = this.playerData?.stats?.find(game => (game.map_id || game.map) === mapId);
+      
       return {
         mapId,
-        mapName: mapInfo?.name || `Workshop Map ${mapId}`,
-        mapThumbnailUrl: this.getMapThumbnailUrl(mapId),
+        mapName: gameWithMap?.mapName || `Workshop Map ${mapId}`,
+        mapThumbnailUrl: gameWithMap?.mapThumbnailUrl || '',
+        mapWorkshopUrl: gameWithMap?.mapWorkshopUrl || `https://steamcommunity.com/sharedfiles/filedetails/?id=${mapId}`,
         gamesPlayed: stats.games,
         wins: stats.wins,
         losses: stats.losses,
@@ -472,6 +476,13 @@ export class PlayerProfileViewComponent implements OnInit, AfterViewInit {
   private getMapThumbnailUrl(mapId: string): string {
     // This could be expanded to fetch actual map thumbnails from Steam Workshop API
     return `https://steamuserimages-a.akamaihd.net/ugc/${mapId}/preview.jpg`;
+  }
+
+  // Open map workshop page in new tab
+  openMapWorkshop(mapWorkshopUrl: string): void {
+    if (mapWorkshopUrl) {
+      window.open(mapWorkshopUrl, '_blank');
+    }
   }
 
   // Chart data generation methods
