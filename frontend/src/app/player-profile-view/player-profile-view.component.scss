@@ -399,6 +399,15 @@
               transition: width 0.3s ease;
             }
           }
+          
+          .win-loss-record {
+            text-align: center;
+            margin-top: 8px;
+            color: rgba(255, 255, 255, 0.9);
+            font-weight: 600;
+            font-size: 0.95rem;
+            letter-spacing: 0.5px;
+          }
         }
       }
     }

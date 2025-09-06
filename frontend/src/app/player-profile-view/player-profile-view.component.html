@@ -198,6 +198,9 @@
                     <div class="wins-bar" [style.width.%]="(mode.wins / mode.gamesPlayed) * 100"></div>
                     <div class="losses-bar" [style.width.%]="(mode.losses / mode.gamesPlayed) * 100"></div>
                   </div>
+                  <div class="win-loss-record">
+                    {{ mode.wins }}W-{{ mode.losses }}L
+                  </div>
                 </div>
               </div>
             </div>
