@@ -1,7 +1,9 @@
 import { Component, OnInit, Inject, PLATFORM_ID } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { ActivatedRoute } from '@angular/router';
+import { HttpClient } from '@angular/common/http';
 import { PageHeaderComponent } from '../page-header/page-header.component';
+import { environment } from '../../environments/environment';
 
 export interface PlayerProfileData {
   steamId: string;
@@ -9,6 +11,8 @@ export interface PlayerProfileData {
   avatarUrl?: string;
   countryCode?: string;
   stateCode?: string;
+  currentElo?: number;
+  stats?: any[]; // Individual game stats array
 }
 
 @Component({
@@ -34,6 +38,7 @@ export class PlayerProfileViewComponent implements OnInit {
 
   constructor(
     private route: ActivatedRoute,
+    private http: HttpClient,
     @Inject(PLATFORM_ID) private platformId: Object
   ) {}
 
@@ -54,19 +59,32 @@ export class PlayerProfileViewComponent implements OnInit {
     this.isLoading = true;
     this.error = null;
 
-    // TODO: Replace with actual API call to get player profile data
-    // For now, just simulate loading with placeholder data
-    setTimeout(() => {
-      // Simulate placeholder player data
-      this.playerData = {
-        steamId: this.steamId,
-        username: `Player_${this.steamId.substring(this.steamId.length - 8)}`, // Use last 8 chars of steam ID
-        avatarUrl: 'https://avatars.steamstatic.com/b5bd56c1aa4644a474a2e4972be27ef9e82e517e_full.jpg', // Placeholder avatar
-        countryCode: 'US',
-        stateCode: 'CA'
-      };
-      this.isLoading = false;
-    }, 1000);
+    // Call the API to get player profile data
+    const apiUrl = `${environment.apiUrl}/userProfileStats/${this.steamId}`;
+    
+    this.http.get<PlayerProfileData>(apiUrl).subscribe({
+      next: (data) => {
+        console.log('Player profile data received:', data);
+        this.playerData = data;
+        this.isLoading = false;
+      },
+      error: (error) => {
+        console.error('Error loading player profile:', error);
+        this.error = error.status === 404 ? 'Player not found' : 'Failed to load player profile';
+        this.isLoading = false;
+        
+        // Fallback to placeholder data on error
+        this.playerData = {
+          steamId: this.steamId,
+          username: `Player_${this.steamId.substring(this.steamId.length - 8)}`,
+          avatarUrl: '/assets/default-avatar.png',
+          countryCode: undefined,
+          stateCode: undefined,
+          currentElo: 1000,
+          stats: []
+        };
+      }
+    });
   }
 
   // Flag display logic (copied from leaderboard component)
