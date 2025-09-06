@@ -67,6 +67,13 @@
         >
           Maps & Modes
         </button>
+        <button 
+          class="tab-button" 
+          [class.active]="activeTab === 'charts'"
+          (click)="switchTab('charts')"
+        >
+          Charts
+        </button>
       </div>
 
       <!-- Tab Content -->
@@ -225,6 +232,55 @@
             </div>
             <div *ngIf="mapStats.length === 0" class="no-data">
               <p>No map data available</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Charts Tab -->
+        <div *ngIf="activeTab === 'charts'" class="charts-tab">
+          <div class="chart-controls">
+            <div class="dropdown-container">
+              <label for="chart-type-select">Select Data:</label>
+              <select 
+                id="chart-type-select"
+                [(ngModel)]="selectedChartType" 
+                (change)="onChartTypeChange(selectedChartType)"
+                class="chart-dropdown"
+              >
+                <option value="" disabled>Select Data</option>
+                <option value="cumulative-wins-losses">Cumulative Wins/Losses</option>
+                <option value="elo">ELO</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="chart-container">
+            <div *ngIf="!selectedChartType" class="chart-placeholder">
+              <p>📊 Select a data type to view the chart</p>
+            </div>
+
+            <div *ngIf="selectedChartType === 'cumulative-wins-losses'" class="chart-content">
+              <h4>Cumulative Wins/Losses Over Time</h4>
+              <div class="chart-wrapper">
+                <canvas 
+                  #chartCanvas 
+                  id="winLossChart"
+                  width="800" 
+                  height="400"
+                ></canvas>
+              </div>
+            </div>
+
+            <div *ngIf="selectedChartType === 'elo'" class="chart-content">
+              <h4>ELO Changes Over Time</h4>
+              <div class="chart-wrapper">
+                <canvas 
+                  #chartCanvas 
+                  id="eloChart"
+                  width="800" 
+                  height="400"
+                ></canvas>
+              </div>
             </div>
           </div>
         </div>

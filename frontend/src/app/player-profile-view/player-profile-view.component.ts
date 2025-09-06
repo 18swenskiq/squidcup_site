@@ -1,5 +1,6 @@
-import { Component, OnInit, Inject, PLATFORM_ID } from '@angular/core';
+import { Component, OnInit, Inject, PLATFORM_ID, ViewChild, ElementRef, AfterViewInit } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { PageHeaderComponent } from '../page-header/page-header.component';
@@ -83,14 +84,31 @@ export interface MapStatsResponse {
   fivev5: MapInfo[];
 }
 
+export interface ChartDataPoint {
+  x: string; // match_number or "0" for starting point
+  y: number; // cumulative value or elo
+  matchNumber: string;
+  result: 'W' | 'L' | 'T'; // Win/Loss/Tie
+  runningTotal: number;
+}
+
+export interface EloDataPoint {
+  x: string; // match_number or "0" for starting point
+  y: number; // elo value
+  matchNumber: string;
+  result: 'W' | 'L' | 'T' | 'START'; // Win/Loss/Tie/Starting point
+  eloChange: number; // elo change for this match
+  currentElo: number; // elo after this match
+}
+
 @Component({
   selector: 'app-player-profile-view',
   standalone: true,
-  imports: [CommonModule, PageHeaderComponent],
+  imports: [CommonModule, FormsModule, PageHeaderComponent],
   templateUrl: './player-profile-view.component.html',
   styleUrls: ['./player-profile-view.component.scss']
 })
-export class PlayerProfileViewComponent implements OnInit {
+export class PlayerProfileViewComponent implements OnInit, AfterViewInit {
   steamId: string = '';
   isLoading: boolean = true;
   error: string | null = null;
@@ -105,6 +123,13 @@ export class PlayerProfileViewComponent implements OnInit {
   gameModeStats: GameModeStats[] = [];
   mapStats: PlayerMapStats[] = [];
   allMapsData: Map<string, MapInfo> = new Map(); // Cache for map info lookup
+  
+  // Charts tab
+  selectedChartType: string = '';
+  chartData: ChartDataPoint[] = [];
+  eloData: EloDataPoint[] = [];
+  
+  @ViewChild('chartCanvas') chartCanvas!: ElementRef<HTMLCanvasElement>;
   
   // Placeholder player data - will be replaced with actual API call
   playerData: PlayerProfileData = {
@@ -132,6 +157,10 @@ export class PlayerProfileViewComponent implements OnInit {
         this.loadPlayerProfile();
       });
     });
+  }
+
+  ngAfterViewInit(): void {
+    // Chart will be rendered when data is selected
   }
 
   // Load maps data to get map names and thumbnails
@@ -175,6 +204,8 @@ export class PlayerProfileViewComponent implements OnInit {
         this.calculateAggregatedStats();
         this.calculateGameModeStats();
         this.calculateMapStats();
+        this.generateChartData();
+        this.generateEloData();
         this.isLoading = false;
       },
       error: (error) => {
@@ -441,6 +472,412 @@ export class PlayerProfileViewComponent implements OnInit {
   private getMapThumbnailUrl(mapId: string): string {
     // This could be expanded to fetch actual map thumbnails from Steam Workshop API
     return `https://steamuserimages-a.akamaihd.net/ugc/${mapId}/preview.jpg`;
+  }
+
+  // Chart data generation methods
+  generateChartData(): void {
+    if (!this.playerData.stats || this.playerData.stats.length === 0) {
+      this.chartData = [];
+      return;
+    }
+
+    // Sort games by match_number (ascending order)
+    const sortedGames = [...this.playerData.stats].sort((a, b) => {
+      const matchA = parseInt(a.match_number) || 0;
+      const matchB = parseInt(b.match_number) || 0;
+      return matchA - matchB;
+    });
+
+    this.chartData = [];
+    let cumulativeWins = 0;
+    let cumulativeLosses = 0;
+
+    for (const game of sortedGames) {
+      // Determine if player won, lost, or tied
+      const playerTeam = game.team_number;
+      const team1Score = game.team1_score || 0;
+      const team2Score = game.team2_score || 0;
+      
+      let result: 'W' | 'L' | 'T' = 'T';
+      
+      if (playerTeam === 1 && team1Score > team2Score) {
+        result = 'W';
+        cumulativeWins++;
+      } else if (playerTeam === 2 && team2Score > team1Score) {
+        result = 'W';
+        cumulativeWins++;
+      } else if (team1Score !== team2Score) {
+        result = 'L';
+        cumulativeLosses++;
+      }
+
+      const runningTotal = cumulativeWins - cumulativeLosses;
+
+      this.chartData.push({
+        x: game.match_number,
+        y: runningTotal,
+        matchNumber: game.match_number,
+        result: result,
+        runningTotal: runningTotal
+      });
+    }
+
+    console.log('Generated chart data:', this.chartData);
+  }
+
+  // Generate ELO progression data
+  generateEloData(): void {
+    if (!this.playerData.stats || this.playerData.stats.length === 0) {
+      // Still create starting point even with no data
+      this.eloData = [{
+        x: "0",
+        y: 1000,
+        matchNumber: "Starting ELO",
+        result: 'START',
+        eloChange: 0,
+        currentElo: 1000
+      }];
+      return;
+    }
+
+    // Sort games by match_number (ascending order)
+    const sortedGames = [...this.playerData.stats].sort((a, b) => {
+      const matchA = parseInt(a.match_number) || 0;
+      const matchB = parseInt(b.match_number) || 0;
+      return matchA - matchB;
+    });
+
+    this.eloData = [];
+    let currentElo = 1000; // Starting ELO
+
+    // Add starting point
+    this.eloData.push({
+      x: "0",
+      y: currentElo,
+      matchNumber: "Starting ELO",
+      result: 'START',
+      eloChange: 0,
+      currentElo: currentElo
+    });
+
+    // Process each game
+    for (const game of sortedGames) {
+      // Determine if player won, lost, or tied
+      const playerTeam = game.team_number;
+      const team1Score = game.team1_score || 0;
+      const team2Score = game.team2_score || 0;
+      
+      let result: 'W' | 'L' | 'T' = 'T';
+      let eloChange = 0;
+      
+      if (playerTeam === 1 && team1Score > team2Score) {
+        result = 'W';
+        eloChange = game.elo_change_win || 0;
+      } else if (playerTeam === 2 && team2Score > team1Score) {
+        result = 'W';
+        eloChange = game.elo_change_win || 0;
+      } else if (team1Score !== team2Score) {
+        result = 'L';
+        eloChange = game.elo_change_loss || 0;
+      }
+
+      // Apply ELO change
+      currentElo += eloChange;
+
+      this.eloData.push({
+        x: game.match_number,
+        y: currentElo,
+        matchNumber: game.match_number,
+        result: result,
+        eloChange: eloChange,
+        currentElo: currentElo
+      });
+    }
+
+    console.log('Generated ELO data:', this.eloData);
+  }
+
+  onChartTypeChange(chartType: string): void {
+    this.selectedChartType = chartType;
+    console.log('Chart type changed to:', chartType);
+    
+    // Wait for view to update, then render chart
+    setTimeout(() => {
+      if (chartType === 'cumulative-wins-losses') {
+        this.renderWinLossChart();
+      } else if (chartType === 'elo') {
+        this.renderEloChart();
+      }
+    }, 100);
+  }
+
+  private renderWinLossChart(): void {
+    if (!this.chartCanvas || this.chartData.length === 0) {
+      console.log('Canvas not available or no data');
+      return;
+    }
+
+    const canvas = this.chartCanvas.nativeElement;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    // Clear canvas
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Chart dimensions and padding
+    const padding = 60;
+    const chartWidth = canvas.width - (padding * 2);
+    const chartHeight = canvas.height - (padding * 2);
+
+    // Calculate min and max values for Y axis
+    const yValues = this.chartData.map(d => d.y);
+    const minY = Math.min(0, Math.min(...yValues)) - 1;
+    const maxY = Math.max(0, Math.max(...yValues)) + 1;
+    const yRange = maxY - minY;
+
+    // Draw axes
+    ctx.strokeStyle = '#666';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    // Y axis
+    ctx.moveTo(padding, padding);
+    ctx.lineTo(padding, padding + chartHeight);
+    // X axis
+    ctx.moveTo(padding, padding + chartHeight);
+    ctx.lineTo(padding + chartWidth, padding + chartHeight);
+    ctx.stroke();
+
+    // Draw grid lines and labels
+    ctx.strokeStyle = '#333';
+    ctx.lineWidth = 1;
+    ctx.fillStyle = '#ccc';
+    ctx.font = '12px Arial';
+
+    // Y axis grid and labels
+    const ySteps = 10;
+    for (let i = 0; i <= ySteps; i++) {
+      const y = padding + (chartHeight * i / ySteps);
+      const value = maxY - (yRange * i / ySteps);
+      
+      // Grid line
+      ctx.beginPath();
+      ctx.moveTo(padding, y);
+      ctx.lineTo(padding + chartWidth, y);
+      ctx.stroke();
+      
+      // Label
+      ctx.fillText(value.toFixed(0), 10, y + 4);
+    }
+
+    // Draw data line
+    if (this.chartData.length > 1) {
+      ctx.strokeStyle = '#4CAF50';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+
+      this.chartData.forEach((point, index) => {
+        const x = padding + (chartWidth * index / (this.chartData.length - 1));
+        const y = padding + chartHeight - ((point.y - minY) / yRange * chartHeight);
+        
+        if (index === 0) {
+          ctx.moveTo(x, y);
+        } else {
+          ctx.lineTo(x, y);
+        }
+      });
+      ctx.stroke();
+
+      // Draw data points
+      ctx.fillStyle = '#4CAF50';
+      this.chartData.forEach((point, index) => {
+        const x = padding + (chartWidth * index / (this.chartData.length - 1));
+        const y = padding + chartHeight - ((point.y - minY) / yRange * chartHeight);
+        
+        ctx.beginPath();
+        ctx.arc(x, y, 4, 0, 2 * Math.PI);
+        ctx.fill();
+      });
+    }
+
+    // Add click/hover event listener for tooltips
+    this.addChartInteractivity(canvas, padding, chartWidth, chartHeight, minY, yRange);
+  }
+
+  private renderEloChart(): void {
+    if (!this.chartCanvas || this.eloData.length === 0) {
+      console.log('Canvas not available or no ELO data');
+      return;
+    }
+
+    const canvas = this.chartCanvas.nativeElement;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    // Clear canvas
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Chart dimensions and padding
+    const padding = 60;
+    const chartWidth = canvas.width - (padding * 2);
+    const chartHeight = canvas.height - (padding * 2);
+
+    // Calculate min and max values for Y axis (ELO values)
+    const yValues = this.eloData.map(d => d.y);
+    const minY = Math.min(...yValues) - 50; // Add some padding
+    const maxY = Math.max(...yValues) + 50; // Add some padding
+    const yRange = maxY - minY;
+
+    // Draw axes
+    ctx.strokeStyle = '#666';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    // Y axis
+    ctx.moveTo(padding, padding);
+    ctx.lineTo(padding, padding + chartHeight);
+    // X axis
+    ctx.moveTo(padding, padding + chartHeight);
+    ctx.lineTo(padding + chartWidth, padding + chartHeight);
+    ctx.stroke();
+
+    // Draw grid lines and labels
+    ctx.strokeStyle = '#333';
+    ctx.lineWidth = 1;
+    ctx.fillStyle = '#ccc';
+    ctx.font = '12px Arial';
+
+    // Y axis grid and labels (ELO values)
+    const ySteps = 10;
+    for (let i = 0; i <= ySteps; i++) {
+      const y = padding + (chartHeight * i / ySteps);
+      const value = maxY - (yRange * i / ySteps);
+      
+      // Grid line
+      ctx.beginPath();
+      ctx.moveTo(padding, y);
+      ctx.lineTo(padding + chartWidth, y);
+      ctx.stroke();
+      
+      // Label
+      ctx.fillText(Math.round(value).toString(), 10, y + 4);
+    }
+
+    // Draw ELO line
+    if (this.eloData.length > 1) {
+      ctx.strokeStyle = '#FFD700'; // Gold color for ELO
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+
+      this.eloData.forEach((point, index) => {
+        const x = padding + (chartWidth * index / (this.eloData.length - 1));
+        const y = padding + chartHeight - ((point.y - minY) / yRange * chartHeight);
+        
+        if (index === 0) {
+          ctx.moveTo(x, y);
+        } else {
+          ctx.lineTo(x, y);
+        }
+      });
+      ctx.stroke();
+
+      // Draw data points with different colors based on result
+      this.eloData.forEach((point, index) => {
+        const x = padding + (chartWidth * index / (this.eloData.length - 1));
+        const y = padding + chartHeight - ((point.y - minY) / yRange * chartHeight);
+        
+        // Set color based on result
+        if (point.result === 'START') {
+          ctx.fillStyle = '#888'; // Gray for starting point
+        } else if (point.result === 'W') {
+          ctx.fillStyle = '#4CAF50'; // Green for wins
+        } else if (point.result === 'L') {
+          ctx.fillStyle = '#f44336'; // Red for losses
+        } else {
+          ctx.fillStyle = '#FFA500'; // Orange for ties
+        }
+        
+        ctx.beginPath();
+        ctx.arc(x, y, 4, 0, 2 * Math.PI);
+        ctx.fill();
+      });
+    }
+
+    // Add click/hover event listener for ELO tooltips
+    this.addEloChartInteractivity(canvas, padding, chartWidth, chartHeight, minY, yRange);
+  }
+
+  private addChartInteractivity(canvas: HTMLCanvasElement, padding: number, chartWidth: number, chartHeight: number, minY: number, yRange: number): void {
+    canvas.onmousemove = (event) => {
+      const rect = canvas.getBoundingClientRect();
+      const mouseX = event.clientX - rect.left;
+      const mouseY = event.clientY - rect.top;
+
+      // Find closest data point
+      let closestPoint: ChartDataPoint | null = null;
+      let closestDistance = Infinity;
+
+      this.chartData.forEach((point, index) => {
+        const x = padding + (chartWidth * index / (this.chartData.length - 1));
+        const y = padding + chartHeight - ((point.y - minY) / yRange * chartHeight);
+        
+        const distance = Math.sqrt(Math.pow(mouseX - x, 2) + Math.pow(mouseY - y, 2));
+        if (distance < 15 && distance < closestDistance) {
+          closestPoint = point;
+          closestDistance = distance;
+        }
+      });
+
+      // Update canvas title for tooltip effect
+      if (closestPoint !== null) {
+        const point = closestPoint as ChartDataPoint;
+        canvas.title = `Match ${point.matchNumber}: ${point.result} (Running Total: ${point.runningTotal})`;
+        canvas.style.cursor = 'pointer';
+      } else {
+        canvas.title = '';
+        canvas.style.cursor = 'default';
+      }
+    };
+  }
+
+  private addEloChartInteractivity(canvas: HTMLCanvasElement, padding: number, chartWidth: number, chartHeight: number, minY: number, yRange: number): void {
+    canvas.onmousemove = (event) => {
+      const rect = canvas.getBoundingClientRect();
+      const mouseX = event.clientX - rect.left;
+      const mouseY = event.clientY - rect.top;
+
+      // Find closest ELO data point
+      let closestPoint: EloDataPoint | null = null;
+      let closestDistance = Infinity;
+
+      this.eloData.forEach((point, index) => {
+        const x = padding + (chartWidth * index / (this.eloData.length - 1));
+        const y = padding + chartHeight - ((point.y - minY) / yRange * chartHeight);
+        
+        const distance = Math.sqrt(Math.pow(mouseX - x, 2) + Math.pow(mouseY - y, 2));
+        if (distance < 15 && distance < closestDistance) {
+          closestPoint = point;
+          closestDistance = distance;
+        }
+      });
+
+      // Update canvas title for tooltip effect
+      if (closestPoint !== null) {
+        const point = closestPoint as EloDataPoint;
+        let tooltipText = '';
+        
+        if (point.result === 'START') {
+          tooltipText = `Starting ELO: ${point.currentElo}`;
+        } else {
+          const changeText = point.eloChange >= 0 ? `+${point.eloChange}` : `${point.eloChange}`;
+          tooltipText = `Match ${point.matchNumber}: ${point.result} (${changeText}) | ELO: ${point.currentElo}`;
+        }
+        
+        canvas.title = tooltipText;
+        canvas.style.cursor = 'pointer';
+      } else {
+        canvas.title = '';
+        canvas.style.cursor = 'default';
+      }
+    };
   }
 
   private getEmptyStats(): AggregatedPlayerStats {
