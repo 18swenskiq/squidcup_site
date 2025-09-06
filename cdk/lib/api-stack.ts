@@ -373,6 +373,21 @@ export class ApiStack extends cdk.Stack {
       }
     });
 
+    const getUserProfileStatsFunction = new NodejsFunction(this, "get-user-profile-stats-function", {
+      runtime: this.RUNTIME,
+      memorySize: this.MEMORY_SIZE,
+      timeout: this.TIMEOUT,
+      handler: 'index.handler',
+      code: lambda.Code.fromAsset(path.join(__dirname, '/../src/get-user-profile-stats-lambda')),
+      logRetention: this.LOG_RETENTION,
+      environment: {
+        REGION: this.REGION,
+      },
+      bundling: {
+        minify: true,
+      }
+    });
+
     const recalculateAllEloFunction = new NodejsFunction(this, "recalculate-all-elo-function", {
       runtime: this.RUNTIME,
       memorySize: this.MEMORY_SIZE,
@@ -418,6 +433,7 @@ export class ApiStack extends cdk.Stack {
     getMatchHistoryFunction.addToRolePolicy(ssmPolicy);
     getPlayerLeaderboardStatsFunction.addToRolePolicy(ssmPolicy);
     getMapStatsFunction.addToRolePolicy(ssmPolicy);
+    getUserProfileStatsFunction.addToRolePolicy(ssmPolicy);
     recalculateAllEloFunction.addToRolePolicy(ssmPolicy);
 
     // Grant Lambda invoke permissions for lobby system
@@ -1542,6 +1558,54 @@ export class ApiStack extends cdk.Stack {
 
     // Add OPTIONS method for playerLeaderboardStats endpoint
     playerLeaderboardStatsResource.addMethod('OPTIONS', new apigw.MockIntegration({
+      integrationResponses: [{
+        statusCode: '200',
+        responseParameters: {
+          'method.response.header.Access-Control-Allow-Origin': "'https://squidcup.spkymnr.xyz'",
+          'method.response.header.Access-Control-Allow-Headers': "'Content-Type,Authorization'",
+          'method.response.header.Access-Control-Allow-Methods': "'GET,OPTIONS'",
+        },
+      }],
+      requestTemplates: {
+        'application/json': '{"statusCode": 200}'
+      }
+    }), {
+      methodResponses: [{
+        statusCode: '200',
+        responseParameters: {
+          'method.response.header.Access-Control-Allow-Origin': true,
+          'method.response.header.Access-Control-Allow-Headers': true,
+          'method.response.header.Access-Control-Allow-Methods': true,
+        },
+      }]
+    });
+
+    // Add /userProfileStats/{steamId} endpoint
+    const userProfileStatsResource = api.root.addResource('userProfileStats');
+    const userProfileStatsSteamIdResource = userProfileStatsResource.addResource('{steamId}');
+    userProfileStatsSteamIdResource.addMethod('GET', new apigw.LambdaIntegration(getUserProfileStatsFunction), {
+      methodResponses: [{
+        statusCode: '200',
+        responseParameters: {
+          'method.response.header.Access-Control-Allow-Origin': true,
+          'method.response.header.Access-Control-Allow-Headers': true,
+          'method.response.header.Access-Control-Allow-Methods': true,
+        },
+      }, {
+        statusCode: '400',
+        responseParameters: {
+          'method.response.header.Access-Control-Allow-Origin': true,
+        },
+      }, {
+        statusCode: '500',
+        responseParameters: {
+          'method.response.header.Access-Control-Allow-Origin': true,
+        },
+      }]
+    });
+
+    // Add OPTIONS method for userProfileStats endpoint
+    userProfileStatsSteamIdResource.addMethod('OPTIONS', new apigw.MockIntegration({
       integrationResponses: [{
         statusCode: '200',
         responseParameters: {

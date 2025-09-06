@@ -1,0 +1,21 @@
+{
+  "name": "get-user-profile-stats-lambda",
+  "version": "1.0.0",
+  "description": "Lambda function to get user profile stats and performance data",
+  "main": "index.js",
+  "types": "index.ts",
+  "scripts": {
+    "build": "tsc"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "@squidcup/shared-lambda-utils": "file:../../../packages/shared-lambda-utils"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "@types/aws-lambda": "^8.10.0",
+    "@types/node": "^20.0.0"
+  }
+}
