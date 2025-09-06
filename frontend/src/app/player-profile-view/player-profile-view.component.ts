@@ -134,6 +134,12 @@ export class PlayerProfileViewComponent implements OnInit, AfterViewInit {
   chartData: ChartDataPoint[] = [];
   eloData: EloDataPoint[] = [];
   
+  // Tooltip state
+  showTooltip: boolean = false;
+  tooltipX: number = 0;
+  tooltipY: number = 0;
+  tooltipText: string = '';
+  
   @ViewChild('chartCanvas') chartCanvas!: ElementRef<HTMLCanvasElement>;
   
   // Placeholder player data - will be replaced with actual API call
@@ -887,15 +893,23 @@ export class PlayerProfileViewComponent implements OnInit, AfterViewInit {
         }
       });
 
-      // Update canvas title for tooltip effect
+      // Show/hide tooltip
       if (closestPoint !== null) {
         const point = closestPoint as ChartDataPoint;
-        canvas.title = `Match ${point.matchNumber}: ${point.result} (Running Total: ${point.runningTotal})`;
+        this.showTooltip = true;
+        this.tooltipX = mouseX + 10; // Use relative position + offset
+        this.tooltipY = mouseY - 30; // Use relative position + offset
+        this.tooltipText = `Match ${point.matchNumber}: ${point.result} (Running Total: ${point.runningTotal})`;
         canvas.style.cursor = 'pointer';
       } else {
-        canvas.title = '';
+        this.showTooltip = false;
         canvas.style.cursor = 'default';
       }
+    };
+    
+    // Hide tooltip when mouse leaves canvas
+    canvas.onmouseleave = () => {
+      this.showTooltip = false;
     };
   }
 
@@ -920,24 +934,30 @@ export class PlayerProfileViewComponent implements OnInit, AfterViewInit {
         }
       });
 
-      // Update canvas title for tooltip effect
+      // Show/hide tooltip
       if (closestPoint !== null) {
         const point = closestPoint as EloDataPoint;
-        let tooltipText = '';
+        this.showTooltip = true;
+        this.tooltipX = mouseX + 10; // Use relative position + offset
+        this.tooltipY = mouseY - 30; // Use relative position + offset
         
         if (point.result === 'START') {
-          tooltipText = `Starting ELO: ${point.currentElo}`;
+          this.tooltipText = `Starting ELO: ${point.currentElo}`;
         } else {
           const changeText = point.eloChange >= 0 ? `+${point.eloChange}` : `${point.eloChange}`;
-          tooltipText = `Match ${point.matchNumber}: ${point.result} (${changeText}) | ELO: ${point.currentElo}`;
+          this.tooltipText = `Match ${point.matchNumber}: ${point.result} (${changeText}) | ELO: ${point.currentElo}`;
         }
         
-        canvas.title = tooltipText;
         canvas.style.cursor = 'pointer';
       } else {
-        canvas.title = '';
+        this.showTooltip = false;
         canvas.style.cursor = 'default';
       }
+    };
+    
+    // Hide tooltip when mouse leaves canvas
+    canvas.onmouseleave = () => {
+      this.showTooltip = false;
     };
   }
 

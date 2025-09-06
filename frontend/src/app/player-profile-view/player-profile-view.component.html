@@ -308,6 +308,12 @@
                   width="800" 
                   height="400"
                 ></canvas>
+                <div class="chart-tooltip" 
+                     [style.display]="showTooltip ? 'block' : 'none'"
+                     [style.left.px]="tooltipX" 
+                     [style.top.px]="tooltipY">
+                  {{ tooltipText }}
+                </div>
               </div>
             </div>
 
@@ -320,6 +326,12 @@
                   width="800" 
                   height="400"
                 ></canvas>
+                <div class="chart-tooltip" 
+                     [style.display]="showTooltip ? 'block' : 'none'"
+                     [style.left.px]="tooltipX" 
+                     [style.top.px]="tooltipY">
+                  {{ tooltipText }}
+                </div>
               </div>
             </div>
           </div>
