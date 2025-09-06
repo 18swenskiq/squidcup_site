@@ -49,12 +49,135 @@
       </div>
     </div>
 
-    <!-- Stats Section Placeholder -->
+    <!-- Stats Section with Tabs -->
     <div class="stats-section">
-      <h2>Player Statistics</h2>
-      <div class="stats-placeholder">
-        <p>📊 Statistics coming soon!</p>
-        <p>Player performance data and detailed statistics will be displayed here once the API endpoint is implemented.</p>
+      <!-- Tab Navigation -->
+      <div class="tab-navigation">
+        <button 
+          class="tab-button" 
+          [class.active]="activeTab === 'overview'"
+          (click)="switchTab('overview')"
+        >
+          Overview
+        </button>
+        <button 
+          class="tab-button" 
+          [class.active]="activeTab === 'matches'"
+          (click)="switchTab('matches')"
+        >
+          Match History
+        </button>
+      </div>
+
+      <!-- Tab Content -->
+      <div class="tab-content">
+        <!-- Overview Tab -->
+        <div *ngIf="activeTab === 'overview'" class="overview-tab">
+          <div *ngIf="aggregatedStats" class="stats-grid">
+            <!-- Win/Loss Record -->
+            <div class="stat-card">
+              <h3>Win/Loss Record</h3>
+              <div class="stat-row">
+                <span class="stat-label">Games Played:</span>
+                <span class="stat-value">{{ aggregatedStats.totalGames }}</span>
+              </div>
+              <div class="stat-row">
+                <span class="stat-label">Wins:</span>
+                <span class="stat-value wins">{{ aggregatedStats.wins }}</span>
+              </div>
+              <div class="stat-row">
+                <span class="stat-label">Losses:</span>
+                <span class="stat-value losses">{{ aggregatedStats.losses }}</span>
+              </div>
+              <div class="stat-row">
+                <span class="stat-label">Win Rate:</span>
+                <span class="stat-value">{{ aggregatedStats.winrate }}%</span>
+              </div>
+            </div>
+
+            <!-- ELO Changes -->
+            <div class="stat-card">
+              <h3>ELO Performance</h3>
+              <div class="stat-row">
+                <span class="stat-label">Total ELO Gained:</span>
+                <span class="stat-value elo-gained">+{{ aggregatedStats.totalEloGained }}</span>
+              </div>
+              <div class="stat-row">
+                <span class="stat-label">Total ELO Lost:</span>
+                <span class="stat-value elo-lost">-{{ aggregatedStats.totalEloLost }}</span>
+              </div>
+              <div class="stat-row">
+                <span class="stat-label">Net ELO Change:</span>
+                <span class="stat-value" [class.elo-gained]="aggregatedStats.netEloChange >= 0" [class.elo-lost]="aggregatedStats.netEloChange < 0">
+                  {{ aggregatedStats.netEloChange >= 0 ? '+' : '' }}{{ aggregatedStats.netEloChange }}
+                </span>
+              </div>
+            </div>
+
+            <!-- Combat Stats -->
+            <div class="stat-card">
+              <h3>Combat Performance</h3>
+              <div class="stat-row">
+                <span class="stat-label">K/D Ratio:</span>
+                <span class="stat-value">{{ aggregatedStats.kdr }}</span>
+              </div>
+              <div class="stat-row">
+                <span class="stat-label">ADR:</span>
+                <span class="stat-value">{{ aggregatedStats.adr }}</span>
+              </div>
+              <div class="stat-row">
+                <span class="stat-label">Total Kills:</span>
+                <span class="stat-value">{{ aggregatedStats.kills }}</span>
+              </div>
+              <div class="stat-row">
+                <span class="stat-label">Total Deaths:</span>
+                <span class="stat-value">{{ aggregatedStats.deaths }}</span>
+              </div>
+              <div class="stat-row">
+                <span class="stat-label">Total Assists:</span>
+                <span class="stat-value">{{ aggregatedStats.assists }}</span>
+              </div>
+              <div class="stat-row">
+                <span class="stat-label">Headshot %:</span>
+                <span class="stat-value">{{ aggregatedStats.headShotPercentage }}%</span>
+              </div>
+            </div>
+
+            <!-- Accuracy & Entry Stats -->
+            <div class="stat-card">
+              <h3>Accuracy & Entry</h3>
+              <div class="stat-row">
+                <span class="stat-label">Accuracy:</span>
+                <span class="stat-value">{{ aggregatedStats.accuracy }}%</span>
+              </div>
+              <div class="stat-row">
+                <span class="stat-label">Entry Win Rate:</span>
+                <span class="stat-value">{{ aggregatedStats.entryWinRate }}%</span>
+              </div>
+              <div class="stat-row">
+                <span class="stat-label">Total Damage:</span>
+                <span class="stat-value">{{ aggregatedStats.damage.toLocaleString() }}</span>
+              </div>
+              <div class="stat-row">
+                <span class="stat-label">Total Rounds:</span>
+                <span class="stat-value">{{ aggregatedStats.totalRounds }}</span>
+              </div>
+            </div>
+          </div>
+
+          <div *ngIf="!aggregatedStats" class="no-stats">
+            <p>📊 No statistics available</p>
+            <p>This player hasn't completed any matches yet.</p>
+          </div>
+        </div>
+
+        <!-- Match History Tab -->
+        <div *ngIf="activeTab === 'matches'" class="matches-tab">
+          <div class="matches-placeholder">
+            <p>🎮 Match History coming soon!</p>
+            <p>Detailed match-by-match breakdown will be displayed here.</p>
+          </div>
+        </div>
       </div>
     </div>
   </div>

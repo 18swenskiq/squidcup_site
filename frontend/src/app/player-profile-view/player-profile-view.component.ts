@@ -15,6 +15,42 @@ export interface PlayerProfileData {
   stats?: any[]; // Individual game stats array
 }
 
+export interface AggregatedPlayerStats {
+  // Win/Loss record
+  totalGames: number;
+  wins: number;
+  losses: number;
+  winrate: number;
+  
+  // ELO changes
+  totalEloGained: number;
+  totalEloLost: number;
+  netEloChange: number;
+  
+  // Combat stats (same as leaderboard)
+  kills: number;
+  deaths: number;
+  assists: number;
+  damage: number;
+  utilityDamage: number;
+  shotsFiredTotal: number;
+  shotsOnTargetTotal: number;
+  entryCount: number;
+  entryWins: number;
+  liveTime: number;
+  headShotKills: number;
+  cashEarned: number;
+  enemiesFlashed: number;
+  totalRounds: number;
+  
+  // Calculated stats
+  kdr: number;
+  adr: number;
+  headShotPercentage: number;
+  accuracy: number;
+  entryWinRate: number;
+}
+
 @Component({
   selector: 'app-player-profile-view',
   standalone: true,
@@ -26,6 +62,12 @@ export class PlayerProfileViewComponent implements OnInit {
   steamId: string = '';
   isLoading: boolean = true;
   error: string | null = null;
+  
+  // Tab management
+  activeTab: string = 'overview';
+  
+  // Aggregated stats
+  aggregatedStats: AggregatedPlayerStats | null = null;
   
   // Placeholder player data - will be replaced with actual API call
   playerData: PlayerProfileData = {
@@ -66,6 +108,7 @@ export class PlayerProfileViewComponent implements OnInit {
       next: (data) => {
         console.log('Player profile data received:', data);
         this.playerData = data;
+        this.calculateAggregatedStats();
         this.isLoading = false;
       },
       error: (error) => {
@@ -85,6 +128,162 @@ export class PlayerProfileViewComponent implements OnInit {
         };
       }
     });
+  }
+
+  // Tab management methods
+  switchTab(tabName: string): void {
+    this.activeTab = tabName;
+  }
+
+  // Calculate aggregated stats from individual game data
+  calculateAggregatedStats(): void {
+    if (!this.playerData.stats || this.playerData.stats.length === 0) {
+      this.aggregatedStats = this.getEmptyStats();
+      return;
+    }
+
+    const stats = this.playerData.stats;
+    let totalGames = 0;
+    let wins = 0;
+    let losses = 0;
+    let totalEloGained = 0;
+    let totalEloLost = 0;
+
+    // Initialize cumulative stats
+    let kills = 0;
+    let deaths = 0;
+    let assists = 0;
+    let damage = 0;
+    let utilityDamage = 0;
+    let shotsFiredTotal = 0;
+    let shotsOnTargetTotal = 0;
+    let entryCount = 0;
+    let entryWins = 0;
+    let liveTime = 0;
+    let headShotKills = 0;
+    let cashEarned = 0;
+    let enemiesFlashed = 0;
+    let totalRounds = 0;
+
+    // Process each game
+    for (const game of stats) {
+      totalGames++;
+
+      // Calculate if player won this game
+      const playerTeam = game.team_number;
+      const team1Score = game.team1_score || 0;
+      const team2Score = game.team2_score || 0;
+      
+      let playerWon = false;
+      if (playerTeam === 1 && team1Score > team2Score) {
+        playerWon = true;
+      } else if (playerTeam === 2 && team2Score > team1Score) {
+        playerWon = true;
+      }
+
+      if (playerWon) {
+        wins++;
+        // Add ELO gained
+        const eloGained = game.elo_change_win || 0;
+        if (eloGained > 0) {
+          totalEloGained += eloGained;
+        }
+      } else if (team1Score !== team2Score) { // Only count as loss if it wasn't a tie
+        losses++;
+        // Add ELO lost
+        const eloLost = game.elo_change_loss || 0;
+        if (eloLost < 0) {
+          totalEloLost += Math.abs(eloLost);
+        }
+      }
+
+      // Aggregate combat stats
+      kills += game.kills || 0;
+      deaths += game.deaths || 0;
+      assists += game.assists || 0;
+      damage += game.damage || 0;
+      utilityDamage += game.utility_damage || 0;
+      shotsFiredTotal += game.shots_fired_total || 0;
+      shotsOnTargetTotal += game.shots_on_target_total || 0;
+      entryCount += game.entry_count || 0;
+      entryWins += game.entry_wins || 0;
+      liveTime += game.live_time || 0;
+      headShotKills += game.head_shot_kills || 0;
+      cashEarned += game.cash_earned || 0;
+      enemiesFlashed += game.enemies_flashed || 0;
+      totalRounds += (team1Score + team2Score) || 0;
+    }
+
+    // Calculate derived stats
+    const winrate = totalGames > 0 ? Number(((wins / totalGames) * 100).toFixed(1)) : 0;
+    const kdr = deaths > 0 ? Number((kills / deaths).toFixed(2)) : kills;
+    const adr = totalRounds > 0 ? Number((damage / totalRounds).toFixed(1)) : 0;
+    const headShotPercentage = kills > 0 ? Number(((headShotKills / kills) * 100).toFixed(1)) : 0;
+    const accuracy = shotsFiredTotal > 0 ? Number(((shotsOnTargetTotal / shotsFiredTotal) * 100).toFixed(1)) : 0;
+    const entryWinRate = entryCount > 0 ? Number(((entryWins / entryCount) * 100).toFixed(1)) : 0;
+    const netEloChange = totalEloGained - totalEloLost;
+
+    this.aggregatedStats = {
+      totalGames,
+      wins,
+      losses,
+      winrate,
+      totalEloGained,
+      totalEloLost,
+      netEloChange,
+      kills,
+      deaths,
+      assists,
+      damage,
+      utilityDamage,
+      shotsFiredTotal,
+      shotsOnTargetTotal,
+      entryCount,
+      entryWins,
+      liveTime,
+      headShotKills,
+      cashEarned,
+      enemiesFlashed,
+      totalRounds,
+      kdr,
+      adr,
+      headShotPercentage,
+      accuracy,
+      entryWinRate
+    };
+
+    console.log('Calculated aggregated stats:', this.aggregatedStats);
+  }
+
+  private getEmptyStats(): AggregatedPlayerStats {
+    return {
+      totalGames: 0,
+      wins: 0,
+      losses: 0,
+      winrate: 0,
+      totalEloGained: 0,
+      totalEloLost: 0,
+      netEloChange: 0,
+      kills: 0,
+      deaths: 0,
+      assists: 0,
+      damage: 0,
+      utilityDamage: 0,
+      shotsFiredTotal: 0,
+      shotsOnTargetTotal: 0,
+      entryCount: 0,
+      entryWins: 0,
+      liveTime: 0,
+      headShotKills: 0,
+      cashEarned: 0,
+      enemiesFlashed: 0,
+      totalRounds: 0,
+      kdr: 0,
+      adr: 0,
+      headShotPercentage: 0,
+      accuracy: 0,
+      entryWinRate: 0
+    };
   }
 
   // Flag display logic (copied from leaderboard component)

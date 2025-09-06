@@ -152,31 +152,138 @@
   background: rgba(255, 255, 255, 0.03);
   border-radius: 12px;
   border: 1px solid rgba(255, 255, 255, 0.1);
-  padding: 30px;
+  overflow: hidden;
   
-  h2 {
-    color: white;
-    font-size: 1.8rem;
-    margin-bottom: 20px;
-    font-weight: 600;
+  .tab-navigation {
+    display: flex;
+    background: rgba(255, 255, 255, 0.05);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    
+    .tab-button {
+      flex: 1;
+      background: none;
+      border: none;
+      color: rgba(255, 255, 255, 0.7);
+      padding: 16px 24px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      border-bottom: 3px solid transparent;
+      
+      &:hover {
+        background: rgba(255, 255, 255, 0.05);
+        color: rgba(255, 255, 255, 0.9);
+      }
+      
+      &.active {
+        color: #4CAF50;
+        background: rgba(76, 175, 80, 0.1);
+        border-bottom-color: #4CAF50;
+      }
+    }
   }
   
-  .stats-placeholder {
-    text-align: center;
-    padding: 40px 20px;
-    
-    p:first-child {
-      font-size: 1.5rem;
-      margin-bottom: 15px;
-      color: #4CAF50;
+  .tab-content {
+    padding: 30px;
+  }
+  
+  .overview-tab {
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 20px;
+      
+      .stat-card {
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        padding: 20px;
+        
+        h3 {
+          color: #4CAF50;
+          font-size: 1.2rem;
+          margin: 0 0 16px 0;
+          font-weight: 600;
+          border-bottom: 2px solid rgba(76, 175, 80, 0.3);
+          padding-bottom: 8px;
+        }
+        
+        .stat-row {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 8px 0;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+          
+          &:last-child {
+            border-bottom: none;
+          }
+          
+          .stat-label {
+            color: rgba(255, 255, 255, 0.8);
+            font-weight: 500;
+          }
+          
+          .stat-value {
+            color: white;
+            font-weight: 700;
+            font-size: 1.1rem;
+            
+            &.wins {
+              color: #4CAF50;
+            }
+            
+            &.losses {
+              color: #f44336;
+            }
+            
+            &.elo-gained {
+              color: #4CAF50;
+            }
+            
+            &.elo-lost {
+              color: #f44336;
+            }
+          }
+        }
+      }
     }
     
-    p:last-child {
-      font-size: 1rem;
-      color: rgba(255, 255, 255, 0.7);
-      line-height: 1.6;
-      max-width: 600px;
-      margin: 0 auto;
+    .no-stats {
+      text-align: center;
+      padding: 50px 20px;
+      
+      p:first-child {
+        font-size: 1.5rem;
+        margin-bottom: 15px;
+        color: #4CAF50;
+      }
+      
+      p:last-child {
+        font-size: 1rem;
+        color: rgba(255, 255, 255, 0.7);
+        line-height: 1.6;
+      }
+    }
+  }
+  
+  .matches-tab {
+    .matches-placeholder {
+      text-align: center;
+      padding: 50px 20px;
+      
+      p:first-child {
+        font-size: 1.5rem;
+        margin-bottom: 15px;
+        color: #4CAF50;
+      }
+      
+      p:last-child {
+        font-size: 1rem;
+        color: rgba(255, 255, 255, 0.7);
+        line-height: 1.6;
+      }
     }
   }
 }
@@ -208,10 +315,31 @@
   }
   
   .stats-section {
-    padding: 20px;
+    .tab-content {
+      padding: 20px;
+    }
     
-    h2 {
-      font-size: 1.5rem;
+    .overview-tab {
+      .stats-grid {
+        grid-template-columns: 1fr;
+        gap: 15px;
+        
+        .stat-card {
+          padding: 16px;
+          
+          h3 {
+            font-size: 1.1rem;
+          }
+          
+          .stat-row {
+            padding: 6px 0;
+            
+            .stat-label, .stat-value {
+              font-size: 0.9rem;
+            }
+          }
+        }
+      }
     }
   }
 }
