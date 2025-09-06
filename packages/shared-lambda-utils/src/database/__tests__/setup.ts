@@ -12,7 +12,9 @@ jest.mock('@aws-sdk/client-ssm', () => ({
   GetParameterCommand: jest.fn(),
 }));
 
-// Global test utilities
+// Global test utilities - export to make this a module
+export {};
+
 declare global {
   var mockDatabaseConnection: {
     execute: jest.Mock;
@@ -20,7 +22,7 @@ declare global {
   };
 }
 
-global.mockDatabaseConnection = {
+(global as any).mockDatabaseConnection = {
   execute: jest.fn(),
   end: jest.fn(),
 };
