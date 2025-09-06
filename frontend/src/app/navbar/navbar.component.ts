@@ -74,4 +74,17 @@ export class NavbarComponent implements OnInit, OnDestroy {
       }
     });
   }
+
+  // Navigate to user's own profile page
+  navigateToProfile(): void {
+    if (this.currentUser) {
+      // Use profile steamId if available, otherwise fall back to main steamId
+      const steamId = this.currentUser.profile?.steamId || this.currentUser.steamId;
+      if (steamId) {
+        this.router.navigate(['/player', steamId]);
+      } else {
+        console.warn('No Steam ID available for profile navigation');
+      }
+    }
+  }
 }

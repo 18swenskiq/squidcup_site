@@ -65,8 +65,13 @@
               *ngIf="currentUser.profile?.avatar" 
               [src]="currentUser.profile?.avatar" 
               alt="Profile Picture"
-              class="profile-avatar">
-            <span class="welcome-text">
+              class="profile-avatar clickable"
+              (click)="navigateToProfile()"
+              title="View your profile">
+            <span 
+              class="welcome-text clickable"
+              (click)="navigateToProfile()"
+              title="View your profile">
               Welcome, {{ currentUser.profile?.name || 'Steam User' }}
             </span>
             <button 

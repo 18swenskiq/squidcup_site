@@ -112,6 +112,16 @@ h3 {
     border-radius: 50%;
     border: 2px solid #ffffff;
     object-fit: cover;
+    transition: all 0.3s ease;
+    
+    &.clickable {
+      cursor: pointer;
+      
+      &:hover {
+        border-color: #4CAF50;
+        transform: scale(1.05);
+      }
+    }
   }
   
   .welcome-text {
@@ -121,6 +131,16 @@ h3 {
     color: whitesmoke;
     text-transform: uppercase;
     letter-spacing: 1px;
+    transition: color 0.3s ease;
+    
+    &.clickable {
+      cursor: pointer;
+      
+      &:hover {
+        color: #4CAF50;
+        text-decoration: underline;
+      }
+    }
   }
   
   .logout-btn {
