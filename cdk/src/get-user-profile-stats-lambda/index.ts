@@ -1,6 +1,8 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { 
-  createCorsHeaders
+  createCorsHeaders,
+  getUser,
+  getUserProfileStats
 } from '@squidcup/shared-lambda-utils';
 
 export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
@@ -32,48 +34,36 @@ export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayPr
 
     console.log(`Getting profile stats for Steam ID: ${steamId}`);
 
-    // TODO: Implement actual database call to get user profile stats
-    // For now, return placeholder data
-    const placeholderProfileStats = {
+    // Get user profile data
+    const user = await getUser(steamId);
+    
+    if (!user) {
+      return {
+        statusCode: 404,
+        headers: corsHeaders,
+        body: JSON.stringify({ error: 'User not found' }),
+      };
+    }
+
+    // Get individual game stats for the user
+    const gameStats = await getUserProfileStats(steamId);
+
+    const userProfileStats = {
       steamId: steamId,
-      username: `Player_${steamId.substring(steamId.length - 8)}`,
-      avatarUrl: 'https://avatars.steamstatic.com/b5bd56c1aa4644a474a2e4972be27ef9e82e517e_full.jpg',
-      countryCode: 'US',
-      stateCode: 'CA',
-      stats: {
-        currentElo: 1500,
-        winrate: 65.5,
-        totalMatches: 42,
-        wins: 28,
-        losses: 14,
-        kills: 856,
-        deaths: 432,
-        assists: 234,
-        kdr: 1.98,
-        adr: 85.2,
-        headShotPercentage: 42.1,
-        accuracy: 38.7,
-        totalRounds: 468,
-        damage: 39876,
-        utilityDamage: 2143,
-        shotsFiredTotal: 5234,
-        shotsOnTargetTotal: 2025,
-        entryCount: 89,
-        entryWins: 56,
-        entryWinRate: 62.9,
-        liveTime: 28450,
-        headShotKills: 360,
-        cashEarned: 284500,
-        enemiesFlashed: 125
-      }
+      username: user.username || `Player_${steamId.substring(steamId.length - 8)}`,
+      avatarUrl: user.avatar_full || user.avatar || '/assets/default-avatar.png',
+      countryCode: user.country_code,
+      stateCode: user.state_code,
+      currentElo: user.current_elo || 1000,
+      stats: gameStats
     };
 
-    console.log(`Retrieved profile stats for Steam ID: ${steamId}`);
+    console.log(`Retrieved profile stats for Steam ID: ${steamId}, found ${gameStats.length} games`);
 
     return {
       statusCode: 200,
       headers: corsHeaders,
-      body: JSON.stringify(placeholderProfileStats),
+      body: JSON.stringify(userProfileStats),
     };
   } catch (error) {
     console.error('Error getting user profile stats:', error);

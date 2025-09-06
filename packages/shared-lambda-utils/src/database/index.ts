@@ -2069,3 +2069,78 @@ export async function getAllCompletedGamesWithPlayers(): Promise<CompletedGameWi
     await connection.end();
   }
 }
+
+// Function to get individual game stats for a specific player
+export async function getUserProfileStats(steamId: string): Promise<any[]> {
+  // Validate that steamId contains only numbers to prevent SQL injection
+  if (!steamId || typeof steamId !== 'string' || !/^\d+$/.test(steamId)) {
+    throw new Error('Invalid Steam ID: must be a string containing only numbers');
+  }
+  
+  const connection = await getDatabaseConnection();
+  
+  try {
+    console.log(`Getting profile stats for Steam ID: ${steamId}`);
+    
+    // Query to get all completed game stats for a specific player
+    const query = `
+      SELECT 
+        g.id as game_id,
+        g.match_number,
+        g.game_mode,
+        g.map as map_id,
+        g.start_time,
+        sm.team1_score,
+        sm.team2_score,
+        gt.team_number,
+        
+        -- Player stats from squidcup_stats_players
+        sp.kills,
+        sp.deaths,
+        sp.assists,
+        sp.damage,
+        sp.utility_damage,
+        sp.shots_fired_total,
+        sp.shots_on_target_total,
+        sp.entry_count,
+        sp.entry_wins,
+        sp.live_time,
+        sp.head_shot_kills,
+        sp.cash_earned,
+        sp.enemies_flashed,
+        
+        -- ELO changes
+        gp.elo_change_win,
+        gp.elo_change_loss
+        
+      FROM squidcup_games g
+      
+      -- Join game players to get the specific player
+      INNER JOIN squidcup_game_players gp ON g.id = gp.game_id AND gp.player_steam_id = ?
+      
+      -- Join game teams to get team number
+      INNER JOIN squidcup_game_teams gt ON gp.team_id = gt.id
+      
+      -- Join match scores
+      LEFT JOIN squidcup_stats_maps sm ON g.match_number = sm.matchid
+      
+      -- Join player stats (convert steam_id string to BIGINT for matching)
+      LEFT JOIN squidcup_stats_players sp ON g.match_number = sp.matchid 
+        AND CAST(gp.player_steam_id AS UNSIGNED) = sp.steamid64
+      
+      WHERE g.status = 'completed'
+        AND g.match_number IS NOT NULL
+      ORDER BY g.start_time DESC
+    `;
+
+    const rows = await executeQuery(connection, query, [steamId]);
+    
+    console.log(`Found ${rows.length} completed games for Steam ID: ${steamId}`);
+    
+    // Return the raw game stats - frontend will aggregate them
+    return rows as any[];
+    
+  } finally {
+    await connection.end();
+  }
+}
