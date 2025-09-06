@@ -376,7 +376,7 @@ export class ApiStack extends cdk.Stack {
     const getUserProfileStatsFunction = new NodejsFunction(this, "get-user-profile-stats-function", {
       runtime: this.RUNTIME,
       memorySize: this.MEMORY_SIZE,
-      timeout: this.TIMEOUT,
+      timeout: cdk.Duration.seconds(10),
       handler: 'index.handler',
       code: lambda.Code.fromAsset(path.join(__dirname, '/../src/get-user-profile-stats-lambda')),
       logRetention: this.LOG_RETENTION,
