@@ -62,10 +62,10 @@
         </button>
         <button 
           class="tab-button" 
-          [class.active]="activeTab === 'matches'"
-          (click)="switchTab('matches')"
+          [class.active]="activeTab === 'maps'"
+          (click)="switchTab('maps')"
         >
-          Match History
+          Maps & Modes
         </button>
       </div>
 
@@ -171,11 +171,61 @@
           </div>
         </div>
 
-        <!-- Match History Tab -->
-        <div *ngIf="activeTab === 'matches'" class="matches-tab">
-          <div class="matches-placeholder">
-            <p>🎮 Match History coming soon!</p>
-            <p>Detailed match-by-match breakdown will be displayed here.</p>
+        <!-- Maps & Modes Tab -->
+        <div *ngIf="activeTab === 'maps'" class="maps-tab">
+          <!-- Game Modes Section -->
+          <div class="gamemode-section">
+            <h3>Game Modes</h3>
+            <div *ngIf="gameModeStats.length > 0" class="gamemode-list">
+              <div 
+                *ngFor="let mode of gameModeStats" 
+                class="gamemode-card"
+              >
+                <div class="gamemode-info">
+                  <h4>{{ mode.displayName }}</h4>
+                  <div class="gamemode-stats">
+                    <span class="games-count">{{ mode.gamesPlayed }} games</span>
+                    <span class="winrate">{{ mode.winrate }}% win rate</span>
+                  </div>
+                  <div class="win-loss-bar">
+                    <div class="wins-bar" [style.width.%]="(mode.wins / mode.gamesPlayed) * 100"></div>
+                    <div class="losses-bar" [style.width.%]="(mode.losses / mode.gamesPlayed) * 100"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div *ngIf="gameModeStats.length === 0" class="no-data">
+              <p>No gamemode data available</p>
+            </div>
+          </div>
+
+          <!-- Maps Section -->
+          <div class="maps-section">
+            <h3>Most Played Maps</h3>
+            <div *ngIf="mapStats.length > 0" class="maps-grid">
+              <div 
+                *ngFor="let map of mapStats" 
+                class="map-card"
+                [style.background-image]="'url(' + map.mapThumbnailUrl + ')'"
+              >
+                <div class="map-overlay">
+                  <div class="map-info">
+                    <h4>{{ map.mapName }}</h4>
+                    <div class="map-stats">
+                      <div class="games-played">{{ map.gamesPlayed }} games</div>
+                      <div class="map-winrate">{{ map.winrate }}% win rate</div>
+                      <div class="win-loss-detail">
+                        <span class="wins">{{ map.wins }}W</span>
+                        <span class="losses">{{ map.losses }}L</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div *ngIf="mapStats.length === 0" class="no-data">
+              <p>No map data available</p>
+            </div>
           </div>
         </div>
       </div>

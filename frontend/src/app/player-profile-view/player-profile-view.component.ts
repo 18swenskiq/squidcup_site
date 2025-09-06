@@ -51,6 +51,38 @@ export interface AggregatedPlayerStats {
   entryWinRate: number;
 }
 
+export interface GameModeStats {
+  gameMode: string;
+  displayName: string;
+  gamesPlayed: number;
+  wins: number;
+  losses: number;
+  winrate: number;
+}
+
+export interface PlayerMapStats {
+  mapId: string;
+  mapName: string;
+  mapThumbnailUrl?: string;
+  gamesPlayed: number;
+  wins: number;
+  losses: number;
+  winrate: number;
+}
+
+export interface MapInfo {
+  id: string;
+  name: string;
+  totalRounds: number;
+  totalGames: number;
+}
+
+export interface MapStatsResponse {
+  wingman: MapInfo[];
+  threev3: MapInfo[];
+  fivev5: MapInfo[];
+}
+
 @Component({
   selector: 'app-player-profile-view',
   standalone: true,
@@ -68,6 +100,11 @@ export class PlayerProfileViewComponent implements OnInit {
   
   // Aggregated stats
   aggregatedStats: AggregatedPlayerStats | null = null;
+  
+  // Gamemode and map stats
+  gameModeStats: GameModeStats[] = [];
+  mapStats: PlayerMapStats[] = [];
+  allMapsData: Map<string, MapInfo> = new Map(); // Cache for map info lookup
   
   // Placeholder player data - will be replaced with actual API call
   playerData: PlayerProfileData = {
@@ -89,8 +126,35 @@ export class PlayerProfileViewComponent implements OnInit {
     this.route.params.subscribe(params => {
       this.steamId = params['steam_id'];
       this.playerData.steamId = this.steamId;
-      this.loadPlayerProfile();
+      
+      // Load maps data first, then player profile
+      this.loadMapsData().then(() => {
+        this.loadPlayerProfile();
+      });
     });
+  }
+
+  // Load maps data to get map names and thumbnails
+  async loadMapsData(): Promise<void> {
+    if (!isPlatformBrowser(this.platformId)) {
+      return;
+    }
+
+    try {
+      const apiUrl = `${environment.apiUrl}/mapStats`;
+      const response = await this.http.get<MapStatsResponse>(apiUrl).toPromise();
+      
+      if (response) {
+        // Combine all maps into a single lookup map
+        [...response.wingman, ...response.threev3, ...response.fivev5].forEach(map => {
+          this.allMapsData.set(map.id, map);
+        });
+        console.log('Maps data loaded:', this.allMapsData);
+      }
+    } catch (error) {
+      console.error('Error loading maps data:', error);
+      // Continue anyway with just map IDs
+    }
   }
 
   loadPlayerProfile(): void {
@@ -109,6 +173,8 @@ export class PlayerProfileViewComponent implements OnInit {
         console.log('Player profile data received:', data);
         this.playerData = data;
         this.calculateAggregatedStats();
+        this.calculateGameModeStats();
+        this.calculateMapStats();
         this.isLoading = false;
       },
       error: (error) => {
@@ -253,6 +319,128 @@ export class PlayerProfileViewComponent implements OnInit {
     };
 
     console.log('Calculated aggregated stats:', this.aggregatedStats);
+  }
+
+  // Calculate gamemode statistics
+  calculateGameModeStats(): void {
+    if (!this.playerData.stats || this.playerData.stats.length === 0) {
+      this.gameModeStats = [];
+      return;
+    }
+
+    const gameModeMap = new Map<string, {games: number, wins: number, losses: number}>();
+
+    // Process each game
+    for (const game of this.playerData.stats) {
+      const gameMode = game.game_mode || 'unknown';
+      
+      if (!gameModeMap.has(gameMode)) {
+        gameModeMap.set(gameMode, { games: 0, wins: 0, losses: 0 });
+      }
+
+      const stats = gameModeMap.get(gameMode)!;
+      stats.games++;
+
+      // Calculate if player won this game
+      const playerTeam = game.team_number;
+      const team1Score = game.team1_score || 0;
+      const team2Score = game.team2_score || 0;
+      
+      if (playerTeam === 1 && team1Score > team2Score) {
+        stats.wins++;
+      } else if (playerTeam === 2 && team2Score > team1Score) {
+        stats.wins++;
+      } else if (team1Score !== team2Score) {
+        stats.losses++;
+      }
+    }
+
+    // Convert to array and sort by games played
+    this.gameModeStats = Array.from(gameModeMap.entries()).map(([gameMode, stats]) => ({
+      gameMode,
+      displayName: this.formatGameModeName(gameMode),
+      gamesPlayed: stats.games,
+      wins: stats.wins,
+      losses: stats.losses,
+      winrate: stats.games > 0 ? Number(((stats.wins / stats.games) * 100).toFixed(1)) : 0
+    })).sort((a, b) => b.gamesPlayed - a.gamesPlayed);
+
+    console.log('Calculated gamemode stats:', this.gameModeStats);
+  }
+
+  // Calculate map statistics
+  calculateMapStats(): void {
+    if (!this.playerData.stats || this.playerData.stats.length === 0) {
+      this.mapStats = [];
+      return;
+    }
+
+    const mapStatsMap = new Map<string, {games: number, wins: number, losses: number}>();
+
+    // Process each game
+    for (const game of this.playerData.stats) {
+      const mapId = game.map_id || game.map || 'unknown';
+      
+      if (!mapStatsMap.has(mapId)) {
+        mapStatsMap.set(mapId, { games: 0, wins: 0, losses: 0 });
+      }
+
+      const stats = mapStatsMap.get(mapId)!;
+      stats.games++;
+
+      // Calculate if player won this game
+      const playerTeam = game.team_number;
+      const team1Score = game.team1_score || 0;
+      const team2Score = game.team2_score || 0;
+      
+      if (playerTeam === 1 && team1Score > team2Score) {
+        stats.wins++;
+      } else if (playerTeam === 2 && team2Score > team1Score) {
+        stats.wins++;
+      } else if (team1Score !== team2Score) {
+        stats.losses++;
+      }
+    }
+
+    // Convert to array and sort by games played
+    this.mapStats = Array.from(mapStatsMap.entries()).map(([mapId, stats]) => {
+      const mapInfo = this.allMapsData.get(mapId);
+      return {
+        mapId,
+        mapName: mapInfo?.name || `Workshop Map ${mapId}`,
+        mapThumbnailUrl: this.getMapThumbnailUrl(mapId),
+        gamesPlayed: stats.games,
+        wins: stats.wins,
+        losses: stats.losses,
+        winrate: stats.games > 0 ? Number(((stats.wins / stats.games) * 100).toFixed(1)) : 0
+      };
+    }).sort((a, b) => b.gamesPlayed - a.gamesPlayed);
+
+    console.log('Calculated map stats:', this.mapStats);
+  }
+
+  // Format gamemode names for display
+  private formatGameModeName(gameMode: string): string {
+    switch (gameMode.toLowerCase()) {
+      case 'wingman':
+        return 'Wingman';
+      case '3v3':
+        return '3v3';
+      case '5v5':
+        return '5v5';
+      case 'casual':
+        return 'Casual';
+      case 'competitive':
+        return 'Competitive';
+      default:
+        return gameMode.charAt(0).toUpperCase() + gameMode.slice(1);
+    }
+  }
+
+  // Get map thumbnail URL (placeholder for now)
+  private getMapThumbnailUrl(mapId: string): string {
+    // This could be expanded to fetch actual map thumbnails from Steam Workshop API
+    return `https://steamuserimages-a.akamaihd.net/ugc/${mapId}/preview.jpg`;
   }
 
   private getEmptyStats(): AggregatedPlayerStats {

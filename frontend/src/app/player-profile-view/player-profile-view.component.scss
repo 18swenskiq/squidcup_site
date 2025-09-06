@@ -268,6 +268,159 @@
     }
   }
   
+  .maps-tab {
+    .gamemode-section, .maps-section {
+      margin-bottom: 40px;
+      
+      h3 {
+        color: #4CAF50;
+        font-size: 1.4rem;
+        margin-bottom: 20px;
+        font-weight: 600;
+        border-bottom: 2px solid rgba(76, 175, 80, 0.3);
+        padding-bottom: 8px;
+      }
+    }
+    
+    .gamemode-list {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+      
+      .gamemode-card {
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        padding: 20px;
+        transition: all 0.3s ease;
+        
+        &:hover {
+          background: rgba(255, 255, 255, 0.08);
+        }
+        
+        .gamemode-info {
+          h4 {
+            color: white;
+            font-size: 1.3rem;
+            margin: 0 0 12px 0;
+            font-weight: 600;
+          }
+          
+          .gamemode-stats {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 12px;
+            
+            .games-count {
+              color: rgba(255, 255, 255, 0.8);
+              font-weight: 500;
+            }
+            
+            .winrate {
+              color: #4CAF50;
+              font-weight: 600;
+            }
+          }
+          
+          .win-loss-bar {
+            height: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+            overflow: hidden;
+            display: flex;
+            
+            .wins-bar {
+              background: #4CAF50;
+              transition: width 0.3s ease;
+            }
+            
+            .losses-bar {
+              background: #f44336;
+              transition: width 0.3s ease;
+            }
+          }
+        }
+      }
+    }
+    
+    .maps-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 20px;
+      
+      .map-card {
+        height: 200px;
+        border-radius: 12px;
+        overflow: hidden;
+        position: relative;
+        background-size: cover;
+        background-position: center;
+        background-color: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        transition: transform 0.3s ease;
+        
+        &:hover {
+          transform: translateY(-4px);
+        }
+        
+        .map-overlay {
+          position: absolute;
+          bottom: 0;
+          left: 0;
+          right: 0;
+          background: linear-gradient(transparent, rgba(0, 0, 0, 0.8));
+          padding: 20px;
+          
+          .map-info {
+            h4 {
+              color: white;
+              font-size: 1.2rem;
+              margin: 0 0 8px 0;
+              font-weight: 600;
+              text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+            }
+            
+            .map-stats {
+              .games-played {
+                color: rgba(255, 255, 255, 0.9);
+                font-size: 0.9rem;
+                margin-bottom: 4px;
+              }
+              
+              .map-winrate {
+                color: #4CAF50;
+                font-weight: 600;
+                margin-bottom: 6px;
+              }
+              
+              .win-loss-detail {
+                display: flex;
+                gap: 12px;
+                
+                .wins {
+                  color: #4CAF50;
+                  font-weight: 600;
+                }
+                
+                .losses {
+                  color: #f44336;
+                  font-weight: 600;
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    
+    .no-data {
+      text-align: center;
+      padding: 40px 20px;
+      color: rgba(255, 255, 255, 0.6);
+      font-style: italic;
+    }
+  }
+  
   .matches-tab {
     .matches-placeholder {
       text-align: center;
@@ -336,6 +489,50 @@
             
             .stat-label, .stat-value {
               font-size: 0.9rem;
+            }
+          }
+        }
+      }
+    }
+    
+    .maps-tab {
+      .maps-grid {
+        grid-template-columns: 1fr;
+        gap: 15px;
+        
+        .map-card {
+          height: 150px;
+          
+          .map-overlay {
+            padding: 15px;
+            
+            .map-info {
+              h4 {
+                font-size: 1.1rem;
+              }
+              
+              .map-stats {
+                .games-played, .map-winrate {
+                  font-size: 0.85rem;
+                }
+              }
+            }
+          }
+        }
+      }
+      
+      .gamemode-list {
+        .gamemode-card {
+          padding: 15px;
+          
+          .gamemode-info {
+            h4 {
+              font-size: 1.1rem;
+            }
+            
+            .gamemode-stats {
+              flex-direction: column;
+              gap: 8px;
             }
           }
         }
