@@ -280,15 +280,15 @@ export class PlayerProfileViewComponent implements OnInit, AfterViewInit {
 
       if (playerWon) {
         wins++;
-        // Add ELO gained
-        const eloGained = game.elo_change_win || 0;
+        // Add ELO gained (convert string to number)
+        const eloGained = Number(game.elo_change_win) || 0;
         if (eloGained > 0) {
           totalEloGained += eloGained;
         }
       } else if (team1Score !== team2Score) { // Only count as loss if it wasn't a tie
         losses++;
-        // Add ELO lost
-        const eloLost = game.elo_change_loss || 0;
+        // Add ELO lost (convert string to number)
+        const eloLost = Number(game.elo_change_loss) || 0;
         if (eloLost < 0) {
           totalEloLost += Math.abs(eloLost);
         }
@@ -572,13 +572,13 @@ export class PlayerProfileViewComponent implements OnInit, AfterViewInit {
       
       if (playerTeam === 1 && team1Score > team2Score) {
         result = 'W';
-        eloChange = game.elo_change_win || 0;
+        eloChange = Number(game.elo_change_win) || 0;
       } else if (playerTeam === 2 && team2Score > team1Score) {
         result = 'W';
-        eloChange = game.elo_change_win || 0;
+        eloChange = Number(game.elo_change_win) || 0;
       } else if (team1Score !== team2Score) {
         result = 'L';
-        eloChange = game.elo_change_loss || 0;
+        eloChange = Number(game.elo_change_loss) || 0;
       }
 
       // Apply ELO change
