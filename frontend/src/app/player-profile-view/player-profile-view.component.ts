@@ -498,6 +498,16 @@ export class PlayerProfileViewComponent implements OnInit, AfterViewInit {
     }
   }
 
+  // Open Steam profile in new tab
+  openSteamProfile(): void {
+    if (this.steamId) {
+      const steamProfileUrl = `https://steamcommunity.com/profiles/${this.steamId}`;
+      window.open(steamProfileUrl, '_blank', 'noopener,noreferrer');
+    } else {
+      console.warn('No Steam ID available to open profile');
+    }
+  }
+
   // Sort map stats
   sortMapStats(sortBy: 'games' | 'wins' | 'losses'): void {
     // If clicking the same sort option, toggle direction

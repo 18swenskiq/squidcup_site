@@ -39,6 +39,20 @@
             class="player-flag-large"
             onerror="this.style.display='none'"
           />
+          <button 
+            class="steam-profile-btn"
+            (click)="openSteamProfile()"
+            title="View Steam Profile"
+            [disabled]="!steamId"
+          >
+            <img 
+              src="/assets/steam-logo.png" 
+              alt="Steam Logo" 
+              class="steam-logo"
+              width="20" 
+              height="20"
+            />
+          </button>
         </div>
         <h1 class="player-name">{{ playerData.username }}</h1>
         <div class="player-elo">
