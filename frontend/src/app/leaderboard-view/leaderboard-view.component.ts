@@ -1,6 +1,7 @@
 import { Component, OnInit, Inject, PLATFORM_ID } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
+import { Router } from '@angular/router';
 import { PageHeaderComponent } from '../page-header/page-header.component';
 import { environment } from '../../environments/environment';
 
@@ -82,6 +83,7 @@ export class LeaderboardViewComponent implements OnInit {
 
   constructor(
     private http: HttpClient,
+    private router: Router,
     @Inject(PLATFORM_ID) private platformId: Object
   ) {}
 
@@ -315,5 +317,9 @@ export class LeaderboardViewComponent implements OnInit {
       return `sorted-${this.sortDirection}`;
     }
     return 'sortable';
+  }
+
+  navigateToPlayerProfile(player: PlayerLeaderboardStats): void {
+    this.router.navigate(['/player', player.steamId]);
   }
 }

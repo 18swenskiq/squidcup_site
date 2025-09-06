@@ -45,7 +45,14 @@
           </tr>
         </thead>
         <tbody>
-          <tr *ngFor="let player of players; let i = index" class="player-row">
+          <tr *ngFor="let player of players; let i = index" 
+              class="player-row clickable-row" 
+              (click)="navigateToPlayerProfile(player)"
+              title="Click to view {{ player.username }}'s profile"
+              role="button"
+              tabindex="0"
+              (keydown.enter)="navigateToPlayerProfile(player)"
+              (keydown.space)="navigateToPlayerProfile(player)">
             <!-- Rank -->
             <td class="rank-cell">{{ getPlayerRank(i) }}</td>
             

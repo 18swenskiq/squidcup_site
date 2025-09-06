@@ -1,0 +1,57 @@
+<app-page-header
+  title="Player Profile"
+  [descriptionParagraphs]="['Individual Player Statistics and Performance']"
+></app-page-header>
+
+<div class="player-profile-container">
+  <!-- Loading State -->
+  <div *ngIf="isLoading" class="loading-container">
+    <div class="loading-spinner"></div>
+    <p>Loading player profile...</p>
+  </div>
+
+  <!-- Error State -->
+  <div *ngIf="error && !isLoading" class="error-container">
+    <h3>Error</h3>
+    <p>{{ error }}</p>
+    <button (click)="loadPlayerProfile()" class="retry-button">Retry</button>
+  </div>
+
+  <!-- Player Profile Content -->
+  <div *ngIf="!isLoading && !error" class="profile-content">
+    <!-- Player Header Section -->
+    <div class="player-header">
+      <div class="player-avatar-section">
+        <img 
+          [src]="playerData.avatarUrl || '/assets/default-avatar.png'" 
+          [alt]="playerData.username + ' avatar'"
+          class="player-avatar-large"
+          onerror="this.src='/assets/default-avatar.png'"
+        />
+      </div>
+      
+      <div class="player-info-section">
+        <div class="player-flag-container">
+          <img 
+            *ngIf="getCountryFlag(playerData.countryCode, playerData.stateCode)"
+            [src]="getCountryFlag(playerData.countryCode, playerData.stateCode)" 
+            [alt]="getFlagAltText(playerData.countryCode, playerData.stateCode)"
+            class="player-flag-large"
+            onerror="this.style.display='none'"
+          />
+        </div>
+        <h1 class="player-name">{{ playerData.username }}</h1>
+        <p class="steam-id">Steam ID: {{ steamId }}</p>
+      </div>
+    </div>
+
+    <!-- Stats Section Placeholder -->
+    <div class="stats-section">
+      <h2>Player Statistics</h2>
+      <div class="stats-placeholder">
+        <p>📊 Statistics coming soon!</p>
+        <p>Player performance data and detailed statistics will be displayed here once the API endpoint is implemented.</p>
+      </div>
+    </div>
+  </div>
+</div>

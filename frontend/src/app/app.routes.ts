@@ -5,6 +5,7 @@ import { MainViewComponent } from './main-view/main-view.component';
 import { PlayViewComponent } from './play-view/play-view.component';
 import { AdminViewComponent } from './admin-view/admin-view.component';
 import { MapsViewComponent } from './maps-view/maps-view.component';
+import { PlayerProfileViewComponent } from './player-profile-view/player-profile-view.component';
 import { AdminGuard } from './guards/admin.guard';
 
 export const routes: Routes = [
@@ -13,5 +14,6 @@ export const routes: Routes = [
   { path: 'history', component: HistoryViewComponent },
   { path: 'maps', component: MapsViewComponent },
   { path: 'play', component: PlayViewComponent },
+  { path: 'player/:steam_id', component: PlayerProfileViewComponent },
   { path: 'admin', component: AdminViewComponent, canActivate: [AdminGuard] }
 ];
