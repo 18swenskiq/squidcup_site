@@ -33,9 +33,9 @@ export class MapsViewComponent implements OnInit {
   error: string | null = null;
   
   // Sorting state for each table
-  wingmanSort: { column: string; direction: 'asc' | 'desc' } = { column: 'totalGames', direction: 'desc' };
-  threev3Sort: { column: string; direction: 'asc' | 'desc' } = { column: 'totalGames', direction: 'desc' };
-  fivev5Sort: { column: string; direction: 'asc' | 'desc' } = { column: 'totalGames', direction: 'desc' };
+  wingmanSort: { column: string; direction: 'asc' | 'desc' } = { column: 'mapName', direction: 'desc' };
+  threev3Sort: { column: string; direction: 'asc' | 'desc' } = { column: 'mapName', direction: 'desc' };
+  fivev5Sort: { column: string; direction: 'asc' | 'desc' } = { column: 'mapName', direction: 'desc' };
 
   constructor(private http: HttpClient, @Inject(PLATFORM_ID) private platformId: Object) { }
 
