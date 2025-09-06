@@ -41,6 +41,10 @@
           />
         </div>
         <h1 class="player-name">{{ playerData.username }}</h1>
+        <div class="player-elo">
+          <span class="elo-label">ELO:</span>
+          <span class="elo-value">{{ playerData.currentElo || 1000 }}</span>
+        </div>
         <p class="steam-id">Steam ID: {{ steamId }}</p>
       </div>
     </div>
