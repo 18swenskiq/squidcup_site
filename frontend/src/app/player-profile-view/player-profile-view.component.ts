@@ -125,6 +125,10 @@ export class PlayerProfileViewComponent implements OnInit, AfterViewInit {
   mapStats: PlayerMapStats[] = [];
   allMapsData: Map<string, MapInfo> = new Map(); // Cache for map info lookup
   
+  // Map sorting state
+  mapSortBy: 'games' | 'wins' | 'losses' = 'games';
+  mapSortDirection: 'asc' | 'desc' = 'desc';
+  
   // Charts tab
   selectedChartType: string = '';
   chartData: ChartDataPoint[] = [];
@@ -449,7 +453,10 @@ export class PlayerProfileViewComponent implements OnInit, AfterViewInit {
         losses: stats.losses,
         winrate: stats.games > 0 ? Number(((stats.wins / stats.games) * 100).toFixed(1)) : 0
       };
-    }).sort((a, b) => b.gamesPlayed - a.gamesPlayed);
+    });
+
+    // Apply default sorting (games descending)
+    this.applyMapSort();
 
     console.log('Calculated map stats:', this.mapStats);
   }
@@ -483,6 +490,49 @@ export class PlayerProfileViewComponent implements OnInit, AfterViewInit {
     if (mapWorkshopUrl) {
       window.open(mapWorkshopUrl, '_blank');
     }
+  }
+
+  // Sort map stats
+  sortMapStats(sortBy: 'games' | 'wins' | 'losses'): void {
+    // If clicking the same sort option, toggle direction
+    if (this.mapSortBy === sortBy) {
+      this.mapSortDirection = this.mapSortDirection === 'desc' ? 'asc' : 'desc';
+    } else {
+      // New sort option, default to descending
+      this.mapSortBy = sortBy;
+      this.mapSortDirection = 'desc';
+    }
+    
+    // Apply the sort
+    this.applyMapSort();
+  }
+  
+  private applyMapSort(): void {
+    this.mapStats.sort((a, b) => {
+      let aValue: number;
+      let bValue: number;
+      
+      switch (this.mapSortBy) {
+        case 'games':
+          aValue = a.gamesPlayed;
+          bValue = b.gamesPlayed;
+          break;
+        case 'wins':
+          aValue = a.wins;
+          bValue = b.wins;
+          break;
+        case 'losses':
+          aValue = a.losses;
+          bValue = b.losses;
+          break;
+      }
+      
+      if (this.mapSortDirection === 'desc') {
+        return bValue - aValue;
+      } else {
+        return aValue - bValue;
+      }
+    });
   }
 
   // Chart data generation methods

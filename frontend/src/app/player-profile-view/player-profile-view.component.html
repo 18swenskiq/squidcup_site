@@ -208,7 +208,42 @@
 
           <!-- Maps Section -->
           <div class="maps-section">
-            <h3>Most Played Maps</h3>
+            <div class="maps-header">
+              <h3>Most Played Maps</h3>
+              <div class="sort-controls">
+                <span class="sort-label">Sort by:</span>
+                <button 
+                  class="sort-btn"
+                  [class.active]="mapSortBy === 'games'"
+                  (click)="sortMapStats('games')"
+                >
+                  Total Games
+                  <span class="sort-arrow" *ngIf="mapSortBy === 'games'">
+                    {{ mapSortDirection === 'desc' ? '↓' : '↑' }}
+                  </span>
+                </button>
+                <button 
+                  class="sort-btn"
+                  [class.active]="mapSortBy === 'wins'"
+                  (click)="sortMapStats('wins')"
+                >
+                  Wins
+                  <span class="sort-arrow" *ngIf="mapSortBy === 'wins'">
+                    {{ mapSortDirection === 'desc' ? '↓' : '↑' }}
+                  </span>
+                </button>
+                <button 
+                  class="sort-btn"
+                  [class.active]="mapSortBy === 'losses'"
+                  (click)="sortMapStats('losses')"
+                >
+                  Losses
+                  <span class="sort-arrow" *ngIf="mapSortBy === 'losses'">
+                    {{ mapSortDirection === 'desc' ? '↓' : '↑' }}
+                  </span>
+                </button>
+              </div>
+            </div>
             <div *ngIf="mapStats.length > 0" class="maps-grid">
               <div 
                 *ngFor="let map of mapStats" 
