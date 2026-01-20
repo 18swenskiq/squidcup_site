@@ -1,0 +1,19 @@
+{
+    "name": "end-map-lambda",
+    "version": "1.0.0",
+    "description": "Lambda function to finalize map stats from game servers",
+    "main": "index.js",
+    "scripts": {
+        "build": "tsc",
+        "test": "echo \"Error: no test specified\" && exit 1"
+    },
+    "dependencies": {
+        "@squidcup/shared-lambda-utils": "file:../../../packages/shared-lambda-utils"
+    },
+    "devDependencies": {
+        "@aws-sdk/client-ssm": "^3.0.0",
+        "@types/aws-lambda": "^8.10.0",
+        "@types/node": "^18.0.0",
+        "typescript": "^4.9.0"
+    }
+}

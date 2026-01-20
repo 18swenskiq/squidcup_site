@@ -1,10 +1,10 @@
 import * as mysql from 'mysql2/promise';
 import * as crypto from 'crypto';
 import { SSMClient, GetParameterCommand } from '@aws-sdk/client-ssm';
-import { 
-  User, 
-  Session, 
-  GameServer, 
+import {
+  User,
+  Session,
+  GameServer,
   ActiveQueueWithDetails,
   DatabaseGame,
   GamePlayerRecord,
@@ -51,7 +51,7 @@ async function getParameterValue(parameterName: string): Promise<string> {
       Name: parameterName,
       WithDecryption: true,
     });
-    
+
     const response = await ssmClient.send(command);
     return response.Parameter?.Value || '';
   } catch (error) {
@@ -115,7 +115,7 @@ async function getDatabaseConfig(): Promise<DatabaseConfig> {
 // Function to create database connection
 async function createConnection(): Promise<mysql.Connection> {
   const config = await getDatabaseConfig();
-  
+
   // Configure connection with SSL using the CA certificate
   const connectionConfig: any = {
     host: config.host,
@@ -128,7 +128,7 @@ async function createConnection(): Promise<mysql.Connection> {
       ca: config.caCert
     }
   };
-  
+
   const connection = await mysql.createConnection(connectionConfig);
   return connection;
 }
@@ -145,7 +145,7 @@ export async function getDatabaseConnection(): Promise<mysql.Connection> {
       cachedConnection = null;
     }
   }
-  
+
   cachedConnection = await createConnection();
   await ensureTablesExist(cachedConnection);
   return cachedConnection;
@@ -296,7 +296,7 @@ async function executeQuery(connection: mysql.Connection, query: string, params:
   try {
     // Sanitize parameters to convert undefined to null
     const sanitizedParams = sanitizeParams(params);
-    
+
     // Debug logging for data length issues
     if (query.includes('squidcup_')) {
       console.log('Executing sessions query:', query);
@@ -310,7 +310,7 @@ async function executeQuery(connection: mysql.Connection, query: string, params:
         }
       });
     }
-    
+
     const [rows] = await connection.execute(query, sanitizedParams);
     return rows;
   } catch (error) {
@@ -333,7 +333,7 @@ export async function getSession(sessionToken: string): Promise<Session | null> 
 export async function createSession(sessionToken: string, steamId: string, expiresAt: Date): Promise<void> {
   const connection = await getDatabaseConnection();
   let mysqlDateTime = jsDateToMySQLDate(expiresAt);
-  
+
   await executeQuery(
     connection,
     'INSERT INTO squidcup_sessions (session_token, user_steam_id, expires_at) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE expires_at = VALUES(expires_at)',
@@ -382,14 +382,14 @@ export async function upsertUser(userData: UpsertUserInput): Promise<void> {
 
 export async function getUser(steamId: string): Promise<User | null> {
   const connection = await getDatabaseConnection();
-  
+
   try {
     const rows = await executeQuery(
       connection,
       'SELECT *, CAST(current_elo AS DECIMAL(10,2)) as current_elo FROM squidcup_users WHERE steam_id = ?',
       [steamId]
     );
-    
+
     if (rows.length > 0) {
       const user = rows[0];
       // Ensure current_elo is a number
@@ -404,9 +404,9 @@ export async function getUser(steamId: string): Promise<User | null> {
 
 export async function getUsersBySteamIds(steamIds: string[]): Promise<UserWithSteamData[]> {
   if (steamIds.length === 0) return [];
-  
+
   const connection = await getDatabaseConnection();
-  
+
   try {
     const placeholders = steamIds.map(() => '?').join(',');
     const rows = await executeQuery(
@@ -414,7 +414,7 @@ export async function getUsersBySteamIds(steamIds: string[]): Promise<UserWithSt
       `SELECT steam_id, username, avatar, CAST(current_elo AS DECIMAL(10,2)) as current_elo FROM squidcup_users WHERE steam_id IN (${placeholders})`,
       steamIds
     );
-    
+
     // Ensure current_elo is a number for all users
     return rows.map((row: any) => ({
       ...row,
@@ -432,12 +432,12 @@ export async function isUserBanned(steamId: string): Promise<boolean> {
     'SELECT temp_banned FROM squidcup_users WHERE steam_id = ?',
     [steamId]
   );
-  
+
   if (rows.length === 0) {
     // User doesn't exist, consider them not banned
     return false;
   }
-  
+
   // Return true if temp_banned is 1 (true), false otherwise
   return Boolean(rows[0].temp_banned);
 }
@@ -464,7 +464,7 @@ export async function addServer(serverData: GameServer): Promise<void> {
 
 export async function getServers(minPlayers?: number): Promise<GameServer[]> {
   const connection = await getDatabaseConnection();
-  
+
   // Build the query to exclude servers that are currently in use by active games
   let query = `
     SELECT s.* 
@@ -476,16 +476,16 @@ export async function getServers(minPlayers?: number): Promise<GameServer[]> {
       AND g.status IN ('queue', 'lobby', 'in_progress')
     )
   `;
-  
+
   const params: any[] = [];
-  
+
   if (minPlayers && minPlayers > 0) {
     query += ' AND s.max_players >= ?';
     params.push(minPlayers);
   }
-  
+
   query += ' ORDER BY s.created_at DESC';
-  
+
   return await executeQuery(connection, query, params);
 }
 
@@ -493,7 +493,7 @@ export async function updateServer(serverId: string, serverData: UpdateServerInp
   const connection = await getDatabaseConnection();
   const fields = [];
   const values = [];
-  
+
   if (serverData.ip !== undefined) { fields.push('ip = ?'); values.push(serverData.ip); }
   if (serverData.port !== undefined) { fields.push('port = ?'); values.push(serverData.port); }
   if (serverData.location !== undefined) { fields.push('location = ?'); values.push(serverData.location); }
@@ -501,10 +501,10 @@ export async function updateServer(serverId: string, serverData: UpdateServerInp
   if (serverData.defaultPassword !== undefined) { fields.push('default_password = ?'); values.push(serverData.defaultPassword); }
   if (serverData.maxPlayers !== undefined) { fields.push('max_players = ?'); values.push(serverData.maxPlayers); }
   if (serverData.nickname !== undefined) { fields.push('nickname = ?'); values.push(serverData.nickname); }
-  
+
   fields.push('updated_at = CURRENT_TIMESTAMP');
   values.push(serverId);
-  
+
   await executeQuery(
     connection,
     `UPDATE squidcup_servers SET ${fields.join(', ')} WHERE id = ?`,
@@ -527,7 +527,7 @@ export async function getServerInfoForGame(gameId: string): Promise<GameServer |
      WHERE g.id = ?`,
     [gameId]
   );
-  
+
   return result.length > 0 ? result[0] : null;
 }
 
@@ -555,7 +555,7 @@ export async function getGameByMatchNumber(matchNumber: string): Promise<Databas
 export async function getGameWithPlayers(gameId: string): Promise<EnrichedGameWithPlayers | null> {
   const game = await getGame(gameId);
   if (!game) return null;
-  
+
   const players = await getGamePlayers(gameId);
   return {
     ...game,
@@ -565,7 +565,7 @@ export async function getGameWithPlayers(gameId: string): Promise<EnrichedGameWi
 
 export async function getUserActiveGame(steamId: string): Promise<EnrichedGameWithPlayers | null> {
   const connection = await getDatabaseConnection();
-  
+
   // First check if user is hosting a game
   const hostGame = await executeQuery(
     connection,
@@ -579,7 +579,7 @@ export async function getUserActiveGame(steamId: string): Promise<EnrichedGameWi
      )`,
     [steamId, steamId]
   );
-  
+
   if (hostGame.length > 0) {
     const players = await getGamePlayers(hostGame[0].id);
     return {
@@ -588,7 +588,7 @@ export async function getUserActiveGame(steamId: string): Promise<EnrichedGameWi
       isHost: true
     };
   }
-  
+
   // Check if user is a player in any game
   const playerGame = await executeQuery(
     connection,
@@ -601,7 +601,7 @@ export async function getUserActiveGame(steamId: string): Promise<EnrichedGameWi
      )`,
     [steamId]
   );
-  
+
   if (playerGame.length > 0) {
     const players = await getGamePlayers(playerGame[0].id);
     return {
@@ -612,7 +612,7 @@ export async function getUserActiveGame(steamId: string): Promise<EnrichedGameWi
       userTeam: playerGame[0].team_id
     };
   }
-  
+
   return null;
 }
 
@@ -652,7 +652,7 @@ export async function updateGame(gameId: string, gameData: UpdateGameInput): Pro
   const connection = await getDatabaseConnection();
   const fields = [];
   const values = [];
-  
+
   if (gameData.currentPlayers !== undefined) { fields.push('current_players = ?'); values.push(gameData.currentPlayers); }
   if (gameData.status !== undefined) { fields.push('status = ?'); values.push(gameData.status); }
   if (gameData.map !== undefined) { fields.push('map = ?'); values.push(gameData.map); }
@@ -660,10 +660,10 @@ export async function updateGame(gameId: string, gameData: UpdateGameInput): Pro
   if (gameData.serverId !== undefined) { fields.push('server_id = ?'); values.push(gameData.serverId); }
   if (gameData.gameMode !== undefined) { fields.push('game_mode = ?'); values.push(gameData.gameMode); }
   if (gameData.mapAnimSelectStartTime !== undefined) { fields.push('map_anim_select_start_time = ?'); values.push(gameData.mapAnimSelectStartTime); }
-  
+
   fields.push('updated_at = CURRENT_TIMESTAMP');
   values.push(gameId);
-  
+
   await executeQuery(
     connection,
     `UPDATE squidcup_games SET ${fields.join(', ')} WHERE id = ?`,
@@ -673,7 +673,7 @@ export async function updateGame(gameId: string, gameData: UpdateGameInput): Pro
 
 export async function addPlayerToGame(gameId: string, playerData: AddPlayerToGameInput): Promise<void> {
   const connection = await getDatabaseConnection();
-  
+
   // Add player to game_players table
   await executeQuery(
     connection,
@@ -686,7 +686,7 @@ export async function addPlayerToGame(gameId: string, playerData: AddPlayerToGam
       jsDateToMySQLDate(playerData.joinTime ?? new Date())
     ]
   );
-  
+
   // Update current_players count
   await executeQuery(
     connection,
@@ -697,7 +697,7 @@ export async function addPlayerToGame(gameId: string, playerData: AddPlayerToGam
 
 export async function updateGamePlayerAcceptance(gameId: string, steamId: string, accepted: boolean): Promise<{ success: boolean; error?: string }> {
   const connection = await getDatabaseConnection();
-  
+
   try {
     // First check if the player exists in the game
     const checkResult = await executeQuery(
@@ -705,18 +705,18 @@ export async function updateGamePlayerAcceptance(gameId: string, steamId: string
       'SELECT game_id FROM squidcup_game_players WHERE game_id = ? AND player_steam_id = ?',
       [gameId, steamId]
     );
-    
+
     if (checkResult.length === 0) {
       return { success: false, error: 'PLAYER_NOT_FOUND' };
     }
-    
+
     // Update the player's acceptance status
     await executeQuery(
       connection,
       'UPDATE squidcup_game_players SET player_accepted_match_result = ? WHERE game_id = ? AND player_steam_id = ?',
       [accepted ? 1 : 0, gameId, steamId]
     );
-    
+
     return { success: true };
   } catch (error) {
     console.error('Error updating player acceptance:', error);
@@ -728,14 +728,14 @@ export async function updateGamePlayerAcceptance(gameId: string, steamId: string
 export async function createGameTeam(gameId: string, teamNumber: number, teamName: string): Promise<string> {
   const connection = await getDatabaseConnection();
   const teamId = crypto.randomUUID();
-  
+
   await executeQuery(
     connection,
     `INSERT INTO squidcup_game_teams (id, game_id, team_number, team_name, average_elo)
      VALUES (?, ?, ?, ?, ?)`,
     [teamId, gameId, teamNumber, teamName, 1000.00]
   );
-  
+
   return teamId;
 }
 
@@ -750,7 +750,7 @@ export async function updateTeamName(teamId: string, teamName: string): Promise<
 
 export async function updateTeamAverageElo(gameId: string, teamNumber: number, averageElo: number): Promise<void> {
   const connection = await getDatabaseConnection();
-  
+
   try {
     await executeQuery(
       connection,
@@ -764,7 +764,7 @@ export async function updateTeamAverageElo(gameId: string, teamNumber: number, a
 
 export async function updatePlayerElo(steamId: string, newElo: number): Promise<void> {
   const connection = await getDatabaseConnection();
-  
+
   try {
     await executeQuery(
       connection,
@@ -778,7 +778,7 @@ export async function updatePlayerElo(steamId: string, newElo: number): Promise<
 
 export async function updatePlayerEloChangePredictions(gameId: string, steamId: string, eloChangeWin: number, eloChangeLoss: number): Promise<void> {
   const connection = await getDatabaseConnection();
-  
+
   try {
     await executeQuery(
       connection,
@@ -790,20 +790,20 @@ export async function updatePlayerEloChangePredictions(gameId: string, steamId: 
   }
 }
 
-export async function getMatchResults(matchNumber: string): Promise<{team1Score: number, team2Score: number} | null> {
+export async function getMatchResults(matchNumber: string): Promise<{ team1Score: number, team2Score: number } | null> {
   const connection = await getDatabaseConnection();
-  
+
   try {
     const rows = await executeQuery(
       connection,
       'SELECT team1_score, team2_score FROM squidcup_stats_maps WHERE matchid = ?',
       [matchNumber]
     );
-    
+
     if (rows.length === 0) {
       return null;
     }
-    
+
     const row = rows[0] as any;
     return {
       team1Score: row.team1_score || 0,
@@ -823,7 +823,7 @@ export async function getGamePlayersWithTeams(gameId: string): Promise<Array<{
   elo_change_loss: number | null;
 }>> {
   const connection = await getDatabaseConnection();
-  
+
   try {
     const rows = await executeQuery(
       connection,
@@ -840,7 +840,7 @@ export async function getGamePlayersWithTeams(gameId: string): Promise<Array<{
        ORDER BY gp.joined_at`,
       [gameId]
     );
-    
+
     return rows as any[];
   } finally {
     await connection.end();
@@ -856,7 +856,7 @@ export async function getGamePlayersWithElo(gameId: string): Promise<Array<{
   username: string;
 }>> {
   const connection = await getDatabaseConnection();
-  
+
   try {
     const rows = await executeQuery(
       connection,
@@ -874,7 +874,7 @@ export async function getGamePlayersWithElo(gameId: string): Promise<Array<{
        ORDER BY gp.joined_at`,
       [gameId]
     );
-    
+
     // Ensure current_elo is properly converted to number
     return rows.map((row: any) => ({
       ...row,
@@ -887,7 +887,7 @@ export async function getGamePlayersWithElo(gameId: string): Promise<Array<{
 
 export async function getPlayerUsernamesBySteamIds(steamIds: string[]): Promise<Record<string, string>> {
   if (steamIds.length === 0) return {};
-  
+
   const connection = await getDatabaseConnection();
   const placeholders = steamIds.map(() => '?').join(',');
   const results = await executeQuery(
@@ -895,7 +895,7 @@ export async function getPlayerUsernamesBySteamIds(steamIds: string[]): Promise<
     `SELECT steam_id, username FROM squidcup_users WHERE steam_id IN (${placeholders})`,
     steamIds
   );
-  
+
   const usernameMap: Record<string, string> = {};
   for (const row of results) {
     usernameMap[row.steam_id] = row.username;
@@ -923,14 +923,14 @@ export async function updatePlayerTeam(gameId: string, steamId: string, teamId: 
 
 export async function removePlayerFromGame(gameId: string, steamId: string): Promise<void> {
   const connection = await getDatabaseConnection();
-  
+
   // Remove player from game_players table
   await executeQuery(
     connection,
     'DELETE FROM squidcup_game_players WHERE game_id = ? AND player_steam_id = ?',
     [gameId, steamId]
   );
-  
+
   // Update current_players count
   await executeQuery(
     connection,
@@ -950,11 +950,11 @@ export async function deleteGame(gameId: string): Promise<void> {
 // History functions
 export async function storeGameHistoryEvent(eventData: GameHistoryEventInput): Promise<void> {
   const connection = await getDatabaseConnection();
-  
+
   if (!eventData.gameId) {
     throw new Error('Missing gameId in history event data');
   }
-  
+
   await executeQuery(
     connection,
     `INSERT INTO squidcup_game_history (id, game_id, player_steam_id, event_type, event_data)
@@ -972,11 +972,11 @@ export async function storeGameHistoryEvent(eventData: GameHistoryEventInput): P
 export async function getUserGameHistory(steamId: string, limit: number = 50): Promise<GameHistoryRecord[]> {
   const connection = await getDatabaseConnection();
   console.log('getUserGameHistory called with steamId:', steamId, 'limit:', limit, 'limit type:', typeof limit);
-  
+
   // Ensure limit is a positive integer
   const sanitizedLimit = Math.max(1, Math.min(100, Math.floor(Number(limit) || 20)));
   console.log('Sanitized limit:', sanitizedLimit);
-  
+
   return await executeQuery(
     connection,
     `SELECT gh.*, g.game_mode, g.map_selection_mode
@@ -993,21 +993,21 @@ export async function getUserGameHistory(steamId: string, limit: number = 50): P
 export async function getUserCompleteStatus(sessionToken: string): Promise<UserCompleteStatus> {
   const connection = await getDatabaseConnection();
   console.log('getUserCompleteStatus called with token:', sessionToken.substring(0, 8) + '...');
-  
+
   // Step 1: Validate session
   const session = await executeQuery(
     connection,
     'SELECT * FROM squidcup_sessions WHERE session_token = ? AND expires_at > NOW()',
     [sessionToken]
   );
-  
+
   if (!session || session.length === 0) {
     return { session: null };
   }
-  
+
   const userSteamId = session[0].user_steam_id;
   console.log('User Steam ID from session:', userSteamId);
-  
+
   // Step 2: Check for active game (as host)
   const hostGame = await executeQuery(
     connection,
@@ -1022,7 +1022,7 @@ export async function getUserCompleteStatus(sessionToken: string): Promise<UserC
      )`,
     [userSteamId, userSteamId]
   );
-  
+
   // Step 3: Check for active game (as player)
   const playerGame = await executeQuery(
     connection,
@@ -1035,15 +1035,15 @@ export async function getUserCompleteStatus(sessionToken: string): Promise<UserC
      )`,
     [userSteamId]
   );
-  
+
   // Log for debugging
   console.log('Game check results for user:', userSteamId);
   console.log('Host games found:', hostGame.length);
   console.log('Player games found:', playerGame.length);
-  
+
   let activeGame = null;
   let isGameHost = false;
-  
+
   if (hostGame.length > 0) {
     activeGame = hostGame[0];
     isGameHost = true;
@@ -1051,7 +1051,7 @@ export async function getUserCompleteStatus(sessionToken: string): Promise<UserC
     activeGame = playerGame[0];
     isGameHost = false;
   }
-  
+
   // Step 4: If in game, get game players and their names
   let gamePlayers = [];
   let gamePlayerNames = new Map();
@@ -1060,21 +1060,21 @@ export async function getUserCompleteStatus(sessionToken: string): Promise<UserC
 
   if (activeGame) {
     console.log('User found in game:', activeGame.id, 'status:', activeGame.status);
-    
+
     // Get all game players
     gamePlayers = await executeQuery(
       connection,
       'SELECT * FROM squidcup_game_players WHERE game_id = ?',
       [activeGame.id]
     );
-    
+
     // Get teams for the game
     const gameTeams = await executeQuery(
       connection,
       'SELECT * FROM squidcup_game_teams WHERE game_id = ? ORDER BY team_number',
       [activeGame.id]
     );
-    
+
     // Get player names and avatars for game
     const allGameIds = [activeGame.host_steam_id, ...gamePlayers.map((p: any) => p.player_steam_id)];
     const gameUsers = await executeQuery(
@@ -1082,13 +1082,13 @@ export async function getUserCompleteStatus(sessionToken: string): Promise<UserC
       `SELECT steam_id, username, avatar, current_elo FROM squidcup_users WHERE steam_id IN (${allGameIds.map(() => '?').join(',')})`,
       allGameIds
     );
-    
+
     for (const user of gameUsers) {
       gamePlayerNames.set(user.steam_id, user.username || `Player ${user.steam_id.slice(-4)}`);
       gamePlayerAvatars.set(user.steam_id, user.avatar || null);
       gamePlayerElos.set(user.steam_id, user.current_elo || 1000);
     }
-    
+
     // Add fallback names for missing users
     for (const steamId of allGameIds) {
       if (!gamePlayerNames.has(steamId)) {
@@ -1097,7 +1097,7 @@ export async function getUserCompleteStatus(sessionToken: string): Promise<UserC
         gamePlayerElos.set(steamId, 1000);
       }
     }
-    
+
     // If game is completed, get match results and ELO changes
     let matchResults = null;
     let eloChanges = new Map();
@@ -1109,17 +1109,17 @@ export async function getUserCompleteStatus(sessionToken: string): Promise<UserC
           'SELECT team1_score, team2_score FROM squidcup_stats_maps WHERE matchid = ?',
           [activeGame.match_number]
         );
-        
+
         if (matchResultsQuery.length > 0) {
           matchResults = matchResultsQuery[0];
         }
-        
+
         // Get ELO changes for each player
         for (const player of gamePlayers) {
           const steamId = player.player_steam_id;
           const eloChangeWin = Number(player.elo_change_win) || 0;
           const eloChangeLoss = Number(player.elo_change_loss) || 0;
-          
+
           // Determine if this player's team won
           let eloChange = 0;
           if (matchResults && matchResults.team1_score !== matchResults.team2_score) {
@@ -1127,10 +1127,10 @@ export async function getUserCompleteStatus(sessionToken: string): Promise<UserC
             const playerTeam = gameTeams.find((t: any) => t.id === player.team_id)?.team_number || 1;
             const team1Won = matchResults.team1_score > matchResults.team2_score;
             const playerWon = (playerTeam === 1 && team1Won) || (playerTeam === 2 && !team1Won);
-            
+
             eloChange = playerWon ? eloChangeWin : eloChangeLoss;
           }
-          
+
           eloChanges.set(steamId, {
             eloChange,
             oldElo: (gamePlayerElos.get(steamId) || 1000) - eloChange,
@@ -1141,7 +1141,7 @@ export async function getUserCompleteStatus(sessionToken: string): Promise<UserC
         console.error('Failed to get match results and ELO changes for completed game:', activeGame.id, error);
       }
     }
-    
+
     const gameData = {
       ...activeGame,
       isHost: isGameHost,
@@ -1167,7 +1167,7 @@ export async function getUserCompleteStatus(sessionToken: string): Promise<UserC
         console.error('Failed to get server info for game:', activeGame.id, error);
       }
     }
-    
+
     return {
       session: session[0],
       userSteamId,
@@ -1179,7 +1179,7 @@ export async function getUserCompleteStatus(sessionToken: string): Promise<UserC
       ...(activeGame.status === 'completed' ? { lobby: gameData } : {}) // Also return as lobby for completed games where player hasn't accepted
     };
   }
-  
+
   // User is not in any game
   return {
     session: session[0],
@@ -1214,7 +1214,7 @@ export async function getActiveGamesForCleanup(): Promise<QueueCleanupRecord[]> 
 // Function to get active games with user and server details
 export async function getActiveGamesWithDetails(): Promise<ActiveQueueWithDetails[]> {
   const connection = await getDatabaseConnection();
-  
+
   // Get all active games with host information and server details
   const games = await executeQuery(
     connection,
@@ -1330,7 +1330,7 @@ export async function getMapSelectionStatus(gameId: string): Promise<{ hasAllSel
 
 export async function selectRandomMapFromSelections(gameId: string): Promise<string | null> {
   const { mapSelections, hasAllSelected } = await getMapSelectionStatus(gameId);
-  
+
   if (!hasAllSelected) {
     return null;
   }
@@ -1354,7 +1354,7 @@ export async function executeRawQuery(query: string, params: any[] = []): Promis
 // Update the replaceRandomMapSelections function to use the new steam module
 export async function replaceRandomMapSelections(gameId: string, availableMaps: string[]): Promise<void> {
   const connection = await getDatabaseConnection();
-  
+
   // Get players who selected "random" map
   const randomSelectors = await executeQuery(
     connection,
@@ -1380,7 +1380,7 @@ export async function replaceRandomMapSelections(gameId: string, availableMaps: 
 
 export async function getMatchHistory(): Promise<MatchHistoryMatch[]> {
   const connection = await getDatabaseConnection();
-  
+
   try {
     // Complex query to get all match history data in one go
     const query = `
@@ -1446,10 +1446,10 @@ export async function getMatchHistory(): Promise<MatchHistoryMatch[]> {
 
     // Group the results by match
     const matchesMap = new Map<string, MatchHistoryMatch>();
-    
+
     for (const row of rows as any[]) {
       const matchNumber = row.match_number;
-      
+
       if (!matchesMap.has(matchNumber)) {
         // Initialize match data
         matchesMap.set(matchNumber, {
@@ -1468,7 +1468,7 @@ export async function getMatchHistory(): Promise<MatchHistoryMatch[]> {
           },
           team2: {
             teamNumber: 2,
-            teamName: row.team2_name || 'Team 2', 
+            teamName: row.team2_name || 'Team 2',
             averageElo: row.team2_average_elo || 0,
             score: row.team2_score
           },
@@ -1479,7 +1479,7 @@ export async function getMatchHistory(): Promise<MatchHistoryMatch[]> {
       // Add player to match if we have player data
       if (row.player_steam_id) {
         const match = matchesMap.get(matchNumber)!;
-        
+
         // Check if player already added (avoid duplicates from joins)
         const existingPlayer = match.players.find(p => p.steamId === row.player_steam_id);
         if (!existingPlayer) {
@@ -1488,15 +1488,15 @@ export async function getMatchHistory(): Promise<MatchHistoryMatch[]> {
           const team1Won = row.team1_score > row.team2_score;
           const team2Won = row.team2_score > row.team1_score;
           const playerWon = (playerTeam === 1 && team1Won) || (playerTeam === 2 && team2Won);
-          
+
           // Select appropriate ELO change based on match outcome
           let eloChange = 0;
           if (team1Won || team2Won) { // Skip tied games
-            eloChange = playerWon ? 
-              (Number(row.elo_change_win) || 0) : 
+            eloChange = playerWon ?
+              (Number(row.elo_change_win) || 0) :
               (Number(row.elo_change_loss) || 0);
           }
-          
+
           match.players.push({
             steamId: row.player_steam_id,
             name: row.player_name || `Player ${row.player_steam_id.slice(-4)}`,
@@ -1516,13 +1516,13 @@ export async function getMatchHistory(): Promise<MatchHistoryMatch[]> {
     // Get Steam API key for fetching map details
     try {
       const steamApiKey = await getParameterValue('/unencrypted/SteamApiKey');
-      
+
       // Fetch map details for all unique map IDs
-      const mapDetails = new Map<string, {name: string, thumbnailUrl: string}>();
+      const mapDetails = new Map<string, { name: string, thumbnailUrl: string }>();
       const uniqueMapIds = [...new Set(matches.map(match => match.mapId).filter(id => id))];
-      
+
       console.log(`Fetching details for ${uniqueMapIds.length} unique maps`);
-      
+
       // Fetch all map details in parallel
       const mapPromises = uniqueMapIds.map(async (mapId) => {
         try {
@@ -1542,9 +1542,9 @@ export async function getMatchHistory(): Promise<MatchHistoryMatch[]> {
           });
         }
       });
-      
+
       await Promise.all(mapPromises);
-      
+
       // Apply map details to matches
       matches.forEach(match => {
         if (match.mapId) {
@@ -1558,7 +1558,7 @@ export async function getMatchHistory(): Promise<MatchHistoryMatch[]> {
           }
         }
       });
-      
+
     } catch (error) {
       console.error('Failed to fetch Steam API key or map details:', error);
       // Fallback to placeholder names
@@ -1619,29 +1619,29 @@ async function getTotalRoundsPlayedByPlayers(connection: mysql.Connection): Prom
   console.log('Executing rounds query:', roundsQuery);
   const roundsRows = await executeQuery(connection, roundsQuery, []);
   console.log('Rounds query returned', roundsRows.length, 'rows');
-  
+
   const roundsMap = new Map<string, number>();
-  
+
   for (const row of roundsRows as any[]) {
     const steamId = row.steamid64_str;  // Already a string from CAST
     const totalRounds = Number(row.total_rounds) || 0;
     console.log(`Player ${steamId}: ${totalRounds} rounds`);
     roundsMap.set(steamId, totalRounds);
   }
-  
+
   console.log('Final rounds map size:', roundsMap.size);
   console.log('Sample map entries:', Array.from(roundsMap.entries()).slice(0, 3));
-  
+
   return roundsMap;
 }
 
 export async function getPlayerLeaderboardStats(): Promise<PlayerLeaderboardStats[]> {
   const connection = await getDatabaseConnection();
-  
+
   try {
     // Get total rounds played for all players
     const totalRoundsMap = await getTotalRoundsPlayedByPlayers(connection);
-    
+
     // STEP 1: Get all Steam IDs from the main stats query first
     console.log('STEP 1: Getting all Steam IDs from main stats query');
     const steamIdsQuery = `
@@ -1654,7 +1654,7 @@ export async function getPlayerLeaderboardStats(): Promise<PlayerLeaderboardStat
     const steamIdRows = await executeQuery(connection, steamIdsQuery, []);
     const allSteamIds = steamIdRows.map((row: any) => row.steam_id); // Already a string from CAST
     console.log(`Found ${allSteamIds.length} unique Steam IDs from main query:`, allSteamIds.slice(0, 5));
-    
+
     // STEP 2: Get winrate data specifically for these Steam IDs
     console.log('STEP 2: Getting winrate data for these specific Steam IDs');
     const steamIdPlaceholders = allSteamIds.map(() => '?').join(',');
@@ -1675,11 +1675,11 @@ export async function getPlayerLeaderboardStats(): Promise<PlayerLeaderboardStat
         AND CAST(gp.player_steam_id AS CHAR) IN (${steamIdPlaceholders})
       GROUP BY gp.player_steam_id
     `;
-    
+
     console.log('Executing targeted winrate query for', allSteamIds.length, 'Steam IDs');
     const winLossRows = await executeQuery(connection, winLossQuery, allSteamIds);
     console.log('Winrate query returned', winLossRows.length, 'rows');
-    
+
     const winLossMap = new Map();
     winLossRows.forEach((row: any) => {
       const steamId = String(row.player_steam_id);
@@ -1689,7 +1689,7 @@ export async function getPlayerLeaderboardStats(): Promise<PlayerLeaderboardStat
       winLossMap.set(steamId, winrate);
       console.log(`Winrate mapping: ${steamId} -> ${wins}/${totalGames} = ${winrate}%`);
     });
-    
+
     // STEP 3: Create fallback winrate data for any missing Steam IDs
     console.log('STEP 3: Creating fallback winrate data for missing Steam IDs');
     let missingWinrateCount = 0;
@@ -1701,13 +1701,13 @@ export async function getPlayerLeaderboardStats(): Promise<PlayerLeaderboardStat
       }
     });
     console.log(`Created fallback winrate data for ${missingWinrateCount} Steam IDs`);
-    
+
     console.log('Final winrate map size:', winLossMap.size);
     console.log('Final winrate map sample:', Array.from(winLossMap.entries()).slice(0, 5));
-    
+
     console.log('WinLoss map entries:', Array.from(winLossMap.entries()).slice(0, 5));
     console.log('WinLoss map size:', winLossMap.size);
-    
+
     // Query to get aggregated player stats from squidcup_stats_players joined with user info
     const query = `
       SELECT 
@@ -1765,24 +1765,24 @@ export async function getPlayerLeaderboardStats(): Promise<PlayerLeaderboardStat
       console.log(`  Steam ID (number): ${steamIdNum} (original, type: ${typeof steamIdNum})`);
       console.log(`  Username: ${row.username || 'Unknown'}`);
       console.log(`  Precision check: string=${steamId}, number=${steamIdNum}, match=${steamId === String(steamIdNum)}`);
-      
+
       // Winrate lookup with comprehensive debugging
       const hasWinrateKey = winLossMap.has(steamId);
       const winrateValue = winLossMap.get(steamId);
       console.log(`  Winrate lookup: steamId='${steamId}' -> hasKey=${hasWinrateKey}, value=${winrateValue}`);
-      
+
       if (!hasWinrateKey) {
         console.log(`  ERROR: Missing winrate for ${steamId}! Available keys:`, Array.from(winLossMap.keys()).slice(0, 10));
         // Set a fallback value
         winLossMap.set(steamId, 0);
       }
-      
+
       const finalWinrate = winLossMap.get(steamId) || 0;
       console.log(`  Final winrate: ${finalWinrate}`);
-      
+
       // Rounds lookup debugging
       console.log(`  Total rounds: ${totalRounds} (from rounds map key='${steamId}')`);
-      
+
       console.log(`  Basic stats: K=${kills}, D=${deaths}, DMG=${damage}`);
       console.log(`  Map has key: ${totalRoundsMap.has(steamId)}`);
 
@@ -1828,19 +1828,19 @@ export async function getPlayerLeaderboardStats(): Promise<PlayerLeaderboardStat
 
     console.log(`\n=== FINAL SUMMARY ===`);
     console.log(`Retrieved leaderboard stats for ${playerStats.length} players`);
-    
+
     // Check if any players have 0 winrate
     const zeroWinratePlayers = playerStats.filter(p => p.winrate === 0);
     console.log(`Players with 0% winrate: ${zeroWinratePlayers.length}`);
-    
+
     // Check if any players have actual winrate data
     const nonZeroWinratePlayers = playerStats.filter(p => p.winrate > 0);
     console.log(`Players with >0% winrate: ${nonZeroWinratePlayers.length}`);
-    
+
     if (nonZeroWinratePlayers.length > 0) {
       console.log(`Sample winrates:`, nonZeroWinratePlayers.slice(0, 3).map(p => `${p.username}: ${p.winrate}%`));
     }
-    
+
     return playerStats;
 
   } finally {
@@ -1851,7 +1851,7 @@ export async function getPlayerLeaderboardStats(): Promise<PlayerLeaderboardStat
 // Helper function to get map statistics by game mode
 export async function getMapStats(): Promise<{ wingman: { mapId: string; gamesPlayed: number; totalRounds: number }[], threev3: { mapId: string; gamesPlayed: number; totalRounds: number }[], fivev5: { mapId: string; gamesPlayed: number; totalRounds: number }[] }> {
   const connection = await getDatabaseConnection();
-  
+
   try {
     // First, get all completed games with their map IDs and match numbers
     const gamesQuery = `
@@ -1871,7 +1871,7 @@ export async function getMapStats(): Promise<{ wingman: { mapId: string; gamesPl
 
     // Get match numbers for rounds lookup
     const matchNumbers = (games as any[]).map(game => game.match_number);
-    
+
     if (matchNumbers.length === 0) {
       console.log('No completed games found, returning empty results');
       return { wingman: [], threev3: [], fivev5: [] };
@@ -1898,7 +1898,7 @@ export async function getMapStats(): Promise<{ wingman: { mapId: string; gamesPl
 
     // Process games data to aggregate by map and game mode
     const mapStatsMap = new Map();
-    
+
     (games as any[]).forEach(game => {
       const mapId = game.map;
       const gameMode = game.game_mode;
@@ -1906,7 +1906,7 @@ export async function getMapStats(): Promise<{ wingman: { mapId: string; gamesPl
       const totalRounds = roundsMap.get(matchNumber) || 0;
 
       const key = `${mapId}_${gameMode}`;
-      
+
       if (!mapStatsMap.has(key)) {
         mapStatsMap.set(key, {
           mapId,
@@ -1924,10 +1924,10 @@ export async function getMapStats(): Promise<{ wingman: { mapId: string; gamesPl
     console.log(`Processed ${mapStatsMap.size} unique map-gamemode combinations`);
 
     // Group by game mode - return just mapId, gamesPlayed, totalRounds for now
-    const result: { 
-      wingman: { mapId: string; gamesPlayed: number; totalRounds: number }[], 
-      threev3: { mapId: string; gamesPlayed: number; totalRounds: number }[], 
-      fivev5: { mapId: string; gamesPlayed: number; totalRounds: number }[] 
+    const result: {
+      wingman: { mapId: string; gamesPlayed: number; totalRounds: number }[],
+      threev3: { mapId: string; gamesPlayed: number; totalRounds: number }[],
+      fivev5: { mapId: string; gamesPlayed: number; totalRounds: number }[]
     } = {
       wingman: [],
       threev3: [],
@@ -1978,10 +1978,10 @@ function jsDateToMySQLDate(date: Date): string {
 // Get all completed games with their players for ELO recalculation
 export async function getAllCompletedGamesWithPlayers(): Promise<CompletedGameWithPlayers[]> {
   const connection = await getDatabaseConnection();
-  
+
   try {
     console.log('Getting all completed games with players and match results for ELO recalculation...');
-    
+
     // Query to get all completed games with their players, team assignments, and match results
     const query = `
       SELECT 
@@ -2026,10 +2026,10 @@ export async function getAllCompletedGamesWithPlayers(): Promise<CompletedGameWi
 
     // Group the results by match number (not game_id, as we want unique matches)
     const gamesMap = new Map<string, CompletedGameWithPlayers>();
-    
+
     for (const row of rows as any[]) {
       const matchNumber = row.match_number;
-      
+
       if (!gamesMap.has(matchNumber)) {
         gamesMap.set(matchNumber, {
           gameId: row.game_id,
@@ -2055,15 +2055,15 @@ export async function getAllCompletedGamesWithPlayers(): Promise<CompletedGameWi
 
     const completedGames = Array.from(gamesMap.values());
     console.log(`Processed ${completedGames.length} unique completed games with match results`);
-    
+
     // Log some statistics
     const totalPlayers = completedGames.reduce((sum, game) => sum + game.players.length, 0);
     const uniquePlayers = new Set(completedGames.flatMap(game => game.players.map(p => p.steamId)));
-    
+
     console.log(`Total player-game combinations: ${totalPlayers}`);
     console.log(`Unique players involved: ${uniquePlayers.size}`);
     console.log(`Games with decisive results: ${completedGames.filter(g => g.team1Score !== g.team2Score).length}`);
-    
+
     return completedGames;
   } finally {
     await connection.end();
@@ -2076,12 +2076,12 @@ export async function getUserProfileStats(steamId: string): Promise<any[]> {
   if (!steamId || typeof steamId !== 'string' || !/^\d+$/.test(steamId)) {
     throw new Error('Invalid Steam ID: must be a string containing only numbers');
   }
-  
+
   const connection = await getDatabaseConnection();
-  
+
   try {
     console.log(`Getting profile stats for Steam ID: ${steamId}`);
-    
+
     // Query to get all completed game stats for a specific player
     const query = `
       SELECT 
@@ -2134,17 +2134,17 @@ export async function getUserProfileStats(steamId: string): Promise<any[]> {
     `;
 
     const rows = await executeQuery(connection, query, [steamId]);
-    
+
     console.log(`Found ${rows.length} completed games for Steam ID: ${steamId}`);
-    
+
     // Enrich results with map information
     const steamApiKey = await getParameterValue('/unencrypted/SteamApiKey');
     const enrichedRows = [];
     const mapInfoCache = new Map<string, any>(); // Cache to avoid duplicate API calls
-    
+
     for (const row of rows) {
       const enrichedRow = { ...row };
-      
+
       if (row.map_id && !mapInfoCache.has(row.map_id)) {
         try {
           const mapInfo = await getWorkshopMapInfo(row.map_id, steamApiKey);
@@ -2170,7 +2170,7 @@ export async function getUserProfileStats(steamId: string): Promise<any[]> {
           });
         }
       }
-      
+
       // Add map info to the row
       const mapInfo = mapInfoCache.get(row.map_id);
       if (mapInfo) {
@@ -2178,14 +2178,232 @@ export async function getUserProfileStats(steamId: string): Promise<any[]> {
         enrichedRow.mapThumbnailUrl = mapInfo.mapThumbnailUrl;
         enrichedRow.mapWorkshopUrl = mapInfo.mapWorkshopUrl;
       }
-      
+
       enrichedRows.push(enrichedRow);
     }
-    
+
     // Return the enriched game stats
     return enrichedRows;
-    
+
   } finally {
     await connection.end();
+  }
+}
+
+// ===== MATCH STATS API FUNCTIONS (for game server integration) =====
+
+import {
+  InitMatchRequest,
+  PlayerStatsUpdate,
+  EndMapRequest,
+  EndMatchRequest
+} from '../types';
+
+/**
+ * Initialize a new match in squidcup_stats_matches table
+ * Also creates the initial map record in squidcup_stats_maps
+ */
+export async function initMatchStats(data: InitMatchRequest): Promise<number> {
+  const connection = await getDatabaseConnection();
+  const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
+
+  try {
+    // Insert match record
+    const matchResult = await executeQuery(
+      connection,
+      `INSERT INTO squidcup_stats_matches 
+       (start_time, winner, series_type, team1_name, team1_score, team2_name, team2_score, server_ip)
+       VALUES (?, '', ?, ?, 0, ?, 0, ?)`,
+      [now, data.seriesType, data.team1Name, data.team2Name, data.serverIp]
+    );
+
+    const matchId = matchResult.insertId;
+
+    // Insert initial map record
+    await executeQuery(
+      connection,
+      `INSERT INTO squidcup_stats_maps 
+       (matchid, mapnumber, start_time, winner, mapname, team1_score, team2_score)
+       VALUES (?, ?, ?, '', ?, 0, 0)`,
+      [matchId, data.mapNumber, now, data.mapName]
+    );
+
+    console.log(`Initialized match ${matchId} with map ${data.mapNumber} (${data.mapName})`);
+    return matchId;
+  } catch (error) {
+    console.error('Error initializing match stats:', error);
+    throw error;
+  }
+}
+
+/**
+ * Initialize a map record (for multi-map series)
+ */
+export async function initMapStats(matchId: number, mapNumber: number, mapName: string): Promise<void> {
+  const connection = await getDatabaseConnection();
+  const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
+
+  try {
+    await executeQuery(
+      connection,
+      `INSERT INTO squidcup_stats_maps 
+       (matchid, mapnumber, start_time, winner, mapname, team1_score, team2_score)
+       VALUES (?, ?, ?, '', ?, 0, 0)
+       ON DUPLICATE KEY UPDATE 
+       start_time = VALUES(start_time), mapname = VALUES(mapname)`,
+      [matchId, mapNumber, now, mapName]
+    );
+
+    console.log(`Initialized map ${mapNumber} (${mapName}) for match ${matchId}`);
+  } catch (error) {
+    console.error('Error initializing map stats:', error);
+    throw error;
+  }
+}
+
+/**
+ * Insert or update player stats for a specific match/map
+ */
+export async function upsertPlayerStats(
+  matchId: number,
+  mapNumber: number,
+  players: PlayerStatsUpdate[]
+): Promise<number> {
+  const connection = await getDatabaseConnection();
+  let updatedCount = 0;
+
+  try {
+    for (const player of players) {
+      await executeQuery(
+        connection,
+        `INSERT INTO squidcup_stats_players 
+         (matchid, mapnumber, steamid64, team, name, kills, deaths, damage, assists,
+          enemy5ks, enemy4ks, enemy3ks, enemy2ks, utility_count, utility_damage,
+          utility_successes, utility_enemies, flash_count, flash_successes,
+          health_points_removed_total, health_points_dealt_total, shots_fired_total,
+          shots_on_target_total, v1_count, v1_wins, v2_count, v2_wins, entry_count,
+          entry_wins, equipment_value, money_saved, kill_reward, live_time,
+          head_shot_kills, cash_earned, enemies_flashed)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         ON DUPLICATE KEY UPDATE
+         team = VALUES(team), name = VALUES(name), kills = VALUES(kills), deaths = VALUES(deaths),
+         damage = VALUES(damage), assists = VALUES(assists), enemy5ks = VALUES(enemy5ks),
+         enemy4ks = VALUES(enemy4ks), enemy3ks = VALUES(enemy3ks), enemy2ks = VALUES(enemy2ks),
+         utility_count = VALUES(utility_count), utility_damage = VALUES(utility_damage),
+         utility_successes = VALUES(utility_successes), utility_enemies = VALUES(utility_enemies),
+         flash_count = VALUES(flash_count), flash_successes = VALUES(flash_successes),
+         health_points_removed_total = VALUES(health_points_removed_total),
+         health_points_dealt_total = VALUES(health_points_dealt_total),
+         shots_fired_total = VALUES(shots_fired_total), shots_on_target_total = VALUES(shots_on_target_total),
+         v1_count = VALUES(v1_count), v1_wins = VALUES(v1_wins), v2_count = VALUES(v2_count),
+         v2_wins = VALUES(v2_wins), entry_count = VALUES(entry_count), entry_wins = VALUES(entry_wins),
+         equipment_value = VALUES(equipment_value), money_saved = VALUES(money_saved),
+         kill_reward = VALUES(kill_reward), live_time = VALUES(live_time),
+         head_shot_kills = VALUES(head_shot_kills), cash_earned = VALUES(cash_earned),
+         enemies_flashed = VALUES(enemies_flashed)`,
+        [
+          matchId, mapNumber, player.steamId64, player.team, player.name,
+          player.kills, player.deaths, player.damage, player.assists,
+          player.enemy5ks, player.enemy4ks, player.enemy3ks, player.enemy2ks,
+          player.utilityCount, player.utilityDamage, player.utilitySuccesses, player.utilityEnemies,
+          player.flashCount, player.flashSuccesses, player.healthPointsRemovedTotal,
+          player.healthPointsDealtTotal, player.shotsFiredTotal, player.shotsOnTargetTotal,
+          player.v1Count, player.v1Wins, player.v2Count, player.v2Wins,
+          player.entryCount, player.entryWins, player.equipmentValue, player.moneySaved,
+          player.killReward, player.liveTime, player.headShotKills, player.cashEarned,
+          player.enemiesFlashed
+        ]
+      );
+      updatedCount++;
+    }
+
+    console.log(`Updated ${updatedCount} player stats for match ${matchId}, map ${mapNumber}`);
+    return updatedCount;
+  } catch (error) {
+    console.error('Error upserting player stats:', error);
+    throw error;
+  }
+}
+
+/**
+ * Update map scores (called every round)
+ */
+export async function updateMapScores(
+  matchId: number,
+  mapNumber: number,
+  team1Score: number,
+  team2Score: number
+): Promise<void> {
+  const connection = await getDatabaseConnection();
+
+  try {
+    await executeQuery(
+      connection,
+      `UPDATE squidcup_stats_maps 
+       SET team1_score = ?, team2_score = ?
+       WHERE matchid = ? AND mapnumber = ?`,
+      [team1Score, team2Score, matchId, mapNumber]
+    );
+
+    console.log(`Updated map scores for match ${matchId}, map ${mapNumber}: ${team1Score}-${team2Score}`);
+  } catch (error) {
+    console.error('Error updating map scores:', error);
+    throw error;
+  }
+}
+
+/**
+ * Finalize a map with winner and end time
+ */
+export async function finalizeMap(matchId: number, mapNumber: number, data: EndMapRequest): Promise<void> {
+  const connection = await getDatabaseConnection();
+  const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
+
+  try {
+    // Update map record
+    await executeQuery(
+      connection,
+      `UPDATE squidcup_stats_maps 
+       SET end_time = ?, winner = ?, team1_score = ?, team2_score = ?
+       WHERE matchid = ? AND mapnumber = ?`,
+      [now, data.winnerName, data.team1Score, data.team2Score, matchId, mapNumber]
+    );
+
+    // Update match series scores
+    await executeQuery(
+      connection,
+      `UPDATE squidcup_stats_matches 
+       SET team1_score = ?, team2_score = ?
+       WHERE matchid = ?`,
+      [data.team1SeriesScore, data.team2SeriesScore, matchId]
+    );
+
+    console.log(`Finalized map ${mapNumber} for match ${matchId}: winner=${data.winnerName}`);
+  } catch (error) {
+    console.error('Error finalizing map:', error);
+    throw error;
+  }
+}
+
+/**
+ * Finalize a match with winner and end time
+ */
+export async function finalizeMatch(matchId: number, data: EndMatchRequest): Promise<void> {
+  const connection = await getDatabaseConnection();
+  const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
+
+  try {
+    await executeQuery(
+      connection,
+      `UPDATE squidcup_stats_matches 
+       SET end_time = ?, winner = ?, team1_score = ?, team2_score = ?
+       WHERE matchid = ?`,
+      [now, data.winnerName, data.team1Score, data.team2Score, matchId]
+    );
+
+    console.log(`Finalized match ${matchId}: winner=${data.winnerName}, score=${data.team1Score}-${data.team2Score}`);
+  } catch (error) {
+    console.error('Error finalizing match:', error);
+    throw error;
   }
 }

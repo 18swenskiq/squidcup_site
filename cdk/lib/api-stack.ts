@@ -35,9 +35,9 @@ export class ApiStack extends cdk.Stack {
       bundling: {
         minify: true,
         command: [
-        'bash', '-c', 
-        'pwd && npm install && ls'
-      ],
+          'bash', '-c',
+          'pwd && npm install && ls'
+        ],
       },
     });
 
@@ -403,6 +403,83 @@ export class ApiStack extends cdk.Stack {
       }
     });
 
+    // ===== GAME SERVER API LAMBDAS (IP-based auth) =====
+
+    const initMatchFunction = new NodejsFunction(this, "init-match-function", {
+      runtime: this.RUNTIME,
+      memorySize: this.MEMORY_SIZE,
+      timeout: this.TIMEOUT,
+      handler: 'index.handler',
+      code: lambda.Code.fromAsset(path.join(__dirname, '/../src/init-match-lambda')),
+      logRetention: this.LOG_RETENTION,
+      environment: {
+        REGION: this.REGION,
+      },
+      bundling: {
+        minify: true,
+      }
+    });
+
+    const updatePlayerStatsFunction = new NodejsFunction(this, "update-player-stats-function", {
+      runtime: this.RUNTIME,
+      memorySize: this.MEMORY_SIZE,
+      timeout: this.TIMEOUT,
+      handler: 'index.handler',
+      code: lambda.Code.fromAsset(path.join(__dirname, '/../src/update-player-stats-lambda')),
+      logRetention: this.LOG_RETENTION,
+      environment: {
+        REGION: this.REGION,
+      },
+      bundling: {
+        minify: true,
+      }
+    });
+
+    const updateMapScoresFunction = new NodejsFunction(this, "update-map-scores-function", {
+      runtime: this.RUNTIME,
+      memorySize: this.MEMORY_SIZE,
+      timeout: this.TIMEOUT,
+      handler: 'index.handler',
+      code: lambda.Code.fromAsset(path.join(__dirname, '/../src/update-map-scores-lambda')),
+      logRetention: this.LOG_RETENTION,
+      environment: {
+        REGION: this.REGION,
+      },
+      bundling: {
+        minify: true,
+      }
+    });
+
+    const endMapFunction = new NodejsFunction(this, "end-map-function", {
+      runtime: this.RUNTIME,
+      memorySize: this.MEMORY_SIZE,
+      timeout: this.TIMEOUT,
+      handler: 'index.handler',
+      code: lambda.Code.fromAsset(path.join(__dirname, '/../src/end-map-lambda')),
+      logRetention: this.LOG_RETENTION,
+      environment: {
+        REGION: this.REGION,
+      },
+      bundling: {
+        minify: true,
+      }
+    });
+
+    const finalizeMatchFunction = new NodejsFunction(this, "finalize-match-function", {
+      runtime: this.RUNTIME,
+      memorySize: this.MEMORY_SIZE,
+      timeout: this.TIMEOUT,
+      handler: 'index.handler',
+      code: lambda.Code.fromAsset(path.join(__dirname, '/../src/finalize-match-lambda')),
+      logRetention: this.LOG_RETENTION,
+      environment: {
+        REGION: this.REGION,
+      },
+      bundling: {
+        minify: true,
+      }
+    });
+
     // Create an SSM parameter access policy
     const ssmPolicy = new iam.PolicyStatement({
       actions: ['ssm:GetParameter'],
@@ -435,18 +512,24 @@ export class ApiStack extends cdk.Stack {
     getMapStatsFunction.addToRolePolicy(ssmPolicy);
     getUserProfileStatsFunction.addToRolePolicy(ssmPolicy);
     recalculateAllEloFunction.addToRolePolicy(ssmPolicy);
+    // Game server API lambdas
+    initMatchFunction.addToRolePolicy(ssmPolicy);
+    updatePlayerStatsFunction.addToRolePolicy(ssmPolicy);
+    updateMapScoresFunction.addToRolePolicy(ssmPolicy);
+    endMapFunction.addToRolePolicy(ssmPolicy);
+    finalizeMatchFunction.addToRolePolicy(ssmPolicy);
 
     // Grant Lambda invoke permissions for lobby system
     createLobbyFunction.grantInvoke(joinQueueFunction); // Allow join-queue to invoke create-lobby
     // Note: setupServerFunction.grantInvoke(selectMapFunction) removed - using explicit policy instead
-    
+
     // Add explicit Lambda invoke permissions for select-map to invoke setup-server
     const lambdaInvokePolicy = new iam.PolicyStatement({
       actions: ['lambda:InvokeFunction'],
       resources: [setupServerFunction.functionArn],
     });
     selectMapFunction.addToRolePolicy(lambdaInvokePolicy);
-    
+
     // Create S3 bucket for game configuration files
     const gameConfigsBucket = new s3.Bucket(this, 'squidcup-game-configs', {
       bucketName: 'squidcup-game-configs',
@@ -469,7 +552,7 @@ export class ApiStack extends cdk.Stack {
 
     // Add S3 bucket name as environment variable for setup-server-lambda
     setupServerFunction.addEnvironment('GAME_CONFIGS_BUCKET', gameConfigsBucket.bucketName);
-    
+
     // Grant database service invoke permissions to all lambdas that need it
     // All lambdas now use shared-lambda-utils directly
     // Note: We'll add more functions here as we convert them
@@ -510,7 +593,7 @@ export class ApiStack extends cdk.Stack {
       // Remove global CORS to avoid conflicts with Steam OpenID
       cloudWatchRole: true, // Auto-create CloudWatch role for API Gateway
     });
-    
+
     // Add a resource for /maps endpoint
     const mapsResource = api.root.addResource('maps');
     mapsResource.addMethod('GET', new apigw.LambdaIntegration(getMapsFunction), {
@@ -523,7 +606,7 @@ export class ApiStack extends cdk.Stack {
         },
       }]
     });
-    
+
     // Add OPTIONS method for maps endpoint
     mapsResource.addMethod('OPTIONS', new apigw.MockIntegration({
       integrationResponses: [{
@@ -547,7 +630,7 @@ export class ApiStack extends cdk.Stack {
         },
       }]
     });
-    
+
     // Add a resource for /servers endpoint
     const serversResource = api.root.addResource('servers');
     serversResource.addMethod('GET', new apigw.LambdaIntegration(getServersFunction), {
@@ -560,10 +643,10 @@ export class ApiStack extends cdk.Stack {
         },
       }]
     });
-    
+
     // Add servers/{id} resource for PUT operations
     const serverIdResource = serversResource.addResource('{id}');
-    
+
     // Add PUT method for servers/{id} endpoint (admin only)
     serverIdResource.addMethod('PUT', new apigw.LambdaIntegration(getServersFunction), {
       methodResponses: [{
@@ -585,7 +668,7 @@ export class ApiStack extends cdk.Stack {
         },
       }]
     });
-    
+
     // Add OPTIONS method for servers endpoint
     serversResource.addMethod('OPTIONS', new apigw.MockIntegration({
       integrationResponses: [{
@@ -609,7 +692,7 @@ export class ApiStack extends cdk.Stack {
         },
       }]
     });
-    
+
     // Add OPTIONS method for servers/{id} endpoint
     serverIdResource.addMethod('OPTIONS', new apigw.MockIntegration({
       integrationResponses: [{
@@ -637,7 +720,7 @@ export class ApiStack extends cdk.Stack {
     // Add a resource for /auth endpoint with Steam login/logout
     const authResource = api.root.addResource('auth');
     const steamResource = authResource.addResource('steam');
-    
+
     // Steam login endpoint - redirects to Steam OAuth (no CORS needed)
     steamResource.addMethod('GET', new apigw.LambdaIntegration(steamLoginFunction), {
       methodResponses: [{
@@ -657,7 +740,7 @@ export class ApiStack extends cdk.Stack {
         'method.request.header.X-Forwarded-For': false,
       }
     });
-    
+
     // Steam callback endpoint - handles OAuth callback (no CORS needed)
     const callbackResource = steamResource.addResource('callback');
     callbackResource.addMethod('GET', new apigw.LambdaIntegration(steamLoginFunction), {
@@ -683,7 +766,7 @@ export class ApiStack extends cdk.Stack {
         'method.request.querystring.openid.claimed_id': false,
       }
     });
-    
+
     // Logout endpoint (needs CORS for frontend calls)
     const logoutResource = authResource.addResource('logout');
     logoutResource.addMethod('POST', new apigw.LambdaIntegration(steamLoginFunction), {
@@ -696,7 +779,7 @@ export class ApiStack extends cdk.Stack {
         },
       }]
     });
-    
+
     // Add OPTIONS method for logout endpoint
     logoutResource.addMethod('OPTIONS', new apigw.MockIntegration({
       integrationResponses: [{
@@ -740,7 +823,7 @@ export class ApiStack extends cdk.Stack {
         },
       }]
     });
-    
+
     // Add OPTIONS method for profile endpoint
     profileResource.addMethod('OPTIONS', new apigw.MockIntegration({
       integrationResponses: [{
@@ -792,7 +875,7 @@ export class ApiStack extends cdk.Stack {
         },
       }]
     });
-    
+
     // Add OPTIONS method for addServer endpoint
     addServerResource.addMethod('OPTIONS', new apigw.MockIntegration({
       integrationResponses: [{
@@ -844,7 +927,7 @@ export class ApiStack extends cdk.Stack {
         },
       }]
     });
-    
+
     // Add OPTIONS method for setupServer endpoint
     setupServerResource.addMethod('OPTIONS', new apigw.MockIntegration({
       integrationResponses: [{
@@ -897,7 +980,7 @@ export class ApiStack extends cdk.Stack {
         },
       }]
     });
-    
+
     // Add OPTIONS method for deleteServer/{id} endpoint
     deleteServerIdResource.addMethod('OPTIONS', new apigw.MockIntegration({
       integrationResponses: [{
@@ -949,7 +1032,7 @@ export class ApiStack extends cdk.Stack {
         },
       }]
     });
-    
+
     // Add OPTIONS method for startQueue endpoint
     startQueueResource.addMethod('OPTIONS', new apigw.MockIntegration({
       integrationResponses: [{
@@ -996,7 +1079,7 @@ export class ApiStack extends cdk.Stack {
         },
       }]
     });
-    
+
     // Add OPTIONS method for userQueue endpoint
     userQueueResource.addMethod('OPTIONS', new apigw.MockIntegration({
       integrationResponses: [{
@@ -1048,7 +1131,7 @@ export class ApiStack extends cdk.Stack {
         },
       }]
     });
-    
+
     // Add OPTIONS method for allQueues endpoint
     allQueuesResource.addMethod('OPTIONS', new apigw.MockIntegration({
       integrationResponses: [{
@@ -1100,7 +1183,7 @@ export class ApiStack extends cdk.Stack {
         },
       }]
     });
-    
+
     // Add OPTIONS method for leaveQueue endpoint
     leaveQueueResource.addMethod('OPTIONS', new apigw.MockIntegration({
       integrationResponses: [{
@@ -1157,7 +1240,7 @@ export class ApiStack extends cdk.Stack {
         },
       }]
     });
-    
+
     // Add OPTIONS method for joinQueue endpoint
     joinQueueResource.addMethod('OPTIONS', new apigw.MockIntegration({
       integrationResponses: [{
@@ -1204,7 +1287,7 @@ export class ApiStack extends cdk.Stack {
         },
       }]
     });
-    
+
     // Add OPTIONS method for queueHistory endpoint
     queueHistoryResource.addMethod('OPTIONS', new apigw.MockIntegration({
       integrationResponses: [{
@@ -1246,7 +1329,7 @@ export class ApiStack extends cdk.Stack {
         },
       }]
     });
-    
+
     // Add OPTIONS method for activeQueues endpoint
     activeQueuesResource.addMethod('OPTIONS', new apigw.MockIntegration({
       integrationResponses: [{
@@ -1272,7 +1355,7 @@ export class ApiStack extends cdk.Stack {
     });
 
     // ==================== LOBBY ENDPOINTS ====================
-    
+
     // Add /leaveLobby endpoint
     const leaveLobbyResource = api.root.addResource('leaveLobby');
     leaveLobbyResource.addMethod('DELETE', new apigw.LambdaIntegration(leaveLobbyFunction), {
@@ -1724,6 +1807,107 @@ export class ApiStack extends cdk.Stack {
           'method.response.header.Access-Control-Allow-Headers': true,
           'method.response.header.Access-Control-Allow-Methods': true,
         },
+      }]
+    });
+
+    // ===== GAME SERVER API ROUTES (IP-based auth, no CORS needed) =====
+
+    // /api resource
+    const apiResource = api.root.addResource('api');
+
+    // /api/matches resource
+    const matchesResource = apiResource.addResource('matches');
+
+    // POST /api/matches - Initialize match
+    matchesResource.addMethod('POST', new apigw.LambdaIntegration(initMatchFunction), {
+      methodResponses: [{
+        statusCode: '200',
+        responseParameters: {
+          'method.response.header.Content-Type': true,
+        },
+      }, {
+        statusCode: '400',
+      }, {
+        statusCode: '403',
+      }, {
+        statusCode: '500',
+      }]
+    });
+
+    // /api/matches/{matchId} resource
+    const matchIdResource = matchesResource.addResource('{matchId}');
+
+    // POST /api/matches/{matchId}/end - Finalize match
+    const matchEndResource = matchIdResource.addResource('end');
+    matchEndResource.addMethod('POST', new apigw.LambdaIntegration(finalizeMatchFunction), {
+      methodResponses: [{
+        statusCode: '200',
+        responseParameters: {
+          'method.response.header.Content-Type': true,
+        },
+      }, {
+        statusCode: '400',
+      }, {
+        statusCode: '403',
+      }, {
+        statusCode: '500',
+      }]
+    });
+
+    // /api/matches/{matchId}/maps resource
+    const mapsResourceForMatch = matchIdResource.addResource('maps');
+
+    // /api/matches/{matchId}/maps/{mapNumber} resource
+    const mapNumberResource = mapsResourceForMatch.addResource('{mapNumber}');
+
+    // PUT /api/matches/{matchId}/maps/{mapNumber}/players - Update player stats
+    const playersStatsResource = mapNumberResource.addResource('players');
+    playersStatsResource.addMethod('PUT', new apigw.LambdaIntegration(updatePlayerStatsFunction), {
+      methodResponses: [{
+        statusCode: '200',
+        responseParameters: {
+          'method.response.header.Content-Type': true,
+        },
+      }, {
+        statusCode: '400',
+      }, {
+        statusCode: '403',
+      }, {
+        statusCode: '500',
+      }]
+    });
+
+    // PUT /api/matches/{matchId}/maps/{mapNumber}/scores - Update map scores
+    const scoresResource = mapNumberResource.addResource('scores');
+    scoresResource.addMethod('PUT', new apigw.LambdaIntegration(updateMapScoresFunction), {
+      methodResponses: [{
+        statusCode: '200',
+        responseParameters: {
+          'method.response.header.Content-Type': true,
+        },
+      }, {
+        statusCode: '400',
+      }, {
+        statusCode: '403',
+      }, {
+        statusCode: '500',
+      }]
+    });
+
+    // POST /api/matches/{matchId}/maps/{mapNumber}/end - Finalize map
+    const mapEndResource = mapNumberResource.addResource('end');
+    mapEndResource.addMethod('POST', new apigw.LambdaIntegration(endMapFunction), {
+      methodResponses: [{
+        statusCode: '200',
+        responseParameters: {
+          'method.response.header.Content-Type': true,
+        },
+      }, {
+        statusCode: '400',
+      }, {
+        statusCode: '403',
+      }, {
+        statusCode: '500',
       }]
     });
 

@@ -622,3 +622,80 @@ export interface CompletedGameWithPlayers {
     playerName?: string;
   }[];
 }
+
+// ===== MATCH STATS API TYPES (for game server integration) =====
+
+export interface InitMatchRequest {
+  matchId?: number;        // Optional: pre-assigned match ID
+  team1Name: string;
+  team2Name: string;
+  serverIp: string;
+  seriesType: string;      // "BO1", "BO3", etc.
+  mapNumber: number;
+  mapName: string;
+}
+
+export interface PlayerStatsUpdate {
+  steamId64: number;
+  team: string;
+  name: string;
+  kills: number;
+  deaths: number;
+  damage: number;
+  assists: number;
+  enemy5ks: number;
+  enemy4ks: number;
+  enemy3ks: number;
+  enemy2ks: number;
+  utilityCount: number;
+  utilityDamage: number;
+  utilitySuccesses: number;
+  utilityEnemies: number;
+  flashCount: number;
+  flashSuccesses: number;
+  healthPointsRemovedTotal: number;
+  healthPointsDealtTotal: number;
+  shotsFiredTotal: number;
+  shotsOnTargetTotal: number;
+  v1Count: number;
+  v1Wins: number;
+  v2Count: number;
+  v2Wins: number;
+  entryCount: number;
+  entryWins: number;
+  equipmentValue: number;
+  moneySaved: number;
+  killReward: number;
+  liveTime: number;
+  headShotKills: number;
+  cashEarned: number;
+  enemiesFlashed: number;
+}
+
+export interface UpdatePlayersRequest {
+  players: PlayerStatsUpdate[];
+}
+
+export interface UpdateMapScoresRequest {
+  team1Score: number;
+  team2Score: number;
+}
+
+export interface EndMapRequest {
+  winnerName: string;
+  team1Score: number;
+  team2Score: number;
+  team1SeriesScore: number;
+  team2SeriesScore: number;
+}
+
+export interface EndMatchRequest {
+  winnerName: string;
+  team1Score: number;
+  team2Score: number;
+}
+
+export interface ServerAuthResult {
+  authorized: boolean;
+  serverId?: string;
+}
