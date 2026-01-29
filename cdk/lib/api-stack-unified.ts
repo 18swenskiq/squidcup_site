@@ -310,18 +310,18 @@ export class ApiStackUnified extends cdk.Stack {
         // STATS ROUTES
         // ========================================================================
 
-        const leaderboardResource = api.root.addResource('leaderboard');
-        leaderboardResource.addMethod('GET', lambdaIntegration, { methodResponses: methodResponsesCors });
-        addCorsOptions(leaderboardResource, 'GET,OPTIONS');
+        const playerLeaderboardStatsResource = api.root.addResource('playerLeaderboardStats');
+        playerLeaderboardStatsResource.addMethod('GET', lambdaIntegration, { methodResponses: methodResponsesCors });
+        addCorsOptions(playerLeaderboardStatsResource, 'GET,OPTIONS');
 
         const mapStatsResource = api.root.addResource('mapStats');
         mapStatsResource.addMethod('GET', lambdaIntegration, { methodResponses: methodResponsesCors });
         addCorsOptions(mapStatsResource, 'GET,OPTIONS');
 
-        const playerStatsResource = api.root.addResource('playerStats');
-        const playerStatsSteamIdResource = playerStatsResource.addResource('{steamId}');
-        playerStatsSteamIdResource.addMethod('GET', lambdaIntegration, { methodResponses: methodResponsesCors });
-        addCorsOptions(playerStatsSteamIdResource, 'GET,OPTIONS');
+        const userProfileStatsResource = api.root.addResource('userProfileStats');
+        const userProfileStatsSteamIdResource = userProfileStatsResource.addResource('{steamId}');
+        userProfileStatsSteamIdResource.addMethod('GET', lambdaIntegration, { methodResponses: methodResponsesCors });
+        addCorsOptions(userProfileStatsSteamIdResource, 'GET,OPTIONS');
 
         // ========================================================================
         // ADMIN ROUTES

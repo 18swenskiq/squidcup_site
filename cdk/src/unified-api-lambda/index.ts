@@ -79,9 +79,9 @@ export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayPr
             return handleGameServerApi(event);
         }
 
-        // Stats routes: /leaderboard, /mapStats, /playerStats
-        if (path === '/leaderboard' || path === '/mapStats' ||
-            path.startsWith('/playerStats')) {
+        // Stats routes: /playerLeaderboardStats, /mapStats, /userProfileStats
+        if (path === '/playerLeaderboardStats' || path === '/mapStats' ||
+            path.startsWith('/userProfileStats')) {
             return handleStats(event);
         }
 

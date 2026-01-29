@@ -2,9 +2,9 @@
  * Stats Routes
  * 
  * Routes:
- * - GET /leaderboard - Get ELO leaderboard
+ * - GET /playerLeaderboardStats - Get ELO leaderboard
  * - GET /mapStats - Get map statistics
- * - GET /playerStats/{steamId} - Get player statistics
+ * - GET /userProfileStats/{steamId} - Get player statistics
  */
 
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
@@ -20,7 +20,7 @@ export async function handleStats(event: APIGatewayProxyEvent): Promise<APIGatew
     const method = event.httpMethod;
 
     try {
-        if (method === 'GET' && path === '/leaderboard') {
+        if (method === 'GET' && path === '/playerLeaderboardStats') {
             return await handleGetLeaderboard(event);
         }
 
@@ -28,7 +28,7 @@ export async function handleStats(event: APIGatewayProxyEvent): Promise<APIGatew
             return await handleGetMapStats(event);
         }
 
-        if (method === 'GET' && path.startsWith('/playerStats/')) {
+        if (method === 'GET' && path.startsWith('/userProfileStats/')) {
             const steamId = path.split('/')[2];
             return await handleGetPlayerStats(event, steamId);
         }
