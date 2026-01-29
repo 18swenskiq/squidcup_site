@@ -123,8 +123,18 @@ export class ApiStackUnified extends cdk.Stack {
         });
 
         // Lambda integration with proxy enabled
+        // IMPORTANT: We use a single wildcard permission to avoid exceeding the 20KB Lambda policy limit
+        // Setting allowTestInvoke: false prevents CDK from creating per-route permissions
         const lambdaIntegration = new apigw.LambdaIntegration(unifiedApiFunction, {
             proxy: true,
+            allowTestInvoke: false, // Prevents automatic permission per route
+        });
+
+        // Add a single permission for the API Gateway to invoke the Lambda
+        // This replaces the individual permissions that would otherwise be created per-route
+        unifiedApiFunction.addPermission('ApiGatewayInvoke', {
+            principal: new iam.ServicePrincipal('apigateway.amazonaws.com'),
+            sourceArn: api.arnForExecuteApi('*', '/*', '*'),
         });
 
         // Standard method response parameters for CORS - all status codes need consistent headers
