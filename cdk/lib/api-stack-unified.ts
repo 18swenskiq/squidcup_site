@@ -35,8 +35,10 @@ export class ApiStackUnified extends cdk.Stack {
             runtime: this.RUNTIME,
             memorySize: 1024, // Increased memory for handling all routes
             timeout: cdk.Duration.seconds(30), // Increased timeout for complex operations
-            handler: 'handler',
-            entry: path.join(__dirname, '/../src/unified-api-lambda/index.ts'),
+            handler: 'dist/index.handler',
+            code: lambda.Code.fromAsset(path.join(__dirname, '/../src/unified-api-lambda'), {
+                ignoreMode: cdk.IgnoreMode.GLOB,
+            }),
             logRetention: this.LOG_RETENTION,
             environment: {
                 REGION: this.REGION,
