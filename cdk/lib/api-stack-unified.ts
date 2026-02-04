@@ -377,9 +377,10 @@ export class ApiStackUnified extends cdk.Stack {
         // OUTPUTS
         // ========================================================================
 
-        new cdk.CfnOutput(this, 'ApiEndpoint', {
+        new cdk.CfnOutput(this, 'ApiUrl', {
             value: api.url,
             description: 'The URL of the API Gateway',
+            exportName: 'SquidCupApiUrl'
         });
 
         new cdk.CfnOutput(this, 'UnifiedLambdaName', {
