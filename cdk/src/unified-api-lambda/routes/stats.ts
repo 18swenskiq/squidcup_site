@@ -12,7 +12,8 @@ import {
     createCorsHeaders,
     getPlayerLeaderboardStats,
     getMapStats,
-    getUser
+    getUser,
+    getUserProfileStats
 } from '@squidcup/shared-lambda-utils';
 
 export async function handleStats(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
@@ -57,17 +58,38 @@ async function handleGetLeaderboard(event: APIGatewayProxyEvent): Promise<APIGat
     return {
         statusCode: 200,
         headers: createCorsHeaders(),
-        body: JSON.stringify(leaderboard),
+        body: JSON.stringify({
+            players: leaderboard,
+            total: leaderboard.length
+        }),
     };
 }
 
 async function handleGetMapStats(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
     const mapStats = await getMapStats();
 
+    // Map backend response to frontend expectations
+    // Frontend expects: { id, name, totalGames, totalRounds }
+    // Backend returns: { mapId, gamesPlayed, totalRounds }
+
+    // Helper to map array
+    const mapArray = (arr: any[]) => arr.map(m => ({
+        id: m.mapId,
+        name: `Map ${m.mapId}`, // Placeholder as backend doesn't return name in this call
+        totalGames: m.gamesPlayed,
+        totalRounds: m.totalRounds
+    }));
+
+    const response = {
+        wingman: mapArray(mapStats.wingman),
+        threev3: mapArray(mapStats.threev3),
+        fivev5: mapArray(mapStats.fivev5)
+    };
+
     return {
         statusCode: 200,
         headers: createCorsHeaders(),
-        body: JSON.stringify(mapStats),
+        body: JSON.stringify(response),
     };
 }
 
@@ -80,8 +102,11 @@ async function handleGetPlayerStats(event: APIGatewayProxyEvent, steamId: string
         };
     }
 
-    // Get user data as player stats
-    const user = await getUser(steamId);
+    // Get user data and stats in parallel
+    const [user, stats] = await Promise.all([
+        getUser(steamId),
+        getUserProfileStats(steamId)
+    ]);
 
     if (!user) {
         return {
@@ -97,8 +122,11 @@ async function handleGetPlayerStats(event: APIGatewayProxyEvent, steamId: string
         body: JSON.stringify({
             steamId: user.steam_id,
             username: user.username,
+            avatarUrl: user.avatar,
+            countryCode: user.country_code,
+            stateCode: user.state_code,
             currentElo: user.current_elo || 1000,
-            createdAt: user.created_at
+            stats: stats || []
         }),
     };
 }

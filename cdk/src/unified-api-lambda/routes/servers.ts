@@ -89,16 +89,16 @@ async function handleGetServers(event: APIGatewayProxyEvent): Promise<APIGateway
 
     const servers = await getServers(minPlayers);
 
-    const serversResponse: Omit<GameServer, 'rcon_password'>[] = servers.map((server: any) => ({
+    const serversResponse = servers.map((server: any) => ({
         id: server.id,
         ip: server.ip,
         port: server.port,
         location: server.location,
-        default_password: server.default_password || '',
-        max_players: server.max_players,
+        defaultPassword: server.default_password || '',
+        maxPlayers: server.max_players,
         nickname: server.nickname,
-        created_at: server.created_at,
-        updated_at: server.updated_at
+        createdAt: server.created_at,
+        updatedAt: server.updated_at
     }));
 
     return {

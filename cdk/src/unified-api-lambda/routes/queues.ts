@@ -561,10 +561,16 @@ async function handleLeaveQueue(event: APIGatewayProxyEvent): Promise<APIGateway
 async function handleGetActiveQueues(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
     const queues = await getActiveGamesWithDetails();
 
+    const mappedQueues = queues.map((q: any) => ({
+        ...q,
+        host: q.hostName,
+        server: q.serverName
+    }));
+
     return {
         statusCode: 200,
         headers: createCorsHeaders(),
-        body: JSON.stringify(queues),
+        body: JSON.stringify({ queues: mappedQueues }),
     };
 }
 
