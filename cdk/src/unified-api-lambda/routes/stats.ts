@@ -13,7 +13,9 @@ import {
     getPlayerLeaderboardStats,
     getMapStats,
     getUser,
-    getUserProfileStats
+    getUserProfileStats,
+    getSsmParameter,
+    getWorkshopMapInfo
 } from '@squidcup/shared-lambda-utils';
 
 export async function handleStats(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
@@ -68,17 +70,58 @@ async function handleGetLeaderboard(event: APIGatewayProxyEvent): Promise<APIGat
 async function handleGetMapStats(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
     const mapStats = await getMapStats();
 
-    // Map backend response to frontend expectations
-    // Frontend expects: { id, name, totalGames, totalRounds }
-    // Backend returns: { mapId, gamesPlayed, totalRounds }
+    // Collect all unique map IDs across game modes
+    const allMaps = [...mapStats.wingman, ...mapStats.threev3, ...mapStats.fivev5];
+    const uniqueMapIds = [...new Set(allMaps.map(m => m.mapId))];
 
-    // Helper to map array
-    const mapArray = (arr: any[]) => arr.map(m => ({
-        id: m.mapId,
-        name: `Map ${m.mapId}`, // Placeholder as backend doesn't return name in this call
-        totalGames: m.gamesPlayed,
-        totalRounds: m.totalRounds
-    }));
+    // Fetch map names from Steam API (same pattern as getMatchHistory)
+    const mapDetails = new Map<string, { name: string; thumbnailUrl: string }>();
+
+    try {
+        const steamApiKey = await getSsmParameter('/unencrypted/SteamApiKey');
+
+        // Fetch all map details in parallel
+        const mapPromises = uniqueMapIds.map(async (mapId) => {
+            try {
+                const mapInfo = await getWorkshopMapInfo(mapId, steamApiKey);
+                if (mapInfo) {
+                    mapDetails.set(mapId, {
+                        name: mapInfo.name,
+                        thumbnailUrl: mapInfo.thumbnailUrl
+                    });
+                }
+            } catch (error) {
+                console.error(`Failed to fetch map info for ${mapId}:`, error);
+                mapDetails.set(mapId, {
+                    name: `Workshop Map ${mapId}`,
+                    thumbnailUrl: ''
+                });
+            }
+        });
+
+        await Promise.all(mapPromises);
+    } catch (error) {
+        console.error('Failed to fetch Steam API key or map details:', error);
+        // Fallback to placeholder names
+        uniqueMapIds.forEach(mapId => {
+            mapDetails.set(mapId, {
+                name: `Workshop Map ${mapId}`,
+                thumbnailUrl: ''
+            });
+        });
+    }
+
+    // Helper to map array with real names
+    const mapArray = (arr: any[]) => arr.map(m => {
+        const details = mapDetails.get(m.mapId);
+        return {
+            id: m.mapId,
+            name: details?.name || `Workshop Map ${m.mapId}`,
+            thumbnailUrl: details?.thumbnailUrl || '',
+            totalGames: m.gamesPlayed,
+            totalRounds: m.totalRounds
+        };
+    });
 
     const response = {
         wingman: mapArray(mapStats.wingman),

@@ -105,6 +105,9 @@ async function handleGetMatchHistory(event: APIGatewayProxyEvent): Promise<APIGa
     return {
         statusCode: 200,
         headers: createCorsHeaders(),
-        body: JSON.stringify(history),
+        body: JSON.stringify({
+            matches: history,
+            total: history.length
+        }),
     };
 }
