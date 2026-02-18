@@ -87,7 +87,22 @@ async function handleGetServers(event: APIGatewayProxyEvent): Promise<APIGateway
     const gamemode = event?.queryStringParameters?.gamemode;
     const minPlayers = getMaxPlayersForGamemode(gamemode || '');
 
+    console.log(`[Servers] GET /servers - gamemode: ${gamemode}, minPlayers filter: ${minPlayers}`);
+    console.log(`[Servers] Query params:`, JSON.stringify(event.queryStringParameters));
+
     const servers = await getServers(minPlayers);
+
+    console.log(`[Servers] Found ${servers.length} servers`);
+    if (servers.length > 0) {
+        console.log(`[Servers] Server IDs:`, servers.map((s: any) => `${s.id} (max_players=${s.max_players}, nickname=${s.nickname})`).join(', '));
+    }
+
+    // Also fetch ALL servers for comparison (debug)
+    const allServers = await getServers();
+    console.log(`[Servers] Total servers (no filter): ${allServers.length}`);
+    if (allServers.length > 0) {
+        console.log(`[Servers] All server details:`, allServers.map((s: any) => `${s.id} (max_players=${s.max_players}, nickname=${s.nickname})`).join(', '));
+    }
 
     const serversResponse = servers.map((server: any) => ({
         id: server.id,
