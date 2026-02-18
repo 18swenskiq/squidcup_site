@@ -85,7 +85,9 @@ export async function handleServers(event: APIGatewayProxyEvent): Promise<APIGat
 
 async function handleGetServers(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
     const gamemode = event?.queryStringParameters?.gamemode;
-    const minPlayers = getMaxPlayersForGamemode(gamemode || '');
+    // Only apply minPlayers filter when a gamemode is explicitly specified
+    // Without a gamemode, return ALL servers (don't default to 10)
+    const minPlayers = gamemode ? getMaxPlayersForGamemode(gamemode) : undefined;
 
     console.log(`[Servers] GET /servers - gamemode: ${gamemode}, minPlayers filter: ${minPlayers}`);
     console.log(`[Servers] Query params:`, JSON.stringify(event.queryStringParameters));
@@ -94,14 +96,9 @@ async function handleGetServers(event: APIGatewayProxyEvent): Promise<APIGateway
 
     console.log(`[Servers] Found ${servers.length} servers`);
     if (servers.length > 0) {
-        console.log(`[Servers] Server IDs:`, servers.map((s: any) => `${s.id} (max_players=${s.max_players}, nickname=${s.nickname})`).join(', '));
-    }
-
-    // Also fetch ALL servers for comparison (debug)
-    const allServers = await getServers();
-    console.log(`[Servers] Total servers (no filter): ${allServers.length}`);
-    if (allServers.length > 0) {
-        console.log(`[Servers] All server details:`, allServers.map((s: any) => `${s.id} (max_players=${s.max_players}, nickname=${s.nickname})`).join(', '));
+        console.log(`[Servers] Server details:`, servers.map((s: any) => `${s.id} (max_players=${s.max_players}, nickname=${s.nickname})`).join(', '));
+    } else {
+        console.log(`[Servers] No servers found. This could mean all servers are assigned to active games, or none meet the max_players >= ${minPlayers} filter.`);
     }
 
     const serversResponse = servers.map((server: any) => ({
