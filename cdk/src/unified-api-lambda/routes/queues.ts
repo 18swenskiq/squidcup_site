@@ -31,7 +31,9 @@ import {
     getQueueWithPlayers,
     getQueue,
     getActiveGamesWithDetails,
-    getUserQueueHistory
+    getUserQueueHistory,
+    getActiveQueuesForCleanup,
+    getQueuePlayers
 } from '@squidcup/shared-lambda-utils';
 
 export async function handleQueues(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
@@ -608,14 +610,109 @@ async function handleGetQueueHistory(event: APIGatewayProxyEvent): Promise<APIGa
 async function handleQueueCleanup(event: any): Promise<APIGatewayProxyResult> {
     console.log('[QueueCleanup] Triggered by EventBridge');
 
-    // This is called by EventBridge to cleanup stale queues
-    // Implementation would mark old queues as expired
+    try {
+        const timeoutMinutes = parseInt(process.env.QUEUE_TIMEOUT_MINUTES || '10');
+        const cutoffTime = new Date(Date.now() - timeoutMinutes * 60 * 1000).toISOString();
 
-    return {
-        statusCode: 200,
-        headers: createCorsHeaders(),
-        body: JSON.stringify({ message: 'Queue cleanup completed' }),
-    };
+        console.log(`[QueueCleanup] Checking for queues inactive since ${cutoffTime}`);
+
+        const activeQueues = await getActiveQueuesForCleanup();
+
+        if (!activeQueues || activeQueues.length === 0) {
+            console.log('[QueueCleanup] No active queues found');
+            return {
+                statusCode: 200,
+                headers: createCorsHeaders(),
+                body: JSON.stringify({ message: 'No active queues found' }),
+            };
+        }
+
+        console.log(`[QueueCleanup] Found ${activeQueues.length} active queues`);
+
+        let expiredCount = 0;
+        const now = new Date().toISOString();
+
+        for (const queue of activeQueues) {
+            const gameId = queue.id;
+            const players = await getQueuePlayers(gameId);
+
+            // Determine last activity time
+            let lastActivityTime = queue.start_time;
+            if (players && players.length > 0) {
+                const mostRecentJoinTime = players
+                    .map((player: any) => player.joined_at)
+                    .sort()
+                    .reverse()[0];
+                lastActivityTime = mostRecentJoinTime > queue.start_time ? mostRecentJoinTime : queue.start_time;
+            }
+
+            const lastActivityDate = new Date(lastActivityTime);
+            const cutoffDate = new Date(cutoffTime);
+
+            if (lastActivityDate < cutoffDate) {
+                console.log(`[QueueCleanup] Queue ${gameId} inactive for ${timeoutMinutes}+ min`);
+
+                // Store timeout event for host
+                await storeQueueHistoryEvent({
+                    id: crypto.randomUUID(),
+                    gameId: gameId,
+                    playerSteamId: queue.host_steam_id,
+                    eventType: 'timeout',
+                    eventData: {
+                        gameMode: queue.game_mode,
+                        mapSelectionMode: queue.map_selection_mode,
+                        joinerCount: players.length,
+                        queueDuration: Math.floor((new Date(now).getTime() - new Date(queue.start_time).getTime()) / 60000),
+                        reason: 'inactivity_timeout'
+                    }
+                });
+
+                // Store timeout events for all other players
+                for (const player of players) {
+                    if (player.player_steam_id !== queue.host_steam_id) {
+                        await storeQueueHistoryEvent({
+                            id: crypto.randomUUID(),
+                            gameId: gameId,
+                            playerSteamId: player.player_steam_id,
+                            eventType: 'timeout',
+                            eventData: {
+                                gameMode: queue.game_mode,
+                                mapSelectionMode: queue.map_selection_mode,
+                                hostSteamId: queue.host_steam_id,
+                                queueDuration: Math.floor((new Date(now).getTime() - new Date(queue.start_time).getTime()) / 60000),
+                                reason: 'inactivity_timeout'
+                            }
+                        });
+                    }
+                }
+
+                await updateQueue(gameId, { status: 'cancelled' });
+                expiredCount++;
+                console.log(`[QueueCleanup] Cancelled queue ${gameId} (${players.length + 1} players affected)`);
+            }
+        }
+
+        console.log(`[QueueCleanup] Complete. ${expiredCount} queues expired`);
+
+        return {
+            statusCode: 200,
+            headers: createCorsHeaders(),
+            body: JSON.stringify({
+                message: 'Queue cleanup completed',
+                totalQueues: activeQueues.length,
+                expiredQueues: expiredCount,
+                activeQueues: activeQueues.length - expiredCount,
+                timeoutMinutes: timeoutMinutes,
+            }),
+        };
+    } catch (error) {
+        console.error('[QueueCleanup] Error:', error);
+        return {
+            statusCode: 500,
+            headers: createCorsHeaders(),
+            body: JSON.stringify({ error: 'Queue cleanup failed' }),
+        };
+    }
 }
 
 async function sendDiscordWebhook(gameMode: string, maxPlayers: number): Promise<void> {

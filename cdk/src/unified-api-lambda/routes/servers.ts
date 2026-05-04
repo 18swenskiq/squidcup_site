@@ -530,3 +530,68 @@ async function generateAndUploadMatchZyConfig(gameId: string, serverInfo: any): 
 
     return `https://${bucketName}.s3.amazonaws.com/${fileName}`;
 }
+
+/**
+ * Direct internal function for triggering server setup from other routes
+ * (e.g., called by lobbies.ts after map selection is complete).
+ * This avoids needing a cross-Lambda AWS SDK invocation.
+ */
+export async function triggerServerSetupInternal(gameId: string): Promise<void> {
+    console.log(`[Servers] triggerServerSetupInternal called for game: ${gameId}`);
+
+    try {
+        const serverInfo = await getServerInfoForGame(gameId);
+
+        if (!serverInfo) {
+            console.error(`[Servers] No server found for game: ${gameId}`);
+            return;
+        }
+
+        // Check for CounterStrikeSharp and MatchZy plugin
+        const rconResult = await sendRconCommand(
+            serverInfo.ip,
+            serverInfo.port,
+            serverInfo.rcon_password,
+            'css_plugins list'
+        );
+
+        if (!rconResult.success) {
+            console.error(`[Servers] RCON connection failed for game ${gameId}:`, rconResult.error);
+            return;
+        }
+
+        if (rconResult.response?.includes("Unknown command 'css_plugins'")) {
+            console.error(`[Servers] CounterStrikeSharp not installed for game ${gameId}`);
+            return;
+        }
+
+        if (!rconResult.response?.includes('Squidcup')) {
+            console.error(`[Servers] MatchZy plugin not loaded for game ${gameId}`);
+            return;
+        }
+
+        // Generate and upload MatchZy config
+        const configFileUrl = await generateAndUploadMatchZyConfig(gameId, serverInfo);
+
+        // Load the match configuration on the server
+        const loadMatchResult = await sendRconCommand(
+            serverInfo.ip,
+            serverInfo.port,
+            serverInfo.rcon_password,
+            `squidcup_loadmatch_url "${configFileUrl}"`
+        );
+
+        if (!loadMatchResult.success) {
+            console.error(`[Servers] Failed to load config for game ${gameId}:`, loadMatchResult.error);
+            return;
+        }
+
+        // Update game status to 'in_progress'
+        await updateGame(gameId, { status: 'in_progress' });
+
+        console.log(`[Servers] Server setup completed for game ${gameId}`);
+    } catch (error) {
+        console.error(`[Servers] triggerServerSetupInternal error for game ${gameId}:`, error);
+        // Don't throw — server setup failure shouldn't break map selection
+    }
+}
