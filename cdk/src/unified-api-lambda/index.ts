@@ -21,7 +21,12 @@ import { handleUsers } from './routes/users';
 import { handleAdmin } from './routes/admin';
 
 export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
-    const { path, httpMethod } = event;
+    // Normalize path: collapse double slashes (e.g. //leaveLobby → /leaveLobby)
+    const path = event.path.replace(/\/\/+/g, '/');
+    const httpMethod = event.httpMethod;
+
+    // Update event.path so downstream handlers see the normalized path
+    event.path = path;
 
     console.log(`[Router] ${httpMethod} ${path}`);
     console.log('[Router] Headers:', JSON.stringify(event.headers, null, 2));

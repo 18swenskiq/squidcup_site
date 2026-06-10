@@ -11,6 +11,7 @@ import {
     createCorsHeaders,
     getSession,
     getUser,
+    upsertUser,
     extractSteamIdFromOpenId,
     getSsmParameter
 } from '@squidcup/shared-lambda-utils';
@@ -105,13 +106,31 @@ async function handleGetProfile(event: APIGatewayProxyEvent): Promise<APIGateway
         console.warn('[Users] Failed to fetch Steam profile:', error);
     }
 
+    // Persist Steam profile data to the database so player names
+    // are available for queue/lobby name resolution
+    if (steamProfile) {
+        try {
+            await upsertUser({
+                steamId: userSteamId,
+                username: steamProfile.personaname,
+                avatar: (steamProfile as any).avatar,
+                avatarMedium: (steamProfile as any).avatarmedium,
+                avatarFull: steamProfile.avatarfull,
+                countryCode: (steamProfile as any).loccountrycode,
+                stateCode: (steamProfile as any).locstatecode,
+            });
+        } catch (error) {
+            console.warn('[Users] Failed to persist Steam profile to DB:', error);
+        }
+    }
+
     return {
         statusCode: 200,
         headers: createCorsHeaders(),
         body: JSON.stringify({
             steamId: user.steam_id,
-            username: user.username || steamProfile?.personaname || `Player_${user.steam_id.slice(-4)}`,
-            avatar: user.avatar_full || steamProfile?.avatarfull,
+            username: steamProfile?.personaname || user.username || `Player_${user.steam_id.slice(-4)}`,
+            avatar: steamProfile?.avatarfull || user.avatar_full,
             currentElo: user.current_elo || 1000,
             isAdmin: user.is_admin === true || user.is_admin === 1,
             createdAt: user.created_at

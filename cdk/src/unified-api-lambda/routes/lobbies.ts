@@ -59,7 +59,7 @@ export async function handleLobbies(event: APIGatewayProxyEvent): Promise<APIGat
             return await handleCreateLobby(event);
         }
 
-        if (method === 'POST' && path === '/leaveLobby') {
+        if ((method === 'POST' || method === 'DELETE') && path === '/leaveLobby') {
             return await handleLeaveLobby(event);
         }
 

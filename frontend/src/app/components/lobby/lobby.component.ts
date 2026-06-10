@@ -750,11 +750,10 @@ export class LobbyComponent implements OnInit, OnDestroy, OnChanges {
 
     const headers = this.getAuthHeaders();
     
-    this.http.delete(`${this.apiBaseUrl}/leaveLobby`, {
-      headers,
-      body: JSON.stringify({
-        gameId: this.lobby.id  // Use gameId to match backend expectations
-      })
+    this.http.post(`${this.apiBaseUrl}/leaveLobby`, {
+      gameId: this.lobby.id
+    }, {
+      headers
     }).subscribe({
       next: (response: any) => {
         console.log('Left lobby successfully', response);
